@@ -17,8 +17,24 @@
         <ColumnDefinition Width="1*" />
         <ColumnDefinition Width="2*" />
       </Grid.ColumnDefinitions>
-      
-      <TextBlock Grid.Column="0">Hello</TextBlock>
+      <TabControl Grid.Column="0">
+        <TabItem Header="Source Selection">
+          <StackPanel>
+            <Button Content="Browse" 
+                    HorizontalAlignment="Center" 
+                    VerticalAlignment="Top" 
+                    Click="BrowseButton_Click"/>
+            <!-- Add other controls for source selection here -->
+          </StackPanel>
+        </TabItem>
+        <TabItem Header="Ignore">
+          <CheckBox>Ignore WEs?</CheckBox>
+        </TabItem>
+        <TabItem Header="Plot Options">
+          
+        </TabItem>
+        <!-- You can add more TabItems here if needed -->
+      </TabControl> 
       <ScottPlot:AvaPlot Name="AvaPlot" Grid.Column="1"></ScottPlot:AvaPlot>
       <!-- <TextBlock Grid.Column="1"></TextBlock> -->
     </Grid>
