@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -13,7 +14,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        
+
         double[] dataX = new double[] { 1, 2, 3, 4, 5 };
         double[] dataY = new double[] { 1, 4, 9, 16, 25 };
 
@@ -44,8 +45,12 @@ public partial class MainWindow : Window
         if (result.Any())
         {
             // Get the selected file path
-            var filePath = result.FirstOrDefault();
+            IStorageFile? filePath = result.FirstOrDefault();
 
+            if (filePath != default(IStorageFile?))
+            {
+                MainChart.AddSource(filePath.Path.AbsolutePath);
+            }
             // Handle the file path (e.g., updating the ViewModel)
         }
     }
