@@ -8,7 +8,6 @@
         x:Class="csvplot.MainWindow"
         x:DataType="csvplot:MainViewModel"
         Title="csvplot">
-        
   <Grid>
       <Grid.RowDefinitions>
         <RowDefinition Height="1*" />
@@ -24,7 +23,15 @@
                     HorizontalAlignment="Center" 
                     VerticalAlignment="Top" 
                     Click="BrowseButton_Click"/>
+            
             <!-- Add other controls for source selection here -->
+            <ItemsControl ItemsSource="{Binding Sources}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Expander Header="{Binding Header}"></Expander>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
         </TabItem>
         <TabItem Header="Ignore">

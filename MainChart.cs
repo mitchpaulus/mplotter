@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using ScottPlot.Avalonia;
@@ -8,31 +9,35 @@ namespace csvplot;
 
 public static class MainChart
 {
-    private static List<string> _sources = new List<string>();
-
-    public static AvaPlot Plot = new();
-
-    public static void AddSource(string source)
-    {
-        _sources.Add(source);
-    }
 }
 
 
-public class SimpleDelimitedFile
+public class SimpleDelimitedFile : IDataSource
 {
-    private readonly string _source;
+    public List<string> Trends { get; }
 
     public SimpleDelimitedFile(string source)
     {
-        _source = source;
+        Header = source;
+        using FileStream stream = new(Header, FileMode.Open);
+        var sr = new StreamReader(stream);
+        var headerLine = sr.ReadLine();
+
+        if (headerLine is not null)
+        {
+            string[] splitHeader = headerLine.Split('\t');
+            Trends = splitHeader.ToList();
+        }
+        else
+        {
+            Trends = Array.Empty<string>().ToList();
+        }
     }
 
     public double[] GetData(string trend)
     {
-        using FileStream stream = new FileStream(_source, FileMode.Open);
+        using FileStream stream = new FileStream(Header, FileMode.Open);
         var sr = new StreamReader(stream);
-
         var headerLine = sr.ReadLine();
 
         if (headerLine is null) return Array.Empty<double>();
@@ -54,7 +59,19 @@ public class SimpleDelimitedFile
 
         return values.ToArray();
     }
+
+    public string Header { get; }
 }
+
+public interface IDataSource
+{
+    List<string> Trends { get; } 
+
+    double[] GetData(string trend);
+    
+    string Header { get; }
+}
+
 
 public static class Extensions
 {

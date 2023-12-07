@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -11,9 +12,13 @@ namespace csvplot;
 
 public partial class MainWindow : Window
 {
+    private readonly MainViewModel _vm = new();
+    
     public MainWindow()
     {
         InitializeComponent();
+
+        DataContext = _vm;
 
         double[] dataX = new double[] { 1, 2, 3, 4, 5 };
         double[] dataY = new double[] { 1, 4, 9, 16, 25 };
@@ -45,11 +50,13 @@ public partial class MainWindow : Window
         if (result.Any())
         {
             // Get the selected file path
-            IStorageFile? filePath = result.FirstOrDefault();
+            IStorageFile? filePath = result[0];
+
+            SimpleDelimitedFile file = new SimpleDelimitedFile(filePath.Path.LocalPath);
 
             if (filePath != default(IStorageFile?))
             {
-                MainChart.AddSource(filePath.Path.AbsolutePath);
+                _vm.Sources.Add(file);
             }
             // Handle the file path (e.g., updating the ViewModel)
         }

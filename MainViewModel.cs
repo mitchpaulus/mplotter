@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ScottPlot;
@@ -9,6 +10,16 @@ namespace csvplot;
 
 public class MainViewModel : INotifyPropertyChanged
 {
+    public ObservableCollection<IDataSource> Sources { get; } = new();
+
+    public static AvaPlot Plot = new();
+
+    public void AddSource(string source)
+    {
+        SimpleDelimitedFile file = new(source);
+        Sources.Add(file);
+    }
+    
     public MainViewModel()
     {
         AvaPlot p = new AvaPlot();
