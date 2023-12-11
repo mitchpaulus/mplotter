@@ -28,7 +28,7 @@
                     <Button Grid.Row="0" Content="Browse"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Top"
-                            Click="BrowseButton_Click" />
+                            Command="{Binding BrowseButton_Click}" />
 
                     <TextBox Grid.Row="1" Text="{Binding TrendFilter}" Watermark="Search.."></TextBox>
 

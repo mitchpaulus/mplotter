@@ -1,21 +1,152 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Microsoft.CodeAnalysis;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
+using ScottPlot.Statistics;
 
 namespace csvplot;
 
 public class MainViewModel : INotifyPropertyChanged
 {
-    public ObservableCollection<DataSourceViewModel> Sources { get; } = new();
+    private readonly AvaPlot _avaPlot;
+    private readonly IStorageProvider _storageProvider;
 
-    public static AvaPlot Plot = new();
+    public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider)
+    {
+        _avaPlot = avaPlot;
+        _storageProvider = storageProvider;
+    }
+
+    public void UpdatePlots()
+    {
+        _avaPlot.Plot.Clear();
+
+
+
+        // double[] dataX = new double[] { 1, 2, 3, 4, 5 };
+        // double[] dataY = new double[] { 1, 4, 9, 16, 25 };
+
+        // double[] dataY = RandomDataGenerator.Generate.RandomSample(5, 25);
+
+        // Middle click to reset axis limits
+        // var scatter = _avaPlot.Plot.Add.Scatter(dataX, dataY);
+
+        var series = new List<BarSeries>();
+
+        foreach (var source in Sources)
+        {
+            List<TrendItemViewModel> selectedTrends = source.Trends.Where(model => source.CheckedTrends.Contains(model.Name)).ToList();
+
+            foreach (var t in selectedTrends)
+            {
+                var data = source.DataSource.GetData(t.Name);
+
+                if (_isTs || _isXy)
+                {
+                    _avaPlot.Plot.Add.Scatter(data.Select((d, i) => (double) i).ToArray(), data);
+                }
+                else if (_isHistogram)
+                {
+
+                    double min;
+                    double max;
+                    if (data.Length > 0)
+                    {
+                        min = data.Min();
+                        max = data.Max();
+                        if (Math.Abs(min - max) < 0.00000001)
+                        {
+                            max = min + 1;
+                        }
+                    }
+                    else
+                    {
+                        min = 0;
+                        max = 1;
+                    }
+
+                    var hist = new Histogram(min, max, 50);
+
+                    hist.AddRange(data);
+
+                    var values = hist.Counts;
+                    var binCenters = hist.BinCenters;
+
+                    List<Bar> s = new(binCenters.Length);
+                    for (int i = 0; i < values.Length; i++)
+                    {
+                        Bar bar = new()
+                        {
+
+                        };
+
+                        s.Add(new Bar()
+                        {
+                            Value = values[i],
+                            Position = binCenters[i],
+                        });
+
+                    }
+
+                    var barSeries = new BarSeries {Bars = s, Label = t.Name};
+                    series.Add(barSeries);
+                    BarPlot barPlot = _avaPlot.Plot.Add.Bar(series);
+                }
+                // double min;
+                // double max;
+                // if (data.Length > 0)
+                // {
+                //     min = data.Min();
+                //     max = data.Max();
+                //     if (Math.Abs(min - max) < 0.00000001)
+                //     {
+                //         max = min + 1;
+                //     }
+                // }
+                // else
+                // {
+                //     min = 0;
+                //     max = 1;
+                // }
+                //
+                // var hist = new Histogram(min, max, 50);
+                //
+                // var values = hist.Counts;
+                // var binCenters = hist.BinCenters;
+                //
+                // List<Bar> s = new(binCenters.Length);
+                // for (int i = 0; i < values.Length; i++)
+                // {
+                //     s.Add(new Bar()
+                //     {
+                //         Value = values[i],
+                //         Position = binCenters[i]
+                //     });
+                // }
+                //
+                // series.Add(new BarSeries() { Bars = s });
+            }
+
+            // var barChart = _avaPlot.Plot.Add.Bar(series);
+            // _avaPlot.Refresh();
+        }
+
+        _avaPlot.Plot.XLabel("TIME");
+        _avaPlot.Plot.AutoScale();
+        _avaPlot.Refresh();
+    }
+
+    public ObservableCollection<DataSourceViewModel> Sources { get; } = new();
 
     private string _trendFilter = "";
     public string TrendFilter
@@ -96,7 +227,13 @@ public class MainViewModel : INotifyPropertyChanged
     public bool IsHistogram
     {
         get => _isHistogram;
-        set => SetField(ref _isHistogram, value);
+        set
+        {
+            if (SetField(ref _isHistogram, value))
+            {
+                UpdatePlots();
+            }
+        }
     }
 
     private bool _isTs = false;
@@ -104,7 +241,13 @@ public class MainViewModel : INotifyPropertyChanged
     public bool IsTs
     {
         get => _isTs;
-        set => SetField(ref _isTs, value);
+        set
+        {
+            if (SetField(ref _isTs, value))
+            {
+                UpdatePlots();
+            }
+        }
     }
 
     private bool _isXy = false;
@@ -112,20 +255,26 @@ public class MainViewModel : INotifyPropertyChanged
     public bool IsXy
     {
         get => _isXy;
-        set => SetField(ref _isXy, value);
+        set
+        {
+            if (SetField(ref _isXy, value))
+            {
+                UpdatePlots();
+            }
+        }
     }
 
 
-    public MainViewModel()
-    {
-        AvaPlot p = new AvaPlot();
-        double[] dataX = new double[] { 1, 2, 3, 4, 5 };
-        double[] dataY = new double[] { 1, 4, 9, 16, 25 };
-        p.Plot.Add.Scatter(dataX, dataY);
-        p.Refresh();
-
-        Model = p;
-    }
+    // public MainViewModel()
+    // {
+    //     AvaPlot p = new AvaPlot();
+    //     double[] dataX = new double[] { 1, 2, 3, 4, 5 };
+    //     double[] dataY = new double[] { 1, 4, 9, 16, 25 };
+    //     p.Plot.Add.Scatter(dataX, dataY);
+    //     p.Refresh();
+    //
+    //     Model = p;
+    // }
 
     private AvaPlot? _model;
     /// <summary>
@@ -158,10 +307,36 @@ public class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(propertyName);
         return true;
     }
+
+    public async void BrowseButton_Click()
+    {
+        // Use StorageProvider to show the dialog
+        var result = await _storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
+        {
+            FileTypeFilter = new []{ MainWindow.DateFileTypes }
+        } );
+
+        if (result.Any())
+        {
+            // Get the selected file path
+            IStorageFile? filePath = result[0];
+
+            SimpleDelimitedFile file = new SimpleDelimitedFile(filePath.Path.LocalPath);
+
+            if (filePath != default(IStorageFile?))
+            {
+                Sources.Add(new(file, this));
+            }
+            // Handle the file path (e.g., updating the ViewModel)
+        }
+    }
+
+
 }
 
 public class DataSourceViewModel : INotifyPropertyChanged
 {
+    public readonly MainViewModel MainViewModel;
     public IDataSource DataSource { get; }
     public string Header { get; set; }
 
@@ -176,13 +351,11 @@ public class DataSourceViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(FilteredTrends));
     }
 
-    public ObservableCollection<TrendItemViewModel> FilteredTrends
-    {
-        get => FilteredTrendBuffer;
-    }
+    public ObservableCollection<TrendItemViewModel> FilteredTrends => FilteredTrendBuffer;
 
-    public DataSourceViewModel(IDataSource dataSource)
+    public DataSourceViewModel(IDataSource dataSource, MainViewModel mainViewModel)
     {
+        MainViewModel = mainViewModel;
         DataSource = dataSource;
         Header = dataSource.Header;
         Trends = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel(t, this)));
@@ -224,6 +397,7 @@ public class TrendItemViewModel : INotifyPropertyChanged
                 _dataSourceViewModel.CheckedTrends.Remove(Name);
             }
             OnPropertyChanged();
+            _dataSourceViewModel.MainViewModel.UpdatePlots();
         }
     }
 
