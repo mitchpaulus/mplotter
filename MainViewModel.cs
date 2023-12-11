@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using ScottPlot;
 using ScottPlot.Avalonia;
@@ -19,7 +20,7 @@ public class MainViewModel : INotifyPropertyChanged
         SimpleDelimitedFile file = new(source);
         Sources.Add(file);
     }
-    
+
     public MainViewModel()
     {
         AvaPlot p = new AvaPlot();
@@ -30,7 +31,7 @@ public class MainViewModel : INotifyPropertyChanged
 
         Model = p;
     }
-    
+
     private AvaPlot? _model;
     /// <summary>
     /// Gets the plot model.
@@ -47,7 +48,41 @@ public class MainViewModel : INotifyPropertyChanged
             }
         }
     }
-    
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
+    }
+}
+
+public class DataSourceViewModel
+{
+    public IDataSource DataSource { get; }
+
+    public ObservableCollection<TrendItemViewModel> Trends { get; }
+
+    public DataSourceViewModel(IDataSource dataSource)
+    {
+        DataSource = dataSource;
+        Trends = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel {Name = t}));
+    }
+
+}
+
+public class TrendItemViewModel : INotifyPropertyChanged
+{
+    public string Name { get; set; }
+    public bool Checked { get; set; }
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)

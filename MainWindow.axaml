@@ -16,34 +16,47 @@
         <ColumnDefinition Width="1*" />
         <ColumnDefinition Width="2*" />
       </Grid.ColumnDefinitions>
-      <TabControl Grid.Column="0">
-        <TabItem Header="Source Selection">
-          <StackPanel>
-            <Button Content="Browse" 
-                    HorizontalAlignment="Center" 
-                    VerticalAlignment="Top" 
-                    Click="BrowseButton_Click"/>
-            
-            <!-- Add other controls for source selection here -->
-            <ItemsControl ItemsSource="{Binding Sources}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Expander Header="{Binding Header}"></Expander>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-        </TabItem>
-        <TabItem Header="Ignore">
-          <CheckBox>Ignore WEs?</CheckBox>
-        </TabItem>
-        <TabItem Header="Plot Options">
-          
-        </TabItem>
-        <!-- You can add more TabItems here if needed -->
-      </TabControl> 
+      <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Column="0">
+        <TabControl>
+          <TabItem Header="Source Selection">
+            <StackPanel>
+              <Button Content="Browse"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Top"
+                      Click="BrowseButton_Click"/>
+
+              <!-- Add other controls for source selection here -->
+              <ItemsControl ItemsSource="{Binding Sources}">
+                <!-- Need a delete button for each source -->
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Expander Header="{Binding Header}">
+                      <StackPanel>
+                        <!-- Generate a checkbox item for each Trend for the current source -->
+                        <ItemsControl ItemsSource="{Binding Trends}">
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <CheckBox Content="{Binding}" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Expander>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </TabItem>
+          <TabItem Header="Ignore">
+            <CheckBox>Ignore WEs?</CheckBox>
+          </TabItem>
+          <TabItem Header="Plot Options">
+
+          </TabItem>
+          <!-- You can add more TabItems here if needed -->
+        </TabControl>
+      </ScrollViewer>
       <ScottPlot:AvaPlot Name="AvaPlot" Grid.Column="1"></ScottPlot:AvaPlot>
       <!-- <TextBlock Grid.Column="1"></TextBlock> -->
     </Grid>
-  
 </Window>
