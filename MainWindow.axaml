@@ -8,55 +8,72 @@
         x:Class="csvplot.MainWindow"
         x:DataType="csvplot:MainViewModel"
         Title="csvplot">
-  <Grid>
-      <Grid.RowDefinitions>
-        <RowDefinition Height="1*" />
-      </Grid.RowDefinitions>
-      <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="1*" />
-        <ColumnDefinition Width="2*" />
-      </Grid.ColumnDefinitions>
-      <ScrollViewer VerticalScrollBarVisibility="Auto" Grid.Column="0">
-        <TabControl>
-          <TabItem Header="Source Selection">
-            <StackPanel>
-              <Button Content="Browse"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Top"
-                      Click="BrowseButton_Click"/>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*" />
+            <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+        <TabControl Grid.Column="0">
+            <TabItem Header="Source Selection">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"></RowDefinition>
+                        <RowDefinition Height="Auto"></RowDefinition>
+                        <RowDefinition Height="*"></RowDefinition>
+                    </Grid.RowDefinitions>
 
-              <!-- Add other controls for source selection here -->
-              <ItemsControl ItemsSource="{Binding Sources}">
-                <!-- Need a delete button for each source -->
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate>
-                    <Expander Header="{Binding Header}">
-                      <StackPanel>
-                        <!-- Generate a checkbox item for each Trend for the current source -->
-                        <ItemsControl ItemsSource="{Binding Trends}">
-                          <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                              <CheckBox Content="{Binding Name}" IsChecked="{Binding Checked}" />
-                            </DataTemplate>
-                          </ItemsControl.ItemTemplate>
+                    <Button Grid.Row="0" Content="Browse"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Top"
+                            Click="BrowseButton_Click" />
+
+                    <TextBox Grid.Row="1" Text="{Binding TrendFilter}" Watermark="Search.."></TextBox>
+
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <!-- Add other controls for source selection here -->
+                        <ItemsControl ItemsSource="{Binding Sources}">
+                            <!-- Need a delete button for each source -->
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Expander Header="{Binding Header}">
+                                        <StackPanel>
+                                            <!-- Generate a checkbox item for each Trend for the current source -->
+                                            <ItemsControl ItemsSource="{Binding FilteredTrends}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <CheckBox Content="{Binding Name}"
+                                                                  IsChecked="{Binding Checked}" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Expander>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                      </StackPanel>
-                    </Expander>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </StackPanel>
-          </TabItem>
-          <TabItem Header="Ignore">
-            <CheckBox>Ignore WEs?</CheckBox>
-          </TabItem>
-          <TabItem Header="Plot Options">
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+            <TabItem Header="Ignore">
+                <StackPanel>
+                    <CheckBox>Ignore Monday?</CheckBox>
+                    <CheckBox>Ignore Tuesday?</CheckBox>
+                    <CheckBox>Ignore Wednesday?</CheckBox>
+                    <CheckBox>Ignore Thursday?</CheckBox>
+                    <CheckBox>Ignore Friday?</CheckBox>
+                    <CheckBox>Ignore Saturday?</CheckBox>
+                    <CheckBox>Ignore Sunday?</CheckBox>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="Plot Options">
 
-          </TabItem>
-          <!-- You can add more TabItems here if needed -->
+            </TabItem>
+            <!-- You can add more TabItems here if needed -->
         </TabControl>
-      </ScrollViewer>
-      <ScottPlot:AvaPlot Name="AvaPlot" Grid.Column="1"></ScottPlot:AvaPlot>
-      <!-- <TextBlock Grid.Column="1"></TextBlock> -->
+        <ScottPlot:AvaPlot Name="AvaPlot" Grid.Column="1"></ScottPlot:AvaPlot>
+        <!-- <TextBlock Grid.Column="1"></TextBlock> -->
     </Grid>
 </Window>
