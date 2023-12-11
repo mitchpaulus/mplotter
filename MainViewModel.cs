@@ -40,8 +40,81 @@ public class MainViewModel : INotifyPropertyChanged
                 }
             };
         }
-
     }
+
+    private bool _ignoreMonday = false;
+    public bool IgnoreMonday
+    {
+        get => _ignoreMonday;
+        set => SetField(ref _ignoreMonday, value);
+    }
+
+    private bool _ignoreTuesday = false;
+    public bool IgnoreTuesday
+    {
+        get => _ignoreTuesday;
+        set => SetField(ref _ignoreTuesday, value);
+    }
+
+    private bool _ignoreWednesday = false;
+    public bool IgnoreWednesday
+    {
+        get => _ignoreWednesday;
+        set => SetField(ref _ignoreWednesday, value);
+    }
+
+    private bool _ignoreThursday = false;
+    public bool IgnoreThursday
+    {
+        get => _ignoreThursday;
+        set => SetField(ref _ignoreThursday, value);
+    }
+
+    private bool _ignoreFriday = false;
+    public bool IgnoreFriday
+    {
+        get => _ignoreFriday;
+        set => SetField(ref _ignoreFriday, value);
+    }
+
+    private bool _ignoreSaturday = false;
+    public bool IgnoreSaturday
+    {
+        get => _ignoreSaturday;
+        set => SetField(ref _ignoreSaturday, value);
+    }
+
+    private bool _ignoreSunday = false;
+    public bool IgnoreSunday
+    {
+        get => _ignoreSunday;
+        set => SetField(ref _ignoreSunday, value);
+    }
+
+    private bool _isHistogram = true;
+
+    public bool IsHistogram
+    {
+        get => _isHistogram;
+        set => SetField(ref _isHistogram, value);
+    }
+
+    private bool _isTs = false;
+
+    public bool IsTs
+    {
+        get => _isTs;
+        set => SetField(ref _isTs, value);
+    }
+
+    private bool _isXy = false;
+
+    public bool IsXy
+    {
+        get => _isXy;
+        set => SetField(ref _isXy, value);
+    }
+
 
     public MainViewModel()
     {
@@ -90,8 +163,10 @@ public class MainViewModel : INotifyPropertyChanged
 public class DataSourceViewModel : INotifyPropertyChanged
 {
     public IDataSource DataSource { get; }
-
     public string Header { get; set; }
+
+    public HashSet<string> CheckedTrends = new();
+
     public ObservableCollection<TrendItemViewModel> Trends { get; }
 
     public readonly ObservableCollection<TrendItemViewModel> FilteredTrendBuffer;
@@ -110,8 +185,8 @@ public class DataSourceViewModel : INotifyPropertyChanged
     {
         DataSource = dataSource;
         Header = dataSource.Header;
-        Trends = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel(t)));
-        FilteredTrendBuffer = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel(t)));
+        Trends = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel(t, this)));
+        FilteredTrendBuffer = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel(t, this)));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -132,23 +207,29 @@ public class DataSourceViewModel : INotifyPropertyChanged
 
 public class TrendItemViewModel : INotifyPropertyChanged
 {
+    private readonly DataSourceViewModel _dataSourceViewModel;
     public string Name { get; set; }
 
-    private bool _checked;
     public bool Checked
     {
-        get => _checked;
+        get => _dataSourceViewModel.CheckedTrends.Contains(Name);
         set
         {
-            if (SetField(ref _checked, value))
+            if (value)
             {
-                // Run this.
+                _dataSourceViewModel.CheckedTrends.Add(Name);
             }
+            else
+            {
+                _dataSourceViewModel.CheckedTrends.Remove(Name);
+            }
+            OnPropertyChanged();
         }
     }
 
-    public TrendItemViewModel(string name)
+    public TrendItemViewModel(string name, DataSourceViewModel dataSourceViewModel)
     {
+        _dataSourceViewModel = dataSourceViewModel;
         Name = name;
     }
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -17,7 +17,7 @@
             <ColumnDefinition Width="2*" />
         </Grid.ColumnDefinitions>
         <TabControl Grid.Column="0">
-            <TabItem Header="Source Selection">
+            <TabItem Header="Source">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"></RowDefinition>
@@ -59,17 +59,36 @@
             </TabItem>
             <TabItem Header="Ignore">
                 <StackPanel>
-                    <CheckBox>Ignore Monday?</CheckBox>
-                    <CheckBox>Ignore Tuesday?</CheckBox>
-                    <CheckBox>Ignore Wednesday?</CheckBox>
-                    <CheckBox>Ignore Thursday?</CheckBox>
-                    <CheckBox>Ignore Friday?</CheckBox>
-                    <CheckBox>Ignore Saturday?</CheckBox>
-                    <CheckBox>Ignore Sunday?</CheckBox>
+                    <CheckBox IsChecked="{Binding IgnoreMonday}">Ignore Monday?</CheckBox>
+                    <CheckBox IsChecked="{Binding IgnoreTuesday}">Ignore Tuesday?</CheckBox>
+                    <CheckBox IsChecked="{Binding IgnoreWednesday}">Ignore Wednesday?</CheckBox>
+                    <CheckBox IsChecked="{Binding IgnoreThursday}">Ignore Thursday?</CheckBox>
+                    <CheckBox IsChecked="{Binding IgnoreFriday}">Ignore Friday?</CheckBox>
+                    <CheckBox IsChecked="{Binding IgnoreSaturday}">Ignore Saturday?</CheckBox>
+                    <CheckBox IsChecked="{Binding IgnoreSunday}">Ignore Sunday?</CheckBox>
                 </StackPanel>
             </TabItem>
-            <TabItem Header="Plot Options">
-
+            <TabItem Header="Dates">
+                <WrapPanel>
+                    <Button>Jan</Button>
+                    <Button>Feb</Button>
+                    <Button>Mar</Button>
+                    <Button>May</Button>
+                    <Button>Jun</Button>
+                    <Button>Jul</Button>
+                    <Button>Aug</Button>
+                    <Button>Sep</Button>
+                    <Button>Oct</Button>
+                    <Button>Nov</Button>
+                    <Button>Dec</Button>
+                </WrapPanel>
+            </TabItem>
+            <TabItem Header="Plot Type">
+                <StackPanel>
+                    <RadioButton Content="Histogram" IsChecked="{Binding IsHistogram}"></RadioButton>
+                    <RadioButton Content="TS" IsChecked="{Binding IsTs}"></RadioButton>
+                    <RadioButton Content="XY" IsChecked="{Binding IsXy}"></RadioButton>
+                </StackPanel>
             </TabItem>
             <!-- You can add more TabItems here if needed -->
         </TabControl>

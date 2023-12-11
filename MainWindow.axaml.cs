@@ -10,6 +10,9 @@ using ScottPlot.Avalonia;
 
 namespace csvplot;
 
+
+
+
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm = new();
