@@ -36,7 +36,7 @@
                         <ItemsControl ItemsSource="{Binding Trends}">
                           <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                              <CheckBox Content="{Binding}" />
+                              <CheckBox Content="{Binding Name}" IsChecked="{Binding Checked}" />
                             </DataTemplate>
                           </ItemsControl.ItemTemplate>
                         </ItemsControl>

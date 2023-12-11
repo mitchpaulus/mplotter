@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using ScottPlot;
 using ScottPlot.Avalonia;
@@ -11,15 +12,9 @@ namespace csvplot;
 
 public class MainViewModel : INotifyPropertyChanged
 {
-    public ObservableCollection<IDataSource> Sources { get; } = new();
+    public ObservableCollection<DataSourceViewModel> Sources { get; } = new();
 
     public static AvaPlot Plot = new();
-
-    public void AddSource(string source)
-    {
-        SimpleDelimitedFile file = new(source);
-        Sources.Add(file);
-    }
 
     public MainViewModel()
     {
@@ -69,20 +64,38 @@ public class DataSourceViewModel
 {
     public IDataSource DataSource { get; }
 
+    public string Header { get; set; }
     public ObservableCollection<TrendItemViewModel> Trends { get; }
 
     public DataSourceViewModel(IDataSource dataSource)
     {
         DataSource = dataSource;
-        Trends = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel {Name = t}));
+        Header = dataSource.Header;
+        Trends = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel(t)));
     }
-
 }
 
 public class TrendItemViewModel : INotifyPropertyChanged
 {
     public string Name { get; set; }
-    public bool Checked { get; set; }
+
+    private bool _checked;
+    public bool Checked
+    {
+        get => _checked;
+        set
+        {
+            if (SetField(ref _checked, value))
+            {
+                // Run this.
+            }
+        }
+    }
+
+    public TrendItemViewModel(string name)
+    {
+        Name = name;
+    }
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)

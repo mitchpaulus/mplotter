@@ -13,7 +13,7 @@ namespace csvplot;
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm = new();
-    
+
     public MainWindow()
     {
         InitializeComponent();
@@ -56,7 +56,7 @@ public partial class MainWindow : Window
 
             if (filePath != default(IStorageFile?))
             {
-                _vm.Sources.Add(file);
+                _vm.Sources.Add(new(file));
             }
             // Handle the file path (e.g., updating the ViewModel)
         }
