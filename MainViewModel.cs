@@ -20,18 +20,18 @@ namespace csvplot;
 
 public class MainViewModel : INotifyPropertyChanged
 {
-    private readonly AvaPlot _avaPlot;
+    public readonly AvaPlot AvaPlot;
     private readonly IStorageProvider _storageProvider;
 
     public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider)
     {
-        _avaPlot = avaPlot;
+        AvaPlot = avaPlot;
         _storageProvider = storageProvider;
     }
 
     public void UpdatePlots()
     {
-        _avaPlot.Plot.Clear();
+        AvaPlot.Plot.Clear();
 
         // double[] dataX = new double[] { 1, 2, 3, 4, 5 };
         // double[] dataY = new double[] { 1, 4, 9, 16, 25 };
@@ -56,11 +56,11 @@ public class MainViewModel : INotifyPropertyChanged
              if (_isTs)
              {
                  if (data.Length == 8760) {
-                     _avaPlot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
+                     AvaPlot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
                  }
 
                  DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
-                 var scatter = _avaPlot.Plot.Add.Scatter(data.Select((d, i) => (dateTimeStart + new TimeSpan(0, i, 0, 0)).ToOADate()).ToArray(), data);
+                 var scatter = AvaPlot.Plot.Add.Scatter(data.Select((d, i) => (dateTimeStart + new TimeSpan(0, i, 0, 0)).ToOADate()).ToArray(), data);
 
                  if (selectedTrends.Count(tuple => tuple.t.Name == t.Name) < 2)
                  {
@@ -117,16 +117,112 @@ public class MainViewModel : INotifyPropertyChanged
 
                  var barSeries = new BarSeries {Bars = s, Label = t.Name};
                  series.Add(barSeries);
-                 BarPlot barPlot = _avaPlot.Plot.Add.Bar(series);
+                 BarPlot barPlot = AvaPlot.Plot.Add.Bar(series);
              }
         }
 
-        _avaPlot.Plot.Legend.IsVisible = seriesCount > 1;
-        _avaPlot.Plot.YAxis.Label.Text = seriesCount == 1 ? selectedTrends[0].t.Name : "";
+        AvaPlot.Plot.Legend.IsVisible = seriesCount > 1;
+        AvaPlot.Plot.YAxis.Label.Text = seriesCount == 1 ? selectedTrends[0].t.Name : "";
 
-        _avaPlot.Plot.XLabel("TIME");
-        _avaPlot.Plot.AutoScale();
-        _avaPlot.Refresh();
+        AvaPlot.Plot.XLabel("TIME");
+        AvaPlot.Plot.AutoScale();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeJan()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 1, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 2, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeFeb()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 2, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 3, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeMar()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 3, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 4, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeApr()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 4, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 5, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeMay()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 5, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 6, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeJun()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 6, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 7, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeJul()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 7, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 8, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeAug()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 8, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 9, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeSep()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 9, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 10, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeOct()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 10, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 11, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeNov()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 11, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 12, 1).ToOADate();
+        AvaPlot.Refresh();
+    }
+
+    public void MakeDec()
+    {
+        int currentYear = DateTime.Now.Year;
+        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 12, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
+        AvaPlot.Refresh();
     }
 
     public ObservableCollection<DataSourceViewModel> Sources { get; } = new();

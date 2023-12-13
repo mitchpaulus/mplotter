@@ -71,17 +71,18 @@
             </TabItem>
             <TabItem Header="Dates">
                 <WrapPanel>
-                    <Button>Jan</Button>
-                    <Button>Feb</Button>
-                    <Button>Mar</Button>
-                    <Button>May</Button>
-                    <Button>Jun</Button>
-                    <Button>Jul</Button>
-                    <Button>Aug</Button>
-                    <Button>Sep</Button>
-                    <Button>Oct</Button>
-                    <Button>Nov</Button>
-                    <Button>Dec</Button>
+                    <Button Command="{Binding MakeJan}">Jan</Button>
+                    <Button Command="{Binding MakeFeb}">Feb</Button>
+                    <Button Command="{Binding MakeMar}">Mar</Button>
+                    <Button Command="{Binding MakeApr}">Apr</Button>
+                    <Button Command="{Binding MakeMay}">May</Button>
+                    <Button Command="{Binding MakeJun}">Jun</Button>
+                    <Button Command="{Binding MakeJul}">Jul</Button>
+                    <Button Command="{Binding MakeAug}">Aug</Button>
+                    <Button Command="{Binding MakeSep}">Sep</Button>
+                    <Button Command="{Binding MakeOct}">Oct</Button>
+                    <Button Command="{Binding MakeNov}">Nov</Button>
+                    <Button Command="{Binding MakeDec}">Dec</Button>
                 </WrapPanel>
             </TabItem>
             <TabItem Header="Plot Type">
