@@ -134,6 +134,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 1, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 2, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "January";
         AvaPlot.Refresh();
     }
 
@@ -142,6 +143,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 2, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 3, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "February";
         AvaPlot.Refresh();
     }
 
@@ -150,6 +152,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 3, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 4, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "March";
         AvaPlot.Refresh();
     }
 
@@ -158,6 +161,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 4, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 5, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "April";
         AvaPlot.Refresh();
     }
 
@@ -166,6 +170,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 5, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 6, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "May";
         AvaPlot.Refresh();
     }
 
@@ -174,6 +179,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 6, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 7, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "June";
         AvaPlot.Refresh();
     }
 
@@ -182,6 +188,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 7, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 8, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "July";
         AvaPlot.Refresh();
     }
 
@@ -190,6 +197,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 8, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 9, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "August";
         AvaPlot.Refresh();
     }
 
@@ -198,6 +206,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 9, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 10, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "September";
         AvaPlot.Refresh();
     }
 
@@ -206,6 +215,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 10, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 11, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "October";
         AvaPlot.Refresh();
     }
 
@@ -214,6 +224,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 11, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 12, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "November";
         AvaPlot.Refresh();
     }
 
@@ -222,6 +233,7 @@ public class MainViewModel : INotifyPropertyChanged
         int currentYear = DateTime.Now.Year;
         AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 12, 1).ToOADate();
         AvaPlot.Plot.XAxis.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
+        AvaPlot.Plot.XAxis.Label.Text = "December";
         AvaPlot.Refresh();
     }
 

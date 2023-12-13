@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
@@ -83,8 +84,15 @@ public partial class MainWindow : Window
                     var newMaxDate = maxOaDate.AddMonths(-monthDiff);
 
                     _vm.AvaPlot.Plot.SetAxisLimits(newMinDate.ToOADate(), newMaxDate.ToOADate());
+
+                    if (monthDiff == 1)
+                    {
+                        _vm.AvaPlot.Plot.XAxis.Label.Text = MonthNames.Names[newMinDate.Month - 1];
+                    }
+
                     _vm.AvaPlot.Refresh();
                 }
+
             }
 
         }
@@ -108,9 +116,33 @@ public partial class MainWindow : Window
                     var newMaxDate = maxOaDate.AddMonths(monthDiff);
 
                     _vm.AvaPlot.Plot.SetAxisLimits(newMinDate.ToOADate(), newMaxDate.ToOADate());
+
+                    if (monthDiff == 1)
+                    {
+                        _vm.AvaPlot.Plot.XAxis.Label.Text = MonthNames.Names[newMinDate.Month - 1];
+                    }
+
                     _vm.AvaPlot.Refresh();
                 }
             }
         }
     }
+}
+
+public static class MonthNames
+{
+    public static readonly List<string> Names = new()
+    {
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "November",
+        "December"
+    };
 }
