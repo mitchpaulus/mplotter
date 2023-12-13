@@ -16,6 +16,25 @@ public class SimpleDelimitedFile : IDataSource
 {
     public List<string> Trends { get; }
 
+    public string ShortName
+    {
+        get
+        {
+            // Assume Windows Path
+            if (Header.Contains("\\"))
+            {
+                return Header.Split('\\').Last();
+            }
+
+            if (Header.Contains('/'))
+            {
+                return Header.Split('/').Last();
+            }
+
+            return Header;
+        }
+    }
+
     public SimpleDelimitedFile(string source)
     {
         Header = source;
@@ -65,11 +84,13 @@ public class SimpleDelimitedFile : IDataSource
 
 public interface IDataSource
 {
-    List<string> Trends { get; } 
+    List<string> Trends { get; }
 
     double[] GetData(string trend);
-    
+
     string Header { get; }
+
+    string ShortName { get; }
 }
 
 

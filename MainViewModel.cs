@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -43,113 +45,84 @@ public class MainViewModel : INotifyPropertyChanged
 
         var seriesCount = 0;
 
-        foreach (var source in Sources)
+        var selectedTrends = Sources.SelectMany(s => s.Trends.Where(t => s.CheckedTrends.Contains(t.Name)).Select(t => (s, t))).ToList();
+
+        foreach (var (source, t) in selectedTrends)
         {
-            List<TrendItemViewModel> selectedTrends = source.Trends.Where(model => source.CheckedTrends.Contains(model.Name)).ToList();
+             seriesCount++;
 
-            foreach (var t in selectedTrends)
-            {
-                seriesCount++;
+             var data = source.DataSource.GetData(t.Name);
 
-                var data = source.DataSource.GetData(t.Name);
+             if (_isTs)
+             {
+                 if (data.Length == 8760) {
+                     _avaPlot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
+                 }
 
-                if (_isTs)
-                {
-                    if (data.Length == 8760) {
-                        _avaPlot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
-                    }
+                 DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
+                 var scatter = _avaPlot.Plot.Add.Scatter(data.Select((d, i) => (dateTimeStart + new TimeSpan(0, i, 0, 0)).ToOADate()).ToArray(), data);
 
-                    DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
-                    var scatter = _avaPlot.Plot.Add.Scatter(data.Select((d, i) => (dateTimeStart + new TimeSpan(0, i, 0, 0)).ToOADate()).ToArray(), data);
-                    scatter.Label = t.Name;
-                }
-                else if (_isHistogram)
-                {
+                 if (selectedTrends.Count(tuple => tuple.t.Name == t.Name) < 2)
+                 {
+                     scatter.Label = t.Name;
+                 }
+                 else
+                 {
+                     scatter.Label = $"{source.DataSource.ShortName}: {t.Name}";
+                 }
 
-                    double min;
-                    double max;
-                    if (data.Length > 0)
-                    {
-                        min = data.Min();
-                        max = data.Max();
-                        if (Math.Abs(min - max) < 0.00000001)
-                        {
-                            max = min + 1;
-                        }
-                    }
-                    else
-                    {
-                        min = 0;
-                        max = 1;
-                    }
+             }
+             else if (_isHistogram)
+             {
 
-                    var hist = new Histogram(min, max, 50);
+                 double min;
+                 double max;
+                 if (data.Length > 0)
+                 {
+                     min = data.Min();
+                     max = data.Max();
+                     if (Math.Abs(min - max) < 0.00000001)
+                     {
+                         max = min + 1;
+                     }
+                 }
+                 else
+                 {
+                     min = 0;
+                     max = 1;
+                 }
 
-                    hist.AddRange(data);
+                 var hist = new Histogram(min, max, 50);
 
-                    var values = hist.Counts;
-                    var binCenters = hist.BinCenters;
+                 hist.AddRange(data);
 
-                    List<Bar> s = new(binCenters.Length);
-                    for (int i = 0; i < values.Length; i++)
-                    {
-                        Bar bar = new()
-                        {
+                 var values = hist.Counts;
+                 var binCenters = hist.BinCenters;
 
-                        };
+                 List<Bar> s = new(binCenters.Length);
+                 for (int i = 0; i < values.Length; i++)
+                 {
+                     Bar bar = new()
+                     {
 
-                        s.Add(new Bar()
-                        {
-                            Value = values[i],
-                            Position = binCenters[i],
-                        });
+                     };
 
-                    }
+                     s.Add(new Bar()
+                     {
+                         Value = values[i],
+                         Position = binCenters[i],
+                     });
 
-                    var barSeries = new BarSeries {Bars = s, Label = t.Name};
-                    series.Add(barSeries);
-                    BarPlot barPlot = _avaPlot.Plot.Add.Bar(series);
-                }
-                // double min;
-                // double max;
-                // if (data.Length > 0)
-                // {
-                //     min = data.Min();
-                //     max = data.Max();
-                //     if (Math.Abs(min - max) < 0.00000001)
-                //     {
-                //         max = min + 1;
-                //     }
-                // }
-                // else
-                // {
-                //     min = 0;
-                //     max = 1;
-                // }
-                //
-                // var hist = new Histogram(min, max, 50);
-                //
-                // var values = hist.Counts;
-                // var binCenters = hist.BinCenters;
-                //
-                // List<Bar> s = new(binCenters.Length);
-                // for (int i = 0; i < values.Length; i++)
-                // {
-                //     s.Add(new Bar()
-                //     {
-                //         Value = values[i],
-                //         Position = binCenters[i]
-                //     });
-                // }
-                //
-                // series.Add(new BarSeries() { Bars = s });
-            }
+                 }
 
-            // var barChart = _avaPlot.Plot.Add.Bar(series);
-            // _avaPlot.Refresh();
+                 var barSeries = new BarSeries {Bars = s, Label = t.Name};
+                 series.Add(barSeries);
+                 BarPlot barPlot = _avaPlot.Plot.Add.Bar(series);
+             }
         }
 
         _avaPlot.Plot.Legend.IsVisible = seriesCount > 1;
+        _avaPlot.Plot.YAxis.Label.Text = seriesCount == 1 ? selectedTrends[0].t.Name : "";
 
         _avaPlot.Plot.XLabel("TIME");
         _avaPlot.Plot.AutoScale();
@@ -336,11 +309,57 @@ public class MainViewModel : INotifyPropertyChanged
             if (filePath != default(IStorageFile?))
             {
                 Sources.Add(new(file, this));
+
+               // Handle the file path (e.g., updating the ViewModel)
+
+
+                // Save to MRU file list (up to 20)
+                if (OperatingSystem.IsWindows())
+                {
+                    string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+                    if (localAppData is not null)
+                    {
+                        int tries = 0;
+                        while (tries < 3)
+                        {
+                            try
+                            {
+                                Directory.CreateDirectory($"{localAppData}\\mplotter");
+                                var path = $"{localAppData}\\mplotter\\mru.txt";
+
+                                List<string> lines;
+                                try
+                                {
+                                    lines = (await File.ReadAllLinesAsync(path)).ToList();
+                                }
+                                catch (FileNotFoundException)
+                                {
+                                    lines = new List<string>();
+                                }
+
+                                var newLines = new List<string>();
+                                newLines.Add(filePath.Path.LocalPath);
+
+                                foreach (var line in lines)
+                                {
+                                    if (newLines.Contains(line)) continue;
+                                    newLines.Add(line);
+                                }
+
+                                await File.WriteAllLinesAsync(path, newLines, new UTF8Encoding(false));
+                                break;
+                            }
+                            catch (Exception)
+                            {
+                                tries++;
+                            }
+                        }
+                    }
+                }
             }
-            // Handle the file path (e.g., updating the ViewModel)
+
         }
     }
-
 
 }
 
