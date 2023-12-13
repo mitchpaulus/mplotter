@@ -31,8 +31,6 @@ public class MainViewModel : INotifyPropertyChanged
     {
         _avaPlot.Plot.Clear();
 
-
-
         // double[] dataX = new double[] { 1, 2, 3, 4, 5 };
         // double[] dataY = new double[] { 1, 4, 9, 16, 25 };
 
@@ -43,17 +41,27 @@ public class MainViewModel : INotifyPropertyChanged
 
         var series = new List<BarSeries>();
 
+        var seriesCount = 0;
+
         foreach (var source in Sources)
         {
             List<TrendItemViewModel> selectedTrends = source.Trends.Where(model => source.CheckedTrends.Contains(model.Name)).ToList();
 
             foreach (var t in selectedTrends)
             {
+                seriesCount++;
+
                 var data = source.DataSource.GetData(t.Name);
 
-                if (_isTs || _isXy)
+                if (_isTs)
                 {
-                    _avaPlot.Plot.Add.Scatter(data.Select((d, i) => (double) i).ToArray(), data);
+                    if (data.Length == 8760) {
+                        _avaPlot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
+                    }
+
+                    DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
+                    var scatter = _avaPlot.Plot.Add.Scatter(data.Select((d, i) => (dateTimeStart + new TimeSpan(0, i, 0, 0)).ToOADate()).ToArray(), data);
+                    scatter.Label = t.Name;
                 }
                 else if (_isHistogram)
                 {
@@ -141,6 +149,8 @@ public class MainViewModel : INotifyPropertyChanged
             // _avaPlot.Refresh();
         }
 
+        _avaPlot.Plot.Legend.IsVisible = seriesCount > 1;
+
         _avaPlot.Plot.XLabel("TIME");
         _avaPlot.Plot.AutoScale();
         _avaPlot.Refresh();
@@ -161,7 +171,7 @@ public class MainViewModel : INotifyPropertyChanged
                     source.FilteredTrendBuffer.Clear();
                     foreach (var trend in source.Trends)
                     {
-                        if (trend.Name.Contains(_trendFilter))
+                        if (trend.Name.ToLowerInvariant().Contains(_trendFilter.ToLowerInvariant()))
                         {
                             source.FilteredTrendBuffer.Add(trend);
                         }

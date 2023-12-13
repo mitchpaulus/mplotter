@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using ScottPlot;
@@ -42,4 +43,24 @@ public partial class MainWindow : Window
     {
         Patterns = new[] { "*.csv", "*.tsv", "*.txt" }
     };
+
+    private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        // On '/', move focus to 'SearchBox'
+        if (e.Key == Key.Oem2) // Oem2 is often used for '/'
+        {
+            // Check if the currently focused control is the search textbox
+            if (FocusManager != null && (FocusManager.GetFocusedElement() is not TextBox currentTextBox ||
+                                         currentTextBox.Name != "SearchBox"))
+            {
+                SearchBox.Focus();
+                e.Handled = true; // Mark the event as handled to prevent further processing
+            }
+        }
+        else if (e.Key == Key.Escape)
+        {
+            SearchBox.Clear();
+            SearchBox.Focus();
+        }
+    }
 }
