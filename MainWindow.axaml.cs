@@ -43,7 +43,7 @@ public partial class MainWindow : Window
 
     public static readonly FilePickerFileType DateFileTypes = new("Data Files")
     {
-        Patterns = new[] { "*.csv", "*.tsv", "*.txt" }
+        Patterns = new[] { "*.csv", "*.tsv", "*.txt", "*.sql" }
     };
 
     private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)
@@ -141,6 +141,7 @@ public static class MonthNames
         "July",
         "August",
         "September",
+        "October",
         "November",
         "December"
     };

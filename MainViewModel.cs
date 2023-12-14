@@ -313,7 +313,7 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _ignoreSunday, value);
     }
 
-    private bool _isHistogram = true;
+    private bool _isHistogram = false;
 
     public bool IsHistogram
     {
@@ -327,7 +327,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private bool _isTs = false;
+    private bool _isTs = true;
 
     public bool IsTs
     {
@@ -412,14 +412,22 @@ public class MainViewModel : INotifyPropertyChanged
             // Get the selected file path
             IStorageFile? filePath = result[0];
 
-            SimpleDelimitedFile file = new SimpleDelimitedFile(filePath.Path.LocalPath);
+            IDataSource source;
+
+            if (filePath.Path.LocalPath.EndsWith(".sql"))
+            {
+                source = new EnergyPlusSqliteDataSource(filePath.Path.LocalPath);
+            }
+            else
+            {
+                source = new SimpleDelimitedFile(filePath.Path.LocalPath);
+            }
 
             if (filePath != default(IStorageFile?))
             {
-                Sources.Add(new(file, this));
+                Sources.Add(new(source, this));
 
                // Handle the file path (e.g., updating the ViewModel)
-
 
                 // Save to MRU file list (up to 20)
                 if (OperatingSystem.IsWindows())
