@@ -94,7 +94,6 @@ public partial class MainWindow : Window
                 }
 
             }
-
         }
         else if (e.Key == Key.Right)
         {
