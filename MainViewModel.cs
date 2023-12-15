@@ -55,22 +55,23 @@ public class MainViewModel : INotifyPropertyChanged
 
              if (_isTs)
              {
-                 if (data.Length == 8760) {
+                 if (data.Length == 8760 || source.DataSource.DataSourceType != DataSourceType.NonTimeSeries) {
                      AvaPlot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
                  }
 
-                 DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
-                 var scatter = AvaPlot.Plot.Add.Scatter(data.Select((d, i) => (dateTimeStart + new TimeSpan(0, i, 0, 0)).ToOADate()).ToArray(), data);
+                 var tsData = source.DataSource.GetTimestampData(t.Name);
 
-                 if (selectedTrends.Count(tuple => tuple.t.Name == t.Name) < 2)
-                 {
-                     scatter.Label = t.Name;
-                 }
-                 else
-                 {
-                     scatter.Label = $"{source.DataSource.ShortName}: {t.Name}";
-                 }
+                 // Bail if we messed up.
+                 if (!tsData.LengthsEqual) continue;
 
+                 double[] xData = tsData.DateTimes.Select(time => time.ToOADate()).ToArray();
+                 // TODO: add safety here
+                 double[] yData = tsData.Values.ToArray();
+
+                 // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
+                 var scatter = AvaPlot.Plot.Add.Scatter(xData, yData);
+
+                 scatter.Label = selectedTrends.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
              }
              else if (_isHistogram)
              {

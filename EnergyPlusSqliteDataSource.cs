@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
+using System.Globalization;
 using System.Linq;
 using System.Text;
+using ScottPlot;
 
 namespace csvplot;
 
@@ -122,6 +124,26 @@ public class EnergyPlusSqliteDataSource : IDataSource
         }
     }
 
+    public TimestampData GetTimestampData(string trend)
+    {
+        int year = DateTime.Now.Year;
+        double[] data = GetData(trend);
+
+        List<DateTime> dateTimes = new(8760);
+        List<double> values = new(8760);
+
+        DateTime time = new DateTime(year, 1, 1);
+
+        foreach (var t in data)
+        {
+            dateTimes.Add(time);
+            time = time.AddHours(1);
+            values.Add(t);
+        }
+
+        return new TimestampData(dateTimes, values);
+    }
+
     public string Header { get; }
     public string ShortName
     {
@@ -141,4 +163,6 @@ public class EnergyPlusSqliteDataSource : IDataSource
             return Header;
         }
     }
+
+    public DataSourceType DataSourceType => DataSourceType.EnergyModel;
 }
