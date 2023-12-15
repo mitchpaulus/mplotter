@@ -485,6 +485,7 @@ public class DataSourceViewModel : INotifyPropertyChanged
     public readonly MainViewModel MainViewModel;
     public IDataSource DataSource { get; }
     public string Header { get; set; }
+    public string EscapedHeader => Header.Replace("_", "__");
 
     public HashSet<string> CheckedTrends = new();
 
@@ -528,6 +529,7 @@ public class TrendItemViewModel : INotifyPropertyChanged
 {
     private readonly DataSourceViewModel _dataSourceViewModel;
     public string Name { get; set; }
+    public string EscapedName => Name.Replace("_", "__");
 
     public bool Checked
     {

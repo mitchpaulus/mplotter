@@ -1,0 +1,33 @@
+﻿<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:csvplot="clr-namespace:csvplot"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="csvplot.TrendDialog"
+        x:DataType="csvplot:TrendDialogVm"
+        Title="TrendDialog">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <!-- Add other controls for source selection here -->
+            <ItemsControl ItemsSource="{Binding Sources}">
+                <!-- Need a delete button for each source -->
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Expander Header="{Binding EscapedHeader}">
+                            <StackPanel>
+                                <!-- Generate a checkbox item for each Trend for the current source -->
+                                <ItemsControl ItemsSource="{Binding FilteredTrends}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <CheckBox Content="{Binding EscapedName}"
+                                                      IsChecked="{Binding Checked}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Expander>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+</Window>

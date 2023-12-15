@@ -39,13 +39,13 @@
                             <!-- Need a delete button for each source -->
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Expander Header="{Binding Header}">
+                                    <Expander Header="{Binding EscapedHeader}">
                                         <StackPanel>
                                             <!-- Generate a checkbox item for each Trend for the current source -->
                                             <ItemsControl ItemsSource="{Binding FilteredTrends}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <CheckBox Content="{Binding Name}"
+                                                        <CheckBox Content="{Binding EscapedName}"
                                                                   IsChecked="{Binding Checked}" />
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
