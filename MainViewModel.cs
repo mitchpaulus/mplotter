@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -22,11 +23,13 @@ public class MainViewModel : INotifyPropertyChanged
 {
     public readonly AvaPlot AvaPlot;
     private readonly IStorageProvider _storageProvider;
+    private readonly MainWindow _window;
 
-    public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider)
+    public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider, MainWindow window)
     {
         AvaPlot = avaPlot;
         _storageProvider = storageProvider;
+        _window = window;
     }
 
     public void UpdatePlots()
@@ -478,6 +481,15 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
+    public async void SelectTrendClick()
+    {
+        var dialog = new TrendDialog();
+        dialog.DataContext = new TrendDialogVm(Sources.Select(model => model.DataSource).ToList());
+
+        await dialog.ShowDialog(_window);
+
+        var i = 0;
+    }
 }
 
 public class DataSourceViewModel : INotifyPropertyChanged

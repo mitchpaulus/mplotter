@@ -26,10 +26,20 @@
                         <RowDefinition Height="*"></RowDefinition>
                     </Grid.RowDefinitions>
 
-                    <Button Grid.Row="0" Content="Browse"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Top"
-                            Command="{Binding BrowseButton_Click}" />
+                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+
+                        <Button Grid.Row="0" Content="Browse"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Command="{Binding BrowseButton_Click}" />
+
+                        <Button Grid.Row="0" Content="Trend Select"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Top"
+                                Command="{Binding SelectTrendClick}" />
+
+                    </StackPanel>
+
 
                     <TextBox x:Name="SearchBox" Grid.Row="1" Text="{Binding TrendFilter}" Watermark="Search.."></TextBox>
 

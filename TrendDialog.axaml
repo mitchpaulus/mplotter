@@ -7,27 +7,51 @@
         x:Class="csvplot.TrendDialog"
         x:DataType="csvplot:TrendDialogVm"
         Title="TrendDialog">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <!-- Add other controls for source selection here -->
-            <ItemsControl ItemsSource="{Binding Sources}">
-                <!-- Need a delete button for each source -->
-                <ItemsControl.ItemTemplate>
+
+    <Grid>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="1*"></RowDefinition>
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"></ColumnDefinition>
+            <ColumnDefinition Width="1*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+
+        <StackPanel>
+            <Button Command="{Binding DebugViewModel}"></Button>
+            <!-- <ListBox Grid.Column="0" ItemsSource="{Binding SourceList}" Name="SourceListBox" SelectionMode="Multiple" Selection="{Binding SelectionModel}"> -->
+            <ListBox Grid.Column="0" ItemsSource="{Binding SourceList}" Name="SourceListBox" SelectionMode="Multiple,Toggle" Selection="{Binding SelectionModel}">
+                <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Expander Header="{Binding EscapedHeader}">
-                            <StackPanel>
-                                <!-- Generate a checkbox item for each Trend for the current source -->
-                                <ItemsControl ItemsSource="{Binding FilteredTrends}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <CheckBox Content="{Binding EscapedName}"
-                                                      IsChecked="{Binding Checked}" />
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Expander>
+                        <TextBlock Text="{Binding Header}"></TextBlock>
                     </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </StackPanel>
+
+
+        <ListBox Grid.Column="1" ItemsSource="{Binding SelectedSources}" Name="TrendsListBox" SelectionMode="Multiple,Toggle">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Header}"></TextBlock>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto"> -->
+        <!--         ~1~ Add other controls for source selection here @1@ -->
+        <!--         <ItemsControl ItemsSource="{Binding SelectedSources}"> -->
+        <!--             ~1~ Need a delete button for each source @1@ -->
+        <!--             <ItemsControl.ItemTemplate> -->
+        <!--                 <DataTemplate> -->
+        <!--                     <TextBlock Text="{Binding Header}"></TextBlock> -->
+        <!--                 </DataTemplate> -->
+        <!--             </ItemsControl.ItemTemplate> -->
+        <!--         </ItemsControl> -->
+        <!--     </ScrollViewer> -->
+
+    </Grid>
+
 </Window>

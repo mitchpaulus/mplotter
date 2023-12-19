@@ -24,7 +24,7 @@ public partial class MainWindow : Window
 
         AvaPlot? plot = this.Find<AvaPlot>("AvaPlot");
 
-        _vm = new MainViewModel(plot!, StorageProvider);
+        _vm = new MainViewModel(plot!, StorageProvider, this);
         DataContext = _vm;
 
 
