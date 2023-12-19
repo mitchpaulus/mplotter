@@ -484,7 +484,8 @@ public class MainViewModel : INotifyPropertyChanged
     public async void SelectTrendClick()
     {
         var dialog = new TrendDialog();
-        dialog.DataContext = new TrendDialogVm(Sources.Select(model => model.DataSource).ToList());
+        var vm = new TrendDialogVm(Sources.Select(model => model.DataSource).ToList());
+        dialog.DataContext = vm;
 
         await dialog.ShowDialog(_window);
 

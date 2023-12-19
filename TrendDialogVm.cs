@@ -21,18 +21,27 @@ public class TrendDialogVm : INotifyPropertyChanged
         _selectedSources = new ObservableCollection<IDataSource>();
     }
 
+    public int MyCount;
+
     private void SelectionModelOnSelectionChanged(object? sender, SelectionModelSelectionChangedEventArgs<IDataSource> e)
     {
         if (sender is not SelectionModel<IDataSource> selectionModel) return;
 
-        _selectedSources.Clear();
-
+        // _selectedSources.Clear();
+        _availableTrends = new List<SourceTrendPairVm>();
         foreach (var i in selectionModel.SelectedItems)
         {
-            _selectedSources.Add(i);
+            if (i is null) continue;
+
+            foreach (var t in i.Trends)
+            {
+                _availableTrends.Add(new(i, t));
+            }
         }
 
-        OnPropertyChanged(nameof(SelectedSources));
+        MyCount++;
+
+        OnPropertyChanged(nameof(AvailableTrends));
     }
 
     public List<IDataSource> Sources { get; set; }
@@ -43,8 +52,23 @@ public class TrendDialogVm : INotifyPropertyChanged
 
     public SelectionModel<IDataSource> SelectionModel { get; set; }
 
-
     private ObservableCollection<IDataSource> _selectedSources;
+
+    private List<SourceTrendPairVm> _availableTrends = new();
+
+    public ObservableCollection<SourceTrendPairVm> AvailableTrends
+    {
+        get
+        {
+            return new ObservableCollection<SourceTrendPairVm>(_availableTrends);
+        }
+
+        set
+        {
+            _availableTrends = value.ToList();
+            OnPropertyChanged();
+        }
+    }
 
     public ObservableCollection<IDataSource> SelectedSources
     {
@@ -84,5 +108,17 @@ public class TrendDialogVm : INotifyPropertyChanged
         field = value;
         OnPropertyChanged(propertyName);
         return true;
+    }
+}
+
+public class SourceTrendPairVm
+{
+    public IDataSource Source { get; }
+    public string Trend { get; }
+
+    public SourceTrendPairVm(IDataSource source, string trend)
+    {
+        Source = source;
+        Trend = trend;
     }
 }
