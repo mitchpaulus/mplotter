@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace csvplot;
 public class Unit
@@ -108,5 +108,77 @@ public class UnitReader
        }
 
        return output;
+    }
+}
+
+public class UnitConverterReader
+{
+    private readonly List<(Regex Regex, string unit)> _conversions = new();
+
+    public void Read(Stream stream)
+    {
+        _conversions.Clear();
+        using StreamReader r = new StreamReader(stream, Encoding.UTF8);
+
+        while (r.ReadLine() is { } line)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("--")) continue;
+
+            var splitLine = trimmed.Split(";");
+
+            if (splitLine.Length != 2) continue;
+
+            Regex regex;
+            try
+            {
+                regex = new Regex(splitLine[0]);
+            }
+            catch
+            {
+                continue;
+            }
+
+            _conversions.Add((regex, splitLine[1]));
+        }
+    }
+
+    public void Read()
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (localAppData == "") return;
+                Stream s = File.OpenRead(Path.Combine(localAppData, "mplotter", "conversions.txt"));
+                Read(s);
+            }
+            else
+            {
+                var home = Environment.GetEnvironmentVariable("HOME");
+                Stream s = File.OpenRead($"{home}/.config/mplotter/conversions.txt");
+                Read(s);
+            }
+        }
+        catch
+        {
+            // ignored
+        }
+    }
+
+    public bool TryGetConversion(string inputName, out string unit)
+    {
+        unit = "";
+        foreach (var conversion in _conversions)
+        {
+            if (conversion.Regex.IsMatch(inputName))
+            {
+                unit = conversion.unit;
+                return true;
+            }
+        }
+
+        return false;
     }
 }

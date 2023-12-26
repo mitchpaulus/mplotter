@@ -22,11 +22,15 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly IStorageProvider _storageProvider;
     private readonly MainWindow _window;
 
+    private readonly UnitConverterReader _unitConverterReader = new();
+
     public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider, MainWindow window)
     {
         // AvaPlot = avaPlot;
         _storageProvider = storageProvider;
         _window = window;
+
+        _unitConverterReader.Read();
     }
 
     public void UpdatePlots()
@@ -70,6 +74,11 @@ public class MainViewModel : INotifyPropertyChanged
                      if (!tsData.LengthsEqual) continue;
 
                      double[] yData = tsData.Values.ToArray();
+
+                     if (_unitConverterReader.TryGetConversion(t.Name, out string unit))
+                     {
+                         bool test = true;
+                     }
 
                      string label = unitGroup.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
                      if (source.DataSource.DataSourceType == DataSourceType.EnergyModel || data.Length == 8760)
