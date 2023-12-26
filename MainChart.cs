@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
 using ScottPlot.Avalonia;
 
 namespace csvplot;
@@ -37,16 +36,4 @@ public class TimestampData
     }
 
     public bool LengthsEqual => DateTimes.Count == Values.Count;
-}
-
-public static class Extensions
-{
-    public static IEnumerable<string?> SplitLines(this string input)
-    {
-        using StringReader sr = new StringReader(input);
-        while (sr.ReadLine() is { } line)
-        {
-            yield return line;
-        }
-    }
 }
