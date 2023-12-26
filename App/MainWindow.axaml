@@ -116,7 +116,11 @@
             </TabItem>
             <!-- You can add more TabItems here if needed -->
         </TabControl>
-        <ScottPlot:AvaPlot Name="AvaPlot" Grid.Column="1"></ScottPlot:AvaPlot>
+        <ScrollViewer Grid.Column="1">
+            <Grid Name="PlotStackPanel" ShowGridLines="True">
+                <ScottPlot:AvaPlot Name="AvaPlot"></ScottPlot:AvaPlot>
+            </Grid>
+        </ScrollViewer>
         <!-- <TextBlock Grid.Column="1"></TextBlock> -->
     </Grid>
 </Window>

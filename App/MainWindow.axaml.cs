@@ -109,60 +109,71 @@ public partial class MainWindow : Window
         {
             // Check that a text box is currently not focused
             if (FocusManager == null || FocusManager.GetFocusedElement() is TextBox) return;
-            // Not a date
-            if (_vm.AvaPlot.Plot.XAxis.Min < new DateTime(1960, 1, 1).ToOADate()) return;
 
-            var minOaDate = DateTime.FromOADate(_vm.AvaPlot.Plot.XAxis.Min);
-            var maxOaDate = DateTime.FromOADate(_vm.AvaPlot.Plot.XAxis.Max);
-
-            if (minOaDate.Day == 1 && maxOaDate.Day == 1)
+            foreach (var child in PlotStackPanel.Children)
             {
-                var monthDiff = (maxOaDate.Year * 12 + maxOaDate.Month) - (minOaDate.Year * 12 + minOaDate.Month);
+                if (child is not AvaPlot avaPlot) continue;
 
-                if (monthDiff > 0)
+                // Not a date
+                if (avaPlot.Plot.XAxis.Min < new DateTime(1960, 1, 1).ToOADate()) return;
+
+                var minOaDate = DateTime.FromOADate(avaPlot.Plot.XAxis.Min);
+                var maxOaDate = DateTime.FromOADate(avaPlot.Plot.XAxis.Max);
+
+                if (minOaDate.Day == 1 && maxOaDate.Day == 1)
                 {
-                    var newMinDate = minOaDate.AddMonths(-monthDiff);
-                    var newMaxDate = maxOaDate.AddMonths(-monthDiff);
+                    var monthDiff = (maxOaDate.Year * 12 + maxOaDate.Month) - (minOaDate.Year * 12 + minOaDate.Month);
 
-                    _vm.AvaPlot.Plot.SetAxisLimits(newMinDate.ToOADate(), newMaxDate.ToOADate());
-
-                    if (monthDiff == 1)
+                    if (monthDiff > 0)
                     {
-                        _vm.AvaPlot.Plot.XAxis.Label.Text = MonthNames.Names[newMinDate.Month - 1];
+                        var newMinDate = minOaDate.AddMonths(-monthDiff);
+                        var newMaxDate = maxOaDate.AddMonths(-monthDiff);
+
+                        avaPlot.Plot.SetAxisLimits(newMinDate.ToOADate(), newMaxDate.ToOADate());
+
+                        if (monthDiff == 1)
+                        {
+                            avaPlot.Plot.XAxis.Label.Text = MonthNames.Names[newMinDate.Month - 1];
+                        }
+
+                        avaPlot.Refresh();
                     }
-
-                    _vm.AvaPlot.Refresh();
                 }
-
             }
         }
         else if (e.Key == Key.Right)
         {
             // Check that a text box is currently not focused
             if (FocusManager == null || FocusManager.GetFocusedElement() is TextBox) return;
-            // Not a date
-            if (_vm.AvaPlot.Plot.XAxis.Min < new DateTime(1960, 1, 1).ToOADate()) return;
 
-            var minOaDate = DateTime.FromOADate(_vm.AvaPlot.Plot.XAxis.Min);
-            var maxOaDate = DateTime.FromOADate(_vm.AvaPlot.Plot.XAxis.Max);
-
-            if (minOaDate.Day == 1 && maxOaDate.Day == 1)
+            foreach (var child in PlotStackPanel.Children)
             {
-                var monthDiff = (maxOaDate.Year * 12 + maxOaDate.Month) - (minOaDate.Year * 12 + minOaDate.Month);
+                if (child is not AvaPlot avaPlot) continue;
 
-                if (monthDiff > 0)
+                // Not a date
+                if (avaPlot.Plot.XAxis.Min < new DateTime(1960, 1, 1).ToOADate()) return;
+
+                var minOaDate = DateTime.FromOADate(avaPlot.Plot.XAxis.Min);
+                var maxOaDate = DateTime.FromOADate(avaPlot.Plot.XAxis.Max);
+
+                if (minOaDate.Day == 1 && maxOaDate.Day == 1)
                 {
-                    var newMinDate = minOaDate.AddMonths(monthDiff);
-                    var newMaxDate = maxOaDate.AddMonths(monthDiff);
+                    var monthDiff = (maxOaDate.Year * 12 + maxOaDate.Month) - (minOaDate.Year * 12 + minOaDate.Month);
 
-                    _vm.AvaPlot.Plot.SetAxisLimits(newMinDate.ToOADate(), newMaxDate.ToOADate());
-
-                    if (monthDiff == 1)
+                    if (monthDiff > 0)
                     {
-                        _vm.AvaPlot.Plot.XAxis.Label.Text = MonthNames.Names[newMinDate.Month - 1];
-                    }
+                        var newMinDate = minOaDate.AddMonths(monthDiff);
+                        var newMaxDate = maxOaDate.AddMonths(monthDiff);
 
-                    _vm.AvaPlot.Refresh();
+                        avaPlot.Plot.SetAxisLimits(newMinDate.ToOADate(), newMaxDate.ToOADate());
+
+                        if (monthDiff == 1)
+                        {
+                            avaPlot.Plot.XAxis.Label.Text = MonthNames.Names[newMinDate.Month - 1];
+                        }
+
+                        avaPlot.Refresh();
+                    }
                 }
             }
         }
