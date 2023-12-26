@@ -173,6 +173,7 @@ public partial class MainWindow : Window
         if (sender is not Button button) return;
         if (button.DataContext is not DataSourceViewModel dataSourceVm) return;
         _vm.Sources.Remove(dataSourceVm);
+        _vm.UpdatePlots();
         // _vm.Sources.Remove()
     }
 }

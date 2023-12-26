@@ -34,7 +34,7 @@ public static class Extensions
                 if (leftParenStack.Count == 1)
                 {
                     var leftIndex = leftParenStack.Pop();
-                    unit = input.Substring(leftIndex + 1, index - leftIndex + 1);
+                    unit = input.Substring(leftIndex + 1, index - leftIndex - 1);
                 }
                 else
                 {
@@ -48,7 +48,7 @@ public static class Extensions
                 if (leftBracketStack.Count == 1)
                 {
                     var leftIndex = leftBracketStack.Pop();
-                    unit = input.Substring(leftIndex + 1, index - leftIndex + 1);
+                    unit = input.Substring(leftIndex + 1, index - leftIndex - 1);
                 }
                 else
                 {
@@ -62,7 +62,7 @@ public static class Extensions
                 if (leftCurlyStack.Count == 1)
                 {
                     var leftIndex = leftCurlyStack.Pop();
-                    unit = input.Substring(leftIndex + 1, index - leftIndex + 1);
+                    unit = input.Substring(leftIndex + 1, index - leftIndex - 1);
                 }
                 else
                 {

@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "csvplot", "App\csvplot.csproj", "{A60A5AF7-17CC-454A-B04C-14BAA8B66C7B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{F1E8679C-A1E4-48FD-BC43-600F2B888496}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A60A5AF7-17CC-454A-B04C-14BAA8B66C7B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A60A5AF7-17CC-454A-B04C-14BAA8B66C7B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A60A5AF7-17CC-454A-B04C-14BAA8B66C7B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A60A5AF7-17CC-454A-B04C-14BAA8B66C7B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1E8679C-A1E4-48FD-BC43-600F2B888496}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1E8679C-A1E4-48FD-BC43-600F2B888496}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1E8679C-A1E4-48FD-BC43-600F2B888496}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1E8679C-A1E4-48FD-BC43-600F2B888496}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
