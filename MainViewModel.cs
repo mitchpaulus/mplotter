@@ -483,8 +483,6 @@ public class MainViewModel : INotifyPropertyChanged
         dialog.DataContext = vm;
 
         await dialog.ShowDialog(_window);
-
-        var i = 0;
     }
 }
 

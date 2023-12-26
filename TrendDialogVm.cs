@@ -87,21 +87,6 @@ public class TrendDialogVm : INotifyPropertyChanged
         }
     }
 
-    public async void DebugViewModel()
-    {
-        var j = 0;
-    }
-
-
-    public void SelectionChanged(object sender, SelectionChangedEventArgs args)
-    {
-        //
-        foreach (var i in args.AddedItems)
-        {
-            var j = 0;
-        }
-    }
-
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)

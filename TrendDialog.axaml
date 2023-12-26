@@ -20,7 +20,6 @@
         </Grid.ColumnDefinitions>
 
         <StackPanel>
-            <Button Command="{Binding DebugViewModel}"></Button>
             <!-- <ListBox Grid.Column="0" ItemsSource="{Binding SourceList}" Name="SourceListBox" SelectionMode="Multiple" Selection="{Binding SelectionModel}"> -->
             <ListBox Grid.Column="0" ItemsSource="{Binding SourceList}" Name="SourceListBox" SelectionMode="Multiple,Toggle" Selection="{Binding SelectionModel}">
                 <ListBox.ItemTemplate>
