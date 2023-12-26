@@ -4,15 +4,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using Microsoft.CodeAnalysis;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
@@ -73,14 +69,23 @@ public class MainViewModel : INotifyPropertyChanged
                      // Bail if we messed up.
                      if (!tsData.LengthsEqual) continue;
 
-                     double[] xData = tsData.DateTimes.Select(time => time.ToOADate()).ToArray();
-                     // TODO: add safety here
                      double[] yData = tsData.Values.ToArray();
 
-                     // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
-                     var scatter = plot.Plot.Add.Scatter(xData, yData);
-
-                     scatter.Label = unitGroup.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
+                     string label = unitGroup.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
+                     if (source.DataSource.DataSourceType == DataSourceType.EnergyModel || data.Length == 8760)
+                     {
+                         var signalPlot = plot.Plot.Add.Signal(yData, (double)1/24);
+                         signalPlot.Label = label;
+                         signalPlot.Data.XOffset = tsData.DateTimes.First().ToOADate();
+                     }
+                     else
+                     {
+                         double[] xData = tsData.DateTimes.Select(time => time.ToOADate()).ToArray();
+                         // TODO: add safety here
+                         // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
+                         var scatter = plot.Plot.Add.Scatter(xData, yData);
+                         scatter.Label = label;
+                     }
                  }
                  else if (_isHistogram)
                  {
@@ -146,7 +151,7 @@ public class MainViewModel : INotifyPropertyChanged
             RowDefinition r = new RowDefinition
             {
                 Height = new GridLength(1, GridUnitType.Star),
-                MinHeight = 500
+                MinHeight = 100
             };
             _window.PlotStackPanel.RowDefinitions.Add(r);
             Grid.SetRow(p, index);
