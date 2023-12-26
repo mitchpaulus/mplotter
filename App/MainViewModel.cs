@@ -4,13 +4,11 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Tasks;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using Microsoft.CodeAnalysis;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.Plottables;
@@ -20,18 +18,21 @@ namespace csvplot;
 
 public class MainViewModel : INotifyPropertyChanged
 {
-    public readonly AvaPlot AvaPlot;
+    // public readonly AvaPlot AvaPlot;
     private readonly IStorageProvider _storageProvider;
+    private readonly MainWindow _window;
 
-    public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider)
+    public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider, MainWindow window)
     {
-        AvaPlot = avaPlot;
+        // AvaPlot = avaPlot;
         _storageProvider = storageProvider;
+        _window = window;
     }
 
     public void UpdatePlots()
     {
-        AvaPlot.Plot.Clear();
+        _window.PlotStackPanel.Children.Clear();
+        // AvaPlot.Plot.Clear();
 
         // double[] dataX = new double[] { 1, 2, 3, 4, 5 };
         // double[] dataY = new double[] { 1, 4, 9, 16, 25 };
@@ -43,200 +44,179 @@ public class MainViewModel : INotifyPropertyChanged
 
         var series = new List<BarSeries>();
 
-        var seriesCount = 0;
-
         var selectedTrends = Sources.SelectMany(s => s.Trends.Where(t => s.CheckedTrends.Contains(t.Name)).Select(t => (s, t))).ToList();
 
-        foreach (var (source, t) in selectedTrends)
+        var unitGrouped = selectedTrends.GroupBy(tuple => tuple.t.Name.GetUnit());
+
+        List<AvaPlot> plots = new();
+
+        foreach (var unitGroup in unitGrouped)
         {
-             seriesCount++;
+            var plot = new AvaPlot();
 
-             var data = source.DataSource.GetData(t.Name);
+            foreach (var (source, t) in unitGroup)
+            {
+                 var data = source.DataSource.GetData(t.Name);
 
-             if (_isTs)
-             {
-                 if (data.Length == 8760 || source.DataSource.DataSourceType != DataSourceType.NonTimeSeries) {
-                     AvaPlot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
-                 }
-
-                 var tsData = source.DataSource.GetTimestampData(t.Name);
-
-                 // Bail if we messed up.
-                 if (!tsData.LengthsEqual) continue;
-
-                 double[] xData = tsData.DateTimes.Select(time => time.ToOADate()).ToArray();
-                 // TODO: add safety here
-                 double[] yData = tsData.Values.ToArray();
-
-                 // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
-                 var scatter = AvaPlot.Plot.Add.Scatter(xData, yData);
-
-                 scatter.Label = selectedTrends.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
-             }
-             else if (_isHistogram)
-             {
-
-                 double min;
-                 double max;
-                 if (data.Length > 0)
+                 if (_isTs)
                  {
-                     min = data.Min();
-                     max = data.Max();
-                     if (Math.Abs(min - max) < 0.00000001)
+                     if (data.Length == 8760 || source.DataSource.DataSourceType != DataSourceType.NonTimeSeries) {
+                         plot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
+                     }
+
+                     var tsData = source.DataSource.GetTimestampData(t.Name);
+
+                     // Bail if we messed up.
+                     if (!tsData.LengthsEqual) continue;
+
+                     double[] yData = tsData.Values.ToArray();
+
+                     string label = unitGroup.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
+                     if (source.DataSource.DataSourceType == DataSourceType.EnergyModel || data.Length == 8760)
                      {
-                         max = min + 1;
+                         var signalPlot = plot.Plot.Add.Signal(yData, (double)1/24);
+                         signalPlot.Label = label;
+                         signalPlot.Data.XOffset = tsData.DateTimes.First().ToOADate();
+                     }
+                     else
+                     {
+                         double[] xData = tsData.DateTimes.Select(time => time.ToOADate()).ToArray();
+                         // TODO: add safety here
+                         // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
+                         var scatter = plot.Plot.Add.Scatter(xData, yData);
+                         scatter.Label = label;
                      }
                  }
-                 else
+                 else if (_isHistogram)
                  {
-                     min = 0;
-                     max = 1;
+
+                     double min;
+                     double max;
+                     if (data.Length > 0)
+                     {
+                         min = data.Min();
+                         max = data.Max();
+                         if (Math.Abs(min - max) < 0.00000001)
+                         {
+                             max = min + 1;
+                         }
+                     }
+                     else
+                     {
+                         min = 0;
+                         max = 1;
+                     }
+
+                     var hist = new Histogram(min, max, 50);
+
+                     hist.AddRange(data);
+
+                     var values = hist.Counts;
+                     var binCenters = hist.BinCenters;
+
+                     List<Bar> s = new(binCenters.Length);
+                     for (int i = 0; i < values.Length; i++)
+                     {
+                         Bar bar = new()
+                         {
+
+                         };
+
+                         s.Add(new Bar()
+                         {
+                             Value = values[i],
+                             Position = binCenters[i],
+                         });
+
+                     }
+
+                     var barSeries = new BarSeries {Bars = s, Label = t.Name};
+                     series.Add(barSeries);
+                     BarPlot barPlot = plot.Plot.Add.Bar(series);
                  }
 
-                 var hist = new Histogram(min, max, 50);
+            }
 
-                 hist.AddRange(data);
+            plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
+            plot.Plot.YAxis.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key;
 
-                 var values = hist.Counts;
-                 var binCenters = hist.BinCenters;
-
-                 List<Bar> s = new(binCenters.Length);
-                 for (int i = 0; i < values.Length; i++)
-                 {
-                     Bar bar = new()
-                     {
-
-                     };
-
-                     s.Add(new Bar()
-                     {
-                         Value = values[i],
-                         Position = binCenters[i],
-                     });
-
-                 }
-
-                 var barSeries = new BarSeries {Bars = s, Label = t.Name};
-                 series.Add(barSeries);
-                 BarPlot barPlot = AvaPlot.Plot.Add.Bar(series);
-             }
+            plot.Plot.AutoScale();
+            plots.Add(plot);
         }
 
-        AvaPlot.Plot.Legend.IsVisible = seriesCount > 1;
-        AvaPlot.Plot.YAxis.Label.Text = seriesCount == 1 ? selectedTrends[0].t.Name : "";
+        _window.PlotStackPanel.RowDefinitions.Clear();
+        for (var index = 0; index < plots.Count; index++)
+        {
+            var p = plots[index];
+            RowDefinition r = new RowDefinition
+            {
+                Height = new GridLength(1, GridUnitType.Star),
+                MinHeight = 100
+            };
+            _window.PlotStackPanel.RowDefinitions.Add(r);
+            Grid.SetRow(p, index);
+        }
 
-        AvaPlot.Plot.XLabel("TIME");
-        AvaPlot.Plot.AutoScale();
-        AvaPlot.Refresh();
+        _window.PlotStackPanel.Children.AddRange(plots);
+
+        foreach (var p in plots)
+        {
+            p.Refresh();
+        }
     }
 
-    public void MakeJan()
+    private List<AvaPlot> AllPlots()
     {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 1, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 2, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "January";
-        AvaPlot.Refresh();
+        return _window.PlotStackPanel.Children.Where(control => control is AvaPlot).Cast<AvaPlot>().ToList();
     }
 
-    public void MakeFeb()
+    private void FixMonth(int month)
     {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 2, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 3, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "February";
-        AvaPlot.Refresh();
+        if (month is < 1 or > 12) throw new ArgumentException("Month should be passed as 1-12");
+         int currentYear = DateTime.Now.Year;
+         foreach (var p in AllPlots())
+         {
+             if (month < 12)
+             {
+                 p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
+                 p.Plot.XAxis.Max = new DateTime(currentYear, month + 1, 1).ToOADate();
+             }
+             else
+             {
+                 p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
+                 p.Plot.XAxis.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
+             }
+             p.Plot.XAxis.Label.Text = MonthNames.Names[month - 1];
+             p.Refresh();
+         }
     }
 
-    public void MakeMar()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 3, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 4, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "March";
-        AvaPlot.Refresh();
-    }
+    public void MakeJan() => FixMonth(1);
+    public void MakeFeb() => FixMonth(2);
 
-    public void MakeApr()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 4, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 5, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "April";
-        AvaPlot.Refresh();
-    }
+    public void MakeMar() => FixMonth(3);
 
-    public void MakeMay()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 5, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 6, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "May";
-        AvaPlot.Refresh();
-    }
+    public void MakeApr() => FixMonth(4);
 
-    public void MakeJun()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 6, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 7, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "June";
-        AvaPlot.Refresh();
-    }
+    public void MakeMay() => FixMonth(5);
 
-    public void MakeJul()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 7, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 8, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "July";
-        AvaPlot.Refresh();
-    }
+    public void MakeJun() => FixMonth(6);
 
-    public void MakeAug()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 8, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 9, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "August";
-        AvaPlot.Refresh();
-    }
+    public void MakeJul() => FixMonth(7);
 
-    public void MakeSep()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 9, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 10, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "September";
-        AvaPlot.Refresh();
-    }
 
-    public void MakeOct()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 10, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 11, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "October";
-        AvaPlot.Refresh();
-    }
+    public void MakeAug() => FixMonth(8);
 
-    public void MakeNov()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 11, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear, 12, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "November";
-        AvaPlot.Refresh();
-    }
+    public void MakeSep() => FixMonth(9);
 
-    public void MakeDec()
-    {
-        int currentYear = DateTime.Now.Year;
-        AvaPlot.Plot.XAxis.Min = new DateTime(currentYear, 12, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
-        AvaPlot.Plot.XAxis.Label.Text = "December";
-        AvaPlot.Refresh();
-    }
+
+    public void MakeOct() => FixMonth(10);
+
+
+    public void MakeNov() => FixMonth(11);
+
+    public void MakeDec() => FixMonth(12);
+
 
     public ObservableCollection<DataSourceViewModel> Sources { get; } = new();
 
@@ -413,71 +393,73 @@ public class MainViewModel : INotifyPropertyChanged
             // Get the selected file path
             IStorageFile? filePath = result[0];
 
-            IDataSource source;
-
-            if (filePath.Path.LocalPath.EndsWith(".sql"))
-            {
-                source = new EnergyPlusSqliteDataSource(filePath.Path.LocalPath);
-            }
-            else
-            {
-                source = new SimpleDelimitedFile(filePath.Path.LocalPath);
-            }
+            IDataSource source = DataSourceFactory.SourceFromLocalPath(filePath.Path.LocalPath);
 
             if (filePath != default(IStorageFile?))
             {
                 Sources.Add(new(source, this));
 
                // Handle the file path (e.g., updating the ViewModel)
-
-                // Save to MRU file list (up to 20)
-                if (OperatingSystem.IsWindows())
-                {
-                    string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
-                    if (localAppData is not null)
-                    {
-                        int tries = 0;
-                        while (tries < 3)
-                        {
-                            try
-                            {
-                                Directory.CreateDirectory($"{localAppData}\\mplotter");
-                                var path = $"{localAppData}\\mplotter\\mru.txt";
-
-                                List<string> lines;
-                                try
-                                {
-                                    lines = (await File.ReadAllLinesAsync(path)).ToList();
-                                }
-                                catch (FileNotFoundException)
-                                {
-                                    lines = new List<string>();
-                                }
-
-                                var newLines = new List<string>();
-                                newLines.Add(filePath.Path.LocalPath);
-
-                                foreach (var line in lines)
-                                {
-                                    if (newLines.Contains(line)) continue;
-                                    newLines.Add(line);
-                                }
-
-                                await File.WriteAllLinesAsync(path, newLines, new UTF8Encoding(false));
-                                break;
-                            }
-                            catch (Exception)
-                            {
-                                tries++;
-                            }
-                        }
-                    }
-                }
+               await SaveToMru(filePath.Path.LocalPath);
             }
-
         }
     }
 
+    private static async Task SaveToMru(string localPath)
+    {
+        // Save to MRU file list (up to 20)
+        if (OperatingSystem.IsWindows())
+        {
+            string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+            if (localAppData is not null)
+            {
+                int tries = 0;
+                while (tries < 3)
+                {
+                    try
+                    {
+                        Directory.CreateDirectory($"{localAppData}\\mplotter");
+                        var path = $"{localAppData}\\mplotter\\mru.txt";
+
+                        List<string> lines;
+                        try
+                        {
+                            lines = (await File.ReadAllLinesAsync(path)).ToList();
+                        }
+                        catch (FileNotFoundException)
+                        {
+                            lines = new List<string>();
+                        }
+
+                        var newLines = new List<string>();
+                        newLines.Add(localPath);
+
+                        foreach (var line in lines)
+                        {
+                            if (newLines.Contains(line)) continue;
+                            newLines.Add(line);
+                        }
+
+                        await File.WriteAllLinesAsync(path, newLines, new UTF8Encoding(false));
+                        break;
+                    }
+                    catch (Exception)
+                    {
+                        tries++;
+                    }
+                }
+            }
+        }
+    }
+
+    public async void SelectTrendClick()
+    {
+        var dialog = new TrendDialog();
+        var vm = new TrendDialogVm(Sources.Select(model => model.DataSource).ToList());
+        dialog.DataContext = vm;
+
+        await dialog.ShowDialog(_window);
+    }
 }
 
 public class DataSourceViewModel : INotifyPropertyChanged
@@ -485,6 +467,7 @@ public class DataSourceViewModel : INotifyPropertyChanged
     public readonly MainViewModel MainViewModel;
     public IDataSource DataSource { get; }
     public string Header { get; set; }
+    public string EscapedHeader => Header.Replace("_", "__");
 
     public HashSet<string> CheckedTrends = new();
 
@@ -528,6 +511,7 @@ public class TrendItemViewModel : INotifyPropertyChanged
 {
     private readonly DataSourceViewModel _dataSourceViewModel;
     public string Name { get; set; }
+    public string EscapedName => Name.Replace("_", "__");
 
     public bool Checked
     {
