@@ -20,7 +20,9 @@
         <TabControl Grid.Column="0">
             <TabItem Header="Source">
                 <Grid>
+
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"></RowDefinition>
                         <RowDefinition Height="Auto"></RowDefinition>
                         <RowDefinition Height="Auto"></RowDefinition>
                         <RowDefinition Height="*"></RowDefinition>
@@ -40,28 +42,38 @@
 
                     </StackPanel>
 
+                    <WrapPanel Name="MruPanel" Grid.Row="1" Orientation="Horizontal">
 
-                    <TextBox x:Name="SearchBox" Grid.Row="1" Text="{Binding TrendFilter}" Watermark="Search.."></TextBox>
+                    </WrapPanel>
 
-                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <TextBox x:Name="SearchBox" Grid.Row="2" Text="{Binding TrendFilter}" Watermark="Search.."></TextBox>
+
+                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
                         <!-- Add other controls for source selection here -->
                         <ItemsControl ItemsSource="{Binding Sources}">
                             <!-- Need a delete button for each source -->
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Expander Header="{Binding EscapedHeader}">
-                                        <StackPanel>
-                                            <!-- Generate a checkbox item for each Trend for the current source -->
-                                            <ItemsControl ItemsSource="{Binding FilteredTrends}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <CheckBox Content="{Binding EscapedName}"
-                                                                  IsChecked="{Binding Checked}" />
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </Expander>
+                                    <Grid RowDefinitions="Auto">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"></ColumnDefinition>
+                                            <ColumnDefinition Width="Auto"></ColumnDefinition>
+                                        </Grid.ColumnDefinitions>
+                                        <Expander Grid.Column="0" Header="{Binding EscapedHeader}">
+                                            <StackPanel>
+                                                <!-- Generate a checkbox item for each Trend for the current source -->
+                                                <ItemsControl ItemsSource="{Binding FilteredTrends}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <CheckBox Content="{Binding EscapedName}"
+                                                                      IsChecked="{Binding Checked}" />
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Expander>
+                                        <Button Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10" Click="Button_OnClick" >Remove</Button>
+                                    </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

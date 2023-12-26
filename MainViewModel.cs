@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -416,68 +417,62 @@ public class MainViewModel : INotifyPropertyChanged
             // Get the selected file path
             IStorageFile? filePath = result[0];
 
-            IDataSource source;
-
-            if (filePath.Path.LocalPath.EndsWith(".sql"))
-            {
-                source = new EnergyPlusSqliteDataSource(filePath.Path.LocalPath);
-            }
-            else
-            {
-                source = new SimpleDelimitedFile(filePath.Path.LocalPath);
-            }
+            IDataSource source = DataSourceFactory.SourceFromLocalPath(filePath.Path.LocalPath);
 
             if (filePath != default(IStorageFile?))
             {
                 Sources.Add(new(source, this));
 
                // Handle the file path (e.g., updating the ViewModel)
+               await SaveToMru(filePath.Path.LocalPath);
+            }
+        }
+    }
 
-                // Save to MRU file list (up to 20)
-                if (OperatingSystem.IsWindows())
+    private static async Task SaveToMru(string localPath)
+    {
+        // Save to MRU file list (up to 20)
+        if (OperatingSystem.IsWindows())
+        {
+            string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+            if (localAppData is not null)
+            {
+                int tries = 0;
+                while (tries < 3)
                 {
-                    string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
-                    if (localAppData is not null)
+                    try
                     {
-                        int tries = 0;
-                        while (tries < 3)
+                        Directory.CreateDirectory($"{localAppData}\\mplotter");
+                        var path = $"{localAppData}\\mplotter\\mru.txt";
+
+                        List<string> lines;
+                        try
                         {
-                            try
-                            {
-                                Directory.CreateDirectory($"{localAppData}\\mplotter");
-                                var path = $"{localAppData}\\mplotter\\mru.txt";
-
-                                List<string> lines;
-                                try
-                                {
-                                    lines = (await File.ReadAllLinesAsync(path)).ToList();
-                                }
-                                catch (FileNotFoundException)
-                                {
-                                    lines = new List<string>();
-                                }
-
-                                var newLines = new List<string>();
-                                newLines.Add(filePath.Path.LocalPath);
-
-                                foreach (var line in lines)
-                                {
-                                    if (newLines.Contains(line)) continue;
-                                    newLines.Add(line);
-                                }
-
-                                await File.WriteAllLinesAsync(path, newLines, new UTF8Encoding(false));
-                                break;
-                            }
-                            catch (Exception)
-                            {
-                                tries++;
-                            }
+                            lines = (await File.ReadAllLinesAsync(path)).ToList();
                         }
+                        catch (FileNotFoundException)
+                        {
+                            lines = new List<string>();
+                        }
+
+                        var newLines = new List<string>();
+                        newLines.Add(localPath);
+
+                        foreach (var line in lines)
+                        {
+                            if (newLines.Contains(line)) continue;
+                            newLines.Add(line);
+                        }
+
+                        await File.WriteAllLinesAsync(path, newLines, new UTF8Encoding(false));
+                        break;
+                    }
+                    catch (Exception)
+                    {
+                        tries++;
                     }
                 }
             }
-
         }
     }
 

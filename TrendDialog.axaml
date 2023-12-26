@@ -32,7 +32,7 @@
         </StackPanel>
 
 
-        <ListBox Grid.Column="1" ItemsSource="{Binding AvailableTrends}" Name="TrendsListBox" SelectionMode="Multiple,Toggle">
+        <ListBox Grid.Column="1" ItemsSource="{Binding AvailableTrends}" Name="TrendsListBox" SelectionMode="Multiple,Toggle" Selection="{Binding SelectedTrendsSelectionModel}">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <TextBlock Text="{Binding Trend}"></TextBlock>

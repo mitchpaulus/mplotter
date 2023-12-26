@@ -19,6 +19,11 @@ public class TrendDialogVm : INotifyPropertyChanged
         SelectionModel.SelectionChanged += SelectionModelOnSelectionChanged;
         SelectionModel.SingleSelect = false;
         _selectedSources = new ObservableCollection<IDataSource>();
+
+        SelectedTrendsSelectionModel = new SelectionModel<SourceTrendPairVm>
+        {
+            SingleSelect = false
+        };
     }
 
     public int MyCount;
@@ -51,6 +56,8 @@ public class TrendDialogVm : INotifyPropertyChanged
     public ObservableCollection<IDataSource> SourceList { get; set; }
 
     public SelectionModel<IDataSource> SelectionModel { get; set; }
+
+    public SelectionModel<SourceTrendPairVm> SelectedTrendsSelectionModel { get; set; }
 
     private ObservableCollection<IDataSource> _selectedSources;
 

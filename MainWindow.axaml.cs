@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -27,6 +28,28 @@ public partial class MainWindow : Window
         _vm = new MainViewModel(plot!, StorageProvider, this);
         DataContext = _vm;
 
+        var mrus = MostRecentlyUsedFiles();
+
+        var buttons = mrus.Select(mru =>
+            {
+                // Add a button to load that file
+                Button button = new Button();
+                IDataSource source = DataSourceFactory.SourceFromLocalPath(mru);
+                button.Click += (sender, args) =>
+                {
+                    // Don't add a duplicate.
+                    if (_vm.Sources.Any(model => model.DataSource.Header == source.Header)) return;
+                    _vm.Sources.Add(new DataSourceViewModel(source, _vm));
+                };
+                button.Content = Path.GetFileName(mru);
+
+                var tooltip = new TextBlock() { Text = mru };
+                ToolTip.SetTip(button, tooltip);
+                return button;
+            }
+        );
+
+        MruPanel.Children.AddRange(buttons);
 
         // double[] dataX = new double[] { 1, 2, 3, 4, 5 };
         // double[] dataY = new double[] { 1, 4, 9, 16, 25 };
@@ -39,6 +62,24 @@ public partial class MainWindow : Window
         //     plot.Plot.XLabel("OAT");
         //     plot.Refresh();
         // }
+    }
+
+    public static List<string> MostRecentlyUsedFiles()
+    {
+        string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        if (localAppData is null) return new List<string>();
+
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines($"{localAppData}/mplotter/mru.txt");
+        }
+        catch
+        {
+            return new List<string>();
+        }
+
+        return lines.Where(File.Exists).Order().ToList();
     }
 
     public static readonly FilePickerFileType DateFileTypes = new("Data Files")
@@ -125,6 +166,14 @@ public partial class MainWindow : Window
                 }
             }
         }
+    }
+
+    private void Button_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button) return;
+        if (button.DataContext is not DataSourceViewModel dataSourceVm) return;
+        _vm.Sources.Remove(dataSourceVm);
+        // _vm.Sources.Remove()
     }
 }
 
