@@ -23,14 +23,15 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly MainWindow _window;
 
     private readonly UnitConverterReader _unitConverterReader = new();
+    private readonly UnitReader _unitReader = new();
 
     public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider, MainWindow window)
     {
         // AvaPlot = avaPlot;
         _storageProvider = storageProvider;
         _window = window;
-
         _unitConverterReader.Read();
+        _unitReader.Read();
     }
 
     public void UpdatePlots()
@@ -48,7 +49,10 @@ public class MainViewModel : INotifyPropertyChanged
 
         var series = new List<BarSeries>();
 
-        var selectedTrends = Sources.SelectMany(s => s.Trends.Where(t => s.CheckedTrends.Contains(t.Name)).Select(t => (s, t))).ToList();
+        List<(DataSourceViewModel s, TrendItemViewModel t)> selectedTrends = Sources.SelectMany(s =>
+            s.Trends.Where(t => s.CheckedTrends.Contains(t.Name))
+                    .Select(t => (s, t)))
+                    .ToList();
 
         var unitGrouped = selectedTrends.GroupBy(tuple => tuple.t.Name.GetUnit());
 
@@ -57,6 +61,8 @@ public class MainViewModel : INotifyPropertyChanged
         foreach (var unitGroup in unitGrouped)
         {
             var plot = new AvaPlot();
+
+            string? unit = unitGroup.Key;
 
             foreach (var (source, t) in unitGroup)
             {
@@ -75,12 +81,25 @@ public class MainViewModel : INotifyPropertyChanged
 
                      double[] yData = tsData.Values.ToArray();
 
-                     if (_unitConverterReader.TryGetConversion(t.Name, out string unit))
-                     {
-                         bool test = true;
-                     }
+                     bool didConvert = false;
+                     // if (_unitConverterReader.TryGetConversion(t.Name, _unitReader, out Unit? unitToConvertTo))
+                     // {
+                     //     foreach ((var unitTypeKey, Dictionary<string, Unit> associatedUnits) in _units)
+                     //     {
+                     //         if (associatedUnits.TryGetValue(unit, out Unit? fromUnit) && associatedUnits.TryGetValue(unitToConvertTo, out var toUnit))
+                     //         {
+                     //             yData = yData.Select(d =>
+                     //                     d * fromUnit.Factor / toUnit.Factor)
+                     //                     .ToArray();
+                     //             didConvert = true;
+                     //             break;
+                     //         }
+                     //     }
+                     // }
 
                      string label = unitGroup.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
+                     // if (didConvert) label = $"{label} in {unitToConvertTo}";
+
                      if (source.DataSource.DataSourceType == DataSourceType.EnergyModel || data.Length == 8760)
                      {
                          var signalPlot = plot.Plot.Add.Signal(yData, (double)1/24);
@@ -143,11 +162,10 @@ public class MainViewModel : INotifyPropertyChanged
                      series.Add(barSeries);
                      BarPlot barPlot = plot.Plot.Add.Bar(series);
                  }
-
             }
 
             plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
-            plot.Plot.YAxis.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key;
+            plot.Plot.YAxis.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
 
             plot.Plot.AutoScale();
             plots.Add(plot);
@@ -358,6 +376,7 @@ public class MainViewModel : INotifyPropertyChanged
     // }
 
     private AvaPlot? _model;
+
     /// <summary>
     /// Gets the plot model.
     /// </summary>

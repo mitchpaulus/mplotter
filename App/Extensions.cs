@@ -14,13 +14,19 @@ public static class Extensions
         }
     }
 
-    public static string GetUnit(this string input)
+    /// <summary>
+    /// This function return a string representing the best guess at the unit given a full trend name.
+    /// The algorithm is simple - it looks for text within parenthesis, square brackets, or curly brackets,
+    /// and if more than one, the last one is taken.
+    /// </summary>
+    /// <returns>string of unit, no surrounding bracket.</returns>
+    public static string? GetUnit(this string input)
     {
         Stack<int> leftBracketStack = new();
         Stack<int> leftParenStack = new();
         Stack<int> leftCurlyStack = new();
 
-        string unit = "";
+        string? unit = null;
 
         int index = 0;
         while (index < input.Length)
@@ -76,4 +82,13 @@ public static class Extensions
 
         return unit;
     }
+
+    // public static List<List<(DataSourceViewModel s, TrendItemViewModel t)>> GroupTrendsByUnit(this List<(DataSourceViewModel s, TrendItemViewModel t)> list, UnitReader reader, UnitConverterReader unitConverterReader)
+    // {
+    //
+    //
+    //
+    //
+    //
+    // }
 }
