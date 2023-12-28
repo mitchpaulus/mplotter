@@ -47,7 +47,6 @@ public class MainViewModel : INotifyPropertyChanged
         // Middle click to reset axis limits
         // var scatter = _avaPlot.Plot.Add.Scatter(dataX, dataY);
 
-        var series = new List<BarSeries>();
 
         List<(DataSourceViewModel s, TrendItemViewModel t)> selectedTrends = Sources.SelectMany(s =>
             s.Trends.Where(t => s.CheckedTrends.Contains(t.Name))
@@ -64,7 +63,7 @@ public class MainViewModel : INotifyPropertyChanged
 
             string? unit = unitGroup.Key;
 
-            foreach (var (source, t) in unitGroup)
+            foreach ((var (source, t), int trendIndex) in unitGroup.WithIndex())
             {
                  var data = source.DataSource.GetData(t.Name);
 
@@ -117,57 +116,55 @@ public class MainViewModel : INotifyPropertyChanged
                  }
                  else if (_isHistogram)
                  {
-
-                     double min;
-                     double max;
-                     if (data.Length > 0)
-                     {
-                         min = data.Min();
-                         max = data.Max();
-                         if (Math.Abs(min - max) < 0.00000001)
-                         {
-                             max = min + 1;
-                         }
-                     }
-                     else
-                     {
-                         min = 0;
-                         max = 1;
-                     }
-
+                     (double min, double max) = data.SafeMinMax();
+                     
                      var hist = new Histogram(min, max, 50);
-
                      hist.AddRange(data);
 
                      var values = hist.Counts;
                      var binCenters = hist.BinCenters;
 
-                     List<Bar> s = new(binCenters.Length);
+                     List<Bar> allBars = new(binCenters.Length);
+
+                     var colors = ColorCycle.GetColors(unitGroup.Count());
+                     
                      for (int i = 0; i < values.Length; i++)
                      {
-                         Bar bar = new()
-                         {
-
-                         };
-
-                         s.Add(new Bar()
+                         allBars.Add(new Bar
                          {
                              Value = values[i],
                              Position = binCenters[i],
+                             Size = hist.BinSize,
+                             FillColor = colors[trendIndex]
                          });
-
                      }
 
-                     var barSeries = new BarSeries {Bars = s, Label = t.Name};
-                     series.Add(barSeries);
-                     BarPlot barPlot = plot.Plot.Add.Bar(series);
+                     plot.Plot.Add.Bars(allBars);
+                     plot.Plot.Legend.ManualItems.Add(new LegendItem
+                     {
+                         Label = t.Name,
+                         Line  = LineStyle.None,
+                         Marker = new MarkerStyle { Shape = MarkerShape.FilledSquare },
+                         FillColor = colors[trendIndex]
+                     });
                  }
             }
 
-            plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
-            plot.Plot.YAxis.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
+
+            if (_isHistogram)
+            {
+                plot.Plot.YAxis.Label.Text = "Count";
+                plot.Plot.XAxis.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
+            }
+            else
+            {
+                plot.Plot.YAxis.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
+            }
 
             plot.Plot.AutoScale();
+            plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
+            plot.Plot.Legend.Location = Alignment.UpperRight;
+            
             plots.Add(plot);
         }
 
@@ -200,22 +197,23 @@ public class MainViewModel : INotifyPropertyChanged
     private void FixMonth(int month)
     {
         if (month is < 1 or > 12) throw new ArgumentException("Month should be passed as 1-12");
-         int currentYear = DateTime.Now.Year;
-         foreach (var p in AllPlots())
-         {
-             if (month < 12)
-             {
-                 p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
-                 p.Plot.XAxis.Max = new DateTime(currentYear, month + 1, 1).ToOADate();
-             }
-             else
-             {
-                 p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
-                 p.Plot.XAxis.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
-             }
-             p.Plot.XAxis.Label.Text = MonthNames.Names[month - 1];
-             p.Refresh();
-         }
+        int currentYear = DateTime.Now.Year;
+        foreach (var p in AllPlots())
+        {
+            if (month < 12)
+            {
+                p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
+                p.Plot.XAxis.Max = new DateTime(currentYear, month + 1, 1).ToOADate();
+            }
+            else
+            {
+                p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
+                p.Plot.XAxis.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
+            }
+
+            p.Plot.XAxis.Label.Text = MonthNames.Names[month - 1];
+            p.Refresh();
+        }
     }
 
     public void MakeJan() => FixMonth(1);

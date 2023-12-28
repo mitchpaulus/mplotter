@@ -51,7 +51,7 @@
 
                     </WrapPanel>
 
-                    <TextBox x:Name="SearchBox" Grid.Row="3" Text="{Binding TrendFilter}" Watermark="Search.."></TextBox>
+                    <TextBox x:Name="SearchBox" Grid.Row="3" Text="{Binding TrendFilter}" Watermark="Search.." Margin="0 10 0 10"></TextBox>
 
                     <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto">
                         <!-- Add other controls for source selection here -->

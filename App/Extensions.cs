@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace csvplot;
 
@@ -82,6 +84,34 @@ public static class Extensions
 
         return unit;
     }
+
+    public static (double Min, double Max) SafeMinMax(this double[] data)
+    {
+         double min;
+         double max;
+         if (data.Length > 0)
+         {
+             min = data.Min();
+             max = data.Max();
+             if (Math.Abs(min - max) < 0.00000001)
+             {
+                 max = min + 1;
+             }
+         }
+         else
+         {
+             min = 0;
+             max = 1;
+         }
+
+         return (min, max);
+    }
+
+    public static IEnumerable<(T, int)> WithIndex<T>(this IEnumerable<T> source)
+    {
+        return source.Select((item, index) => (item, index));
+    }
+
 
     // public static List<List<(DataSourceViewModel s, TrendItemViewModel t)>> GroupTrendsByUnit(this List<(DataSourceViewModel s, TrendItemViewModel t)> list, UnitReader reader, UnitConverterReader unitConverterReader)
     // {

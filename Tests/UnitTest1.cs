@@ -13,7 +13,7 @@ public class Tests
     [Test]
     public void Test1()
     {
-        string unit = "Trend name (kWh)".GetUnit();
+        string? unit = "Trend name (kWh)".GetUnit();
         Assert.That(unit, Is.EqualTo("kWh"));
     }
 
