@@ -187,6 +187,22 @@ public partial class MainWindow : Window
         _vm.UpdatePlots();
         // _vm.Sources.Remove()
     }
+
+    private void ClearSelections(object? sender, RoutedEventArgs e)
+    {
+        foreach (var s in _vm.Sources)
+        {
+            foreach (var t in s.FilteredTrends)
+            {
+                if (t.Checked) t.Checked = false;
+            }
+            
+            foreach (var t in s.Trends)
+            {
+                if (t.Checked) t.Checked = false;
+            }
+        }
+    }
 }
 
 public static class MonthNames

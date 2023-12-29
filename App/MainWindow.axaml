@@ -51,7 +51,10 @@
 
                     </WrapPanel>
 
-                    <TextBox x:Name="SearchBox" Grid.Row="3" Text="{Binding TrendFilter}" Watermark="Search.." Margin="0 10 0 10"></TextBox>
+                    <Grid Grid.Row="3"  ColumnDefinitions="* Auto">
+                        <TextBox x:Name="SearchBox" Grid.Column="0" Text="{Binding TrendFilter}" Watermark="Search.." Margin="0 10 0 10"></TextBox>
+                        <Button Click="ClearSelections" Margin="10 0 0 0" Grid.Column="1">Clear</Button>
+                    </Grid> 
 
                     <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto">
                         <!-- Add other controls for source selection here -->

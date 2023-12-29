@@ -34,4 +34,28 @@ public class Tests
             }
         }
     }
+
+    [Test]
+    public void SelectTest()
+    {
+        List<TestClass> list1 = new List<TestClass>() { new TestClass("init", 1), new TestClass("init2", 2) };
+
+        var list2 = list1.Where(@class => @class.Name == "init").Select(s => s).ToList();
+
+        list1[0].Name = "new";
+        
+        Console.WriteLine(list2[0].Name);
+    }
+}
+
+public class TestClass
+{
+    public string Name { get; set; }
+    public double Value { get; set; }
+
+    public TestClass(string name, double value)
+    {
+        Name = name;
+        Value = value;
+    }
 }
