@@ -25,6 +25,12 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly UnitConverterReader _unitConverterReader = new();
     private readonly UnitReader _unitReader = new();
 
+    public readonly DateTimeState EndDateLocal;
+    public readonly DateTimeState StartDateLocal;
+
+    private ComputedDateTimeState _computedDateTime;
+    private readonly ComputedDateTimeState _secondComputedDateTime;
+
     public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider, MainWindow window)
     {
         // AvaPlot = avaPlot;
@@ -32,7 +38,48 @@ public class MainViewModel : INotifyPropertyChanged
         _window = window;
         _unitConverterReader.Read();
         _unitReader.Read();
+
+        EndDateLocal = new DateTimeState(DateTime.Now, (newVal) =>
+        {
+            window.EndDateTextBlock.Text = $"End Date: {newVal:yyyy-MM-dd}";
+        }, this);
+
+        StartDateLocal = new DateTimeState(EndDateLocal.Value.AddDays(-7), newVal =>
+        {
+            window.StartDateTextBlock.Text = $"Start Date: {newVal:yyyy-MM-dd}";
+        }, this);
+
+        _computedDateTime = new ComputedDateTimeState(model => model.EndDateLocal.Value.AddDays(10), time =>
+        {
+            window.ComputedDateTextBlock.Text = $"Computed Date: {time:yyyy-MM-dd}";
+        }, this);
+
+        _secondComputedDateTime = new ComputedDateTimeState(model => model._computedDateTime.Value.AddDays(10), time =>
+        {
+            window.ChainedComputedDate.Text = $"Chained Computed Date: {time:yyyy-MM-dd}";
+        }, this);
+
+
+        EndDateLocal.AddSubscriber(_computedDateTime);
+        _computedDateTime.AddSubscriber(_secondComputedDateTime);
+
+        IgnoreMonday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
+        IgnoreTuesday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
+        IgnoreWednesday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
+        IgnoreThursday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
+        IgnoreFriday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
+        IgnoreSaturday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
+        IgnoreSunday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
     }
+
+    public UiState<bool> IgnoreMonday2 { get; set; }
+    public UiState<bool> IgnoreTuesday2 { get; set; }
+    public UiState<bool> IgnoreWednesday2 { get; set; }
+    public UiState<bool> IgnoreThursday2 { get; set; }
+    public UiState<bool> IgnoreFriday2 { get; set; }
+    public UiState<bool> IgnoreSaturday2 { get; set; }
+    public UiState<bool> IgnoreSunday2 { get; set; }
+
 
     public void UpdatePlots()
     {
@@ -117,7 +164,7 @@ public class MainViewModel : INotifyPropertyChanged
                  else if (_isHistogram)
                  {
                      (double min, double max) = data.SafeMinMax();
-                     
+
                      var hist = new Histogram(min, max, 50);
                      hist.AddRange(data);
 
@@ -127,7 +174,7 @@ public class MainViewModel : INotifyPropertyChanged
                      List<Bar> allBars = new(binCenters.Length);
 
                      var colors = ColorCycle.GetColors(unitGroup.Count());
-                     
+
                      for (int i = 0; i < values.Length; i++)
                      {
                          allBars.Add(new Bar
@@ -164,7 +211,7 @@ public class MainViewModel : INotifyPropertyChanged
             plot.Plot.AutoScale();
             plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
             plot.Plot.Legend.Location = Alignment.UpperRight;
-            
+
             plots.Add(plot);
         }
 
@@ -204,16 +251,32 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
                 p.Plot.XAxis.Max = new DateTime(currentYear, month + 1, 1).ToOADate();
+                StartDateLocal.Update(new DateTime(currentYear, month, 1));
+                EndDateLocal.Update(new DateTime(currentYear, month + 1, 1));
             }
             else
             {
                 p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
                 p.Plot.XAxis.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
+                StartDateLocal.Update(new DateTime(currentYear, month, 1));
+                EndDateLocal.Update(new DateTime(currentYear + 1, 1, 1));
             }
 
             p.Plot.XAxis.Label.Text = MonthNames.Names[month - 1];
             p.Refresh();
         }
+        
+        if (month < 12)
+        {
+            StartDateLocal.Update(new DateTime(currentYear, month, 1));
+            EndDateLocal.Update(new DateTime(currentYear, month + 1, 1));
+        }
+        else
+        {
+            StartDateLocal.Update(new DateTime(currentYear, month, 1));
+            EndDateLocal.Update(new DateTime(currentYear + 1, 1, 1));
+        }
+        
     }
 
     public void MakeJan() => FixMonth(1);

@@ -100,20 +100,26 @@
                 </StackPanel>
             </TabItem>
             <TabItem Header="Dates">
-                <WrapPanel>
-                    <Button Command="{Binding MakeJan}">Jan</Button>
-                    <Button Command="{Binding MakeFeb}">Feb</Button>
-                    <Button Command="{Binding MakeMar}">Mar</Button>
-                    <Button Command="{Binding MakeApr}">Apr</Button>
-                    <Button Command="{Binding MakeMay}">May</Button>
-                    <Button Command="{Binding MakeJun}">Jun</Button>
-                    <Button Command="{Binding MakeJul}">Jul</Button>
-                    <Button Command="{Binding MakeAug}">Aug</Button>
-                    <Button Command="{Binding MakeSep}">Sep</Button>
-                    <Button Command="{Binding MakeOct}">Oct</Button>
-                    <Button Command="{Binding MakeNov}">Nov</Button>
-                    <Button Command="{Binding MakeDec}">Dec</Button>
-                </WrapPanel>
+                <StackPanel>
+                    <TextBlock Name="StartDateTextBlock">Start Date:</TextBlock>
+                    <TextBlock Name="EndDateTextBlock">End Date:</TextBlock>
+                    <TextBlock Name="ComputedDateTextBlock">Computed:</TextBlock>
+                    <TextBlock Name="ChainedComputedDate">Computed:</TextBlock>
+                    <WrapPanel>
+                        <Button Command="{Binding MakeJan}">Jan</Button>
+                        <Button Command="{Binding MakeFeb}">Feb</Button>
+                        <Button Command="{Binding MakeMar}">Mar</Button>
+                        <Button Command="{Binding MakeApr}">Apr</Button>
+                        <Button Command="{Binding MakeMay}">May</Button>
+                        <Button Command="{Binding MakeJun}">Jun</Button>
+                        <Button Command="{Binding MakeJul}">Jul</Button>
+                        <Button Command="{Binding MakeAug}">Aug</Button>
+                        <Button Command="{Binding MakeSep}">Sep</Button>
+                        <Button Command="{Binding MakeOct}">Oct</Button>
+                        <Button Command="{Binding MakeNov}">Nov</Button>
+                        <Button Command="{Binding MakeDec}">Dec</Button>
+                    </WrapPanel>
+                </StackPanel>
             </TabItem>
             <TabItem Header="Plot Type">
                 <StackPanel>
