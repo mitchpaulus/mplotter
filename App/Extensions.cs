@@ -16,6 +16,8 @@ public static class Extensions
         }
     }
 
+    public static string ToSqliteConnString(this string filepath) => $"Data Source={filepath}";
+
     /// <summary>
     /// This function return a string representing the best guess at the unit given a full trend name.
     /// The algorithm is simple - it looks for text within parenthesis, square brackets, or curly brackets,

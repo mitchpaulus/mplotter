@@ -1,3 +1,4 @@
+using System.Data.SQLite;
 using System.Text;
 using csvplot;
 
@@ -45,6 +46,23 @@ public class Tests
         list1[0].Name = "new";
         
         Console.WriteLine(list2[0].Name);
+    }
+
+    [Test]
+    public void TestSqliteSchema()
+    {
+        string filepath =
+            @"C:\Users\mpaulus\Command Commissioning\Jobs - 23-TBNTX-001-ARX North Fort Worth Broadcast Center - ARX\2 Data\Claraxio\AFPT\2023-12-28_Trends\VAV_08_01.db";
+
+        string connectionString = $"Data Source={filepath}";
+
+        using SQLiteConnection conn = new SQLiteConnection(connectionString);
+        
+        conn.Open();
+
+        var dataTable = conn.GetSchema("TABLES");
+
+        var table2 = conn.GetSchema("COLUMNS", new[] { null, null, "history" });
     }
 }
 

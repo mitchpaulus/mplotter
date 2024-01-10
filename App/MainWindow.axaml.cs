@@ -84,7 +84,7 @@ public partial class MainWindow : Window
 
     public static readonly FilePickerFileType DateFileTypes = new("Data Files")
     {
-        Patterns = new[] { "*.csv", "*.tsv", "*.txt", "*.sql" }
+        Patterns = new[] { "*.csv", "*.tsv", "*.txt", "*.sql", "*.db" }
     };
 
     private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)

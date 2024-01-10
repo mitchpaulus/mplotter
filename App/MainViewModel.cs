@@ -108,20 +108,13 @@ public class MainViewModel : INotifyPropertyChanged
         {
             var plot = new AvaPlot();
 
-            string? unit = unitGroup.Key;
-
             foreach ((var (source, t), int trendIndex) in unitGroup.WithIndex())
             {
-                 var data = source.DataSource.GetData(t.Name);
-
                  if (_isTs)
                  {
-                     if (data.Length == 8760 || source.DataSource.DataSourceType != DataSourceType.NonTimeSeries) {
-                         plot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
-                     }
-
+                     plot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
                      var tsData = source.DataSource.GetTimestampData(t.Name);
-
+                     
                      // Bail if we messed up.
                      if (!tsData.LengthsEqual) continue;
 
@@ -146,7 +139,7 @@ public class MainViewModel : INotifyPropertyChanged
                      string label = unitGroup.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
                      // if (didConvert) label = $"{label} in {unitToConvertTo}";
 
-                     if (source.DataSource.DataSourceType == DataSourceType.EnergyModel || data.Length == 8760)
+                     if (source.DataSource.DataSourceType == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
                      {
                          var signalPlot = plot.Plot.Add.Signal(yData, (double)1/24);
                          signalPlot.Label = label;
@@ -163,6 +156,10 @@ public class MainViewModel : INotifyPropertyChanged
                  }
                  else if (_isHistogram)
                  {
+                     var data = source.DataSource.DataSourceType == DataSourceType.NonTimeSeries 
+                         ? source.DataSource.GetData(t.Name) 
+                         : source.DataSource.GetTimestampData(t.Name).Values.ToArray();
+                     
                      (double min, double max) = data.SafeMinMax();
 
                      var hist = new Histogram(min, max, 50);
