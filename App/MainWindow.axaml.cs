@@ -115,10 +115,10 @@ public partial class MainWindow : Window
                 if (child is not AvaPlot avaPlot) continue;
 
                 // Not a date
-                if (avaPlot.Plot.XAxis.Min < new DateTime(1960, 1, 1).ToOADate()) return;
+                if (avaPlot.Plot.Axes.Bottom.Min < new DateTime(1960, 1, 1).ToOADate()) return;
 
-                var minOaDate = DateTime.FromOADate(avaPlot.Plot.XAxis.Min);
-                var maxOaDate = DateTime.FromOADate(avaPlot.Plot.XAxis.Max);
+                var minOaDate = DateTime.FromOADate(avaPlot.Plot.Axes.Bottom.Min);
+                var maxOaDate = DateTime.FromOADate(avaPlot.Plot.Axes.Bottom.Max);
 
                 if (minOaDate.Day == 1 && maxOaDate.Day == 1)
                 {
@@ -129,11 +129,11 @@ public partial class MainWindow : Window
                         var newMinDate = minOaDate.AddMonths(-monthDiff);
                         var newMaxDate = maxOaDate.AddMonths(-monthDiff);
 
-                        avaPlot.Plot.SetAxisLimits(newMinDate.ToOADate(), newMaxDate.ToOADate());
+                        avaPlot.Plot.Axes.SetLimitsX(newMinDate.ToOADate(), newMaxDate.ToOADate());
 
                         if (monthDiff == 1)
                         {
-                            avaPlot.Plot.XAxis.Label.Text = MonthNames.Names[newMinDate.Month - 1];
+                            avaPlot.Plot.Axes.Bottom.Label.Text = MonthNames.Names[newMinDate.Month - 1];
                         }
 
                         avaPlot.Refresh();
@@ -151,10 +151,10 @@ public partial class MainWindow : Window
                 if (child is not AvaPlot avaPlot) continue;
 
                 // Not a date
-                if (avaPlot.Plot.XAxis.Min < new DateTime(1960, 1, 1).ToOADate()) return;
+                if (avaPlot.Plot.Axes.Bottom.Min < new DateTime(1960, 1, 1).ToOADate()) return;
 
-                var minOaDate = DateTime.FromOADate(avaPlot.Plot.XAxis.Min);
-                var maxOaDate = DateTime.FromOADate(avaPlot.Plot.XAxis.Max);
+                var minOaDate = DateTime.FromOADate(avaPlot.Plot.Axes.Bottom.Min);
+                var maxOaDate = DateTime.FromOADate(avaPlot.Plot.Axes.Bottom.Max);
 
                 if (minOaDate.Day == 1 && maxOaDate.Day == 1)
                 {
@@ -165,11 +165,11 @@ public partial class MainWindow : Window
                         var newMinDate = minOaDate.AddMonths(monthDiff);
                         var newMaxDate = maxOaDate.AddMonths(monthDiff);
 
-                        avaPlot.Plot.SetAxisLimits(newMinDate.ToOADate(), newMaxDate.ToOADate());
+                        avaPlot.Plot.Axes.SetLimitsX(newMinDate.ToOADate(), newMaxDate.ToOADate());
 
                         if (monthDiff == 1)
                         {
-                            avaPlot.Plot.XAxis.Label.Text = MonthNames.Names[newMinDate.Month - 1];
+                            avaPlot.Plot.Axes.Bottom.Label.Text = MonthNames.Names[newMinDate.Month - 1];
                         }
 
                         avaPlot.Refresh();
@@ -196,7 +196,7 @@ public partial class MainWindow : Window
             {
                 if (t.Checked) t.Checked = false;
             }
-            
+
             foreach (var t in s.Trends)
             {
                 if (t.Checked) t.Checked = false;

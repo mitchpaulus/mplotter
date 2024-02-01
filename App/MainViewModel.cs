@@ -112,9 +112,9 @@ public class MainViewModel : INotifyPropertyChanged
             {
                  if (_isTs)
                  {
-                     plot.Plot.AxisStyler.DateTimeTicks(Edge.Bottom);
+                     plot.Plot.Axes.DateTimeTicksBottom();
                      var tsData = source.DataSource.GetTimestampData(t.Name);
-                     
+
                      // Bail if we messed up.
                      if (!tsData.LengthsEqual) continue;
 
@@ -156,10 +156,10 @@ public class MainViewModel : INotifyPropertyChanged
                  }
                  else if (_isHistogram)
                  {
-                     var data = source.DataSource.DataSourceType == DataSourceType.NonTimeSeries 
-                         ? source.DataSource.GetData(t.Name) 
+                     var data = source.DataSource.DataSourceType == DataSourceType.NonTimeSeries
+                         ? source.DataSource.GetData(t.Name)
                          : source.DataSource.GetTimestampData(t.Name).Values.ToArray();
-                     
+
                      (double min, double max) = data.SafeMinMax();
 
                      var hist = new Histogram(min, max, 50);
@@ -197,15 +197,15 @@ public class MainViewModel : INotifyPropertyChanged
 
             if (_isHistogram)
             {
-                plot.Plot.YAxis.Label.Text = "Count";
-                plot.Plot.XAxis.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
+                plot.Plot.Axes.Left.Label.Text = "Count";
+                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
             }
             else
             {
-                plot.Plot.YAxis.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
+                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
             }
 
-            plot.Plot.AutoScale();
+            plot.Plot.Axes.AutoScale();
             plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
             plot.Plot.Legend.Location = Alignment.UpperRight;
 
@@ -246,23 +246,23 @@ public class MainViewModel : INotifyPropertyChanged
         {
             if (month < 12)
             {
-                p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
-                p.Plot.XAxis.Max = new DateTime(currentYear, month + 1, 1).ToOADate();
+                p.Plot.Axes.Bottom.Min = new DateTime(currentYear, month, 1).ToOADate();
+                p.Plot.Axes.Bottom.Max = new DateTime(currentYear, month + 1, 1).ToOADate();
                 StartDateLocal.Update(new DateTime(currentYear, month, 1));
                 EndDateLocal.Update(new DateTime(currentYear, month + 1, 1));
             }
             else
             {
-                p.Plot.XAxis.Min = new DateTime(currentYear, month, 1).ToOADate();
-                p.Plot.XAxis.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
+                p.Plot.Axes.Bottom.Min = new DateTime(currentYear, month, 1).ToOADate();
+                p.Plot.Axes.Bottom.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
                 StartDateLocal.Update(new DateTime(currentYear, month, 1));
                 EndDateLocal.Update(new DateTime(currentYear + 1, 1, 1));
             }
 
-            p.Plot.XAxis.Label.Text = MonthNames.Names[month - 1];
+            p.Plot.Axes.Bottom.Label.Text = MonthNames.Names[month - 1];
             p.Refresh();
         }
-        
+
         if (month < 12)
         {
             StartDateLocal.Update(new DateTime(currentYear, month, 1));
@@ -273,7 +273,7 @@ public class MainViewModel : INotifyPropertyChanged
             StartDateLocal.Update(new DateTime(currentYear, month, 1));
             EndDateLocal.Update(new DateTime(currentYear + 1, 1, 1));
         }
-        
+
     }
 
     public void MakeJan() => FixMonth(1);
