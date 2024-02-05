@@ -2,15 +2,19 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using ScottPlot;
 
 namespace csvplot;
 
 public class EnergyPlusSqliteDataSource : IDataSource
 {
+    private readonly List<string> _trends;
+
     public EnergyPlusSqliteDataSource(string sourceFile)
     {
         Header = sourceFile;
@@ -26,7 +30,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
 
         using var reader = cmd.ExecuteReader();
 
-        Trends = new List<string>();
+        _trends = new List<string>();
 
         while (reader.Read())
         {
@@ -47,19 +51,20 @@ public class EnergyPlusSqliteDataSource : IDataSource
 
             if (reportingFrequency == "Hourly")
             {
-                Trends.Add($"{keyValue}: {name} [{units}]");
+                _trends.Add($"{keyValue}: {name} [{units}]");
             }
         }
     }
 
-    public List<string> Trends { get; }
-    public double[] GetData(string trend)
+    public Task<List<string>> Trends() => Task.FromResult(_trends);
+    public List<double> GetData(string trend)
     {
         // Split name into keyValue, name, units
 
-        var keyValue = trend.Split(':')[0].Trim();
-        var name = trend.Split(':')[1].Trim().Split('[')[0].Trim();
-        var units = trend.Split(':')[1].Trim().Split('[')[1].Trim().TrimEnd(']');
+        var strings = trend.Split(':');
+        var keyValue = strings[0].Trim();
+        var name = strings[1].Trim().Split('[')[0].Trim();
+        var units = strings[1].Trim().Split('[')[1].Trim().TrimEnd(']');
 
         string connectionString = $"Data Source={Header};";
 
@@ -67,7 +72,6 @@ public class EnergyPlusSqliteDataSource : IDataSource
         conn.Open();
 
         // First get the 'ReportDataDictionaryIndex' for the trend
-
         string sql = $"SELECT ReportDataDictionaryIndex FROM ReportDataDictionary WHERE KeyValue = '{keyValue}' and Name = '{name}' and Units = '{units}'";
 
         // SQLite returning 64 bit ints for whatever reason.
@@ -80,7 +84,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
                 var hasRow = reader.Read();
 
                 // Return empty array if no row found
-                if (!hasRow) return new double[0];
+                if (!hasRow) return new List<double>();
 
                 reportDataDictionaryIndex =  reader["ReportDataDictionaryIndex"];
             }
@@ -105,32 +109,34 @@ public class EnergyPlusSqliteDataSource : IDataSource
         b.Append("or DayType = \"Saturday\") ");
         b.Append($"and ReportVariableData.ReportVariableDataDictionaryIndex = {reportDataDictionaryIndex} ;");
 
+        Stopwatch w = new();
+        w.Restart();
         sql = b.ToString();
-
+        var data = new List<double>(8760);
         using (var cmd = new SQLiteCommand(sql, conn))
         {
             using (var reader = cmd.ExecuteReader())
             {
-                var data = new List<double>(8760);
-
                 while (reader.Read())
                 {
-                    var variableValue = (double) reader["VariableValue"];
+                    var variableValue = reader.GetDouble("VariableValue");
                     data.Add(variableValue);
                 }
 
-                return data.ToArray();
             }
         }
+        w.Stop();
+        Console.Write($"Data read: {w.ElapsedMilliseconds}\n");
+
+        return data;
     }
 
     public TimestampData GetTimestampData(string trend)
     {
         int year = DateTime.Now.Year;
-        double[] data = GetData(trend);
+        List<double> data = GetData(trend);
 
         List<DateTime> dateTimes = new(8760);
-        List<double> values = new(8760);
 
         DateTime time = new DateTime(year, 1, 1);
 
@@ -138,10 +144,9 @@ public class EnergyPlusSqliteDataSource : IDataSource
         {
             dateTimes.Add(time);
             time = time.AddHours(1);
-            values.Add(t);
         }
 
-        return new TimestampData(dateTimes, values);
+        return new TimestampData(dateTimes, data);
     }
 
     public string Header { get; }

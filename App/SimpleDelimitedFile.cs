@@ -2,12 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace csvplot;
 
 public class SimpleDelimitedFile : IDataSource
 {
-    public List<string> Trends { get; }
+    public Task<List<string>> Trends() => Task.FromResult(_trends);
 
     private readonly char _delimiter = '\t';
 
@@ -32,6 +33,8 @@ public class SimpleDelimitedFile : IDataSource
         }
     }
 
+    private readonly List<string> _trends;
+
     public SimpleDelimitedFile(string source)
     {
         Header = source;
@@ -44,23 +47,23 @@ public class SimpleDelimitedFile : IDataSource
             if (source.ToLowerInvariant().EndsWith(".tsv") || headerLine.Contains('\t'))
             {
                 string[] splitHeader = headerLine.Split('\t');
-                Trends = splitHeader.ToList();
+                _trends = splitHeader.ToList();
                 _delimiter = '\t';
             }
             else if (source.ToLowerInvariant().EndsWith(".csv"))
             {
                 string[] splitHeader = headerLine.Split(',');
-                Trends = splitHeader.ToList();
+                _trends = splitHeader.ToList();
                 _delimiter = ',';
             }
             else
             {
-                Trends = Array.Empty<string>().ToList();
+                _trends = Array.Empty<string>().ToList();
             }
         }
         else
         {
-            Trends = Array.Empty<string>().ToList();
+            _trends = Array.Empty<string>().ToList();
         }
 
         var nextLine = sr.ReadLine();
@@ -89,13 +92,13 @@ public class SimpleDelimitedFile : IDataSource
         }
     }
 
-    public double[] GetData(string trend)
+    public List<double> GetData(string trend)
     {
         using FileStream stream = new FileStream(Header, FileMode.Open);
         var sr = new StreamReader(stream);
         var headerLine = sr.ReadLine();
 
-        if (headerLine is null) return Array.Empty<double>();
+        if (headerLine is null) return new List<double>();
 
         string[] splitHeader = headerLine.Split(_delimiter);
         int col = -1;
@@ -115,7 +118,7 @@ public class SimpleDelimitedFile : IDataSource
             }
         }
 
-        return values.ToArray();
+        return values;
     }
 
     public TimestampData GetTimestampData(string trend)

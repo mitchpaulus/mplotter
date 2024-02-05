@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Avalonia.Controls;
 
 namespace csvplot;
 
@@ -87,11 +88,34 @@ public static class Extensions
         return unit;
     }
 
-    public static (double Min, double Max) SafeMinMax(this double[] data)
+    public static (double Min, double Max) SafeMinMax(this IEnumerable<double> data)
     {
          double min;
          double max;
-         if (data.Length > 0)
+
+         // Enumerate once to see if any, then enumerate again through rest to get min and max.
+         using var enumerator = data.GetEnumerator();
+         bool any = enumerator.MoveNext();
+
+         if (!any) return (0, 1);
+
+         while (true)
+         {
+             min = enumerator.Current;
+             max = enumerator.Current;
+             any = enumerator.MoveNext();
+             if (!any) break;
+         }
+
+         if (Math.Abs(min - max) < 0.00000001) max = min + 1;
+         return (min, max);
+    }
+
+    public static (double Min, double Max) SafeMinMax(this List<double> data)
+    {
+         double min;
+         double max;
+         if (data.Count > 0)
          {
              min = data.Min();
              max = data.Max();
@@ -114,6 +138,7 @@ public static class Extensions
         return source.Select((item, index) => (item, index));
     }
 
+    public static string EscapeUiText(this string input) => input.Replace("_", "__");
 
     // public static List<List<(DataSourceViewModel s, TrendItemViewModel t)>> GroupTrendsByUnit(this List<(DataSourceViewModel s, TrendItemViewModel t)> list, UnitReader reader, UnitConverterReader unitConverterReader)
     // {

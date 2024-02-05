@@ -43,6 +43,8 @@
                                 VerticalAlignment="Top"
                                 Command="{Binding SelectTrendClick}" />
 
+                        <Button Click="InfluxButtonClick">Influx</Button>
+
                     </StackPanel>
 
                     <TextBlock Grid.Row="1" FontStyle="Italic">Most Recently Used:</TextBlock>
@@ -52,39 +54,42 @@
                     </WrapPanel>
 
                     <Grid Grid.Row="3"  ColumnDefinitions="* Auto">
-                        <TextBox x:Name="SearchBox" Grid.Column="0" Text="{Binding TrendFilter}" Watermark="Search.." Margin="0 10 0 10"></TextBox>
+                        <TextBox x:Name="SearchBox" Grid.Column="0" TextChanged="SearchBox_OnTextChanged" Watermark="Search.." Margin="0 10 0 10"></TextBox>
                         <Button Click="ClearSelections" Margin="10 0 0 0" Grid.Column="1">Clear</Button>
-                    </Grid> 
+                    </Grid>
 
-                    <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" Name="SourcesScrollViewer">
+                        <StackPanel Name="SourcesStackPanel" Spacing="10">
+
+                        </StackPanel>
                         <!-- Add other controls for source selection here -->
-                        <ItemsControl ItemsSource="{Binding Sources}">
-                            <!-- Need a delete button for each source -->
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Grid RowDefinitions="Auto">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"></ColumnDefinition>
-                                            <ColumnDefinition Width="Auto"></ColumnDefinition>
-                                        </Grid.ColumnDefinitions>
-                                        <Expander Grid.Column="0" Header="{Binding EscapedHeader}">
-                                            <StackPanel>
-                                                <!-- Generate a checkbox item for each Trend for the current source -->
-                                                <ItemsControl ItemsSource="{Binding FilteredTrends}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <CheckBox Content="{Binding EscapedName}"
-                                                                      IsChecked="{Binding Checked}" />
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </StackPanel>
-                                        </Expander>
-                                        <Button Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10" Click="Button_OnClick" >Remove</Button>
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <!-- <ItemsControl ItemsSource="{Binding Sources}"> -->
+                        <!--     ~1~ Need a delete button for each source @1@ -->
+                        <!--     <ItemsControl.ItemTemplate> -->
+                        <!--         <DataTemplate> -->
+                        <!--             <Grid RowDefinitions="Auto"> -->
+                        <!--                 <Grid.ColumnDefinitions> -->
+                        <!--                     <ColumnDefinition Width="*"></ColumnDefinition> -->
+                        <!--                     <ColumnDefinition Width="Auto"></ColumnDefinition> -->
+                        <!--                 </Grid.ColumnDefinitions> -->
+                        <!--                 <Expander Grid.Column="0" Header="{Binding EscapedHeader}"> -->
+                        <!--                     <StackPanel> -->
+                        <!--                         ~1~ Generate a checkbox item for each Trend for the current source @1@ -->
+                        <!--                         <ItemsControl ItemsSource="{Binding FilteredTrends}"> -->
+                        <!--                             <ItemsControl.ItemTemplate> -->
+                        <!--                                 <DataTemplate> -->
+                        <!--                                     <CheckBox Content="{Binding EscapedName}" -->
+                        <!--                                               IsChecked="{Binding Checked}" /> -->
+                        <!--                                 </DataTemplate> -->
+                        <!--                             </ItemsControl.ItemTemplate> -->
+                        <!--                         </ItemsControl> -->
+                        <!--                     </StackPanel> -->
+                        <!--                 </Expander> -->
+                        <!--                 <Button Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10" Click="Button_OnClick" >Remove</Button> -->
+                        <!--             </Grid> -->
+                        <!--         </DataTemplate> -->
+                        <!--     </ItemsControl.ItemTemplate> -->
+                        <!-- </ItemsControl> -->
                     </ScrollViewer>
                 </Grid>
             </TabItem>

@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Controls.Selection;
@@ -28,7 +29,7 @@ public class TrendDialogVm : INotifyPropertyChanged
 
     public int MyCount;
 
-    private void SelectionModelOnSelectionChanged(object? sender, SelectionModelSelectionChangedEventArgs<IDataSource> e)
+    private async void SelectionModelOnSelectionChanged(object? sender, SelectionModelSelectionChangedEventArgs<IDataSource> e)
     {
         if (sender is not SelectionModel<IDataSource> selectionModel) return;
 
@@ -38,7 +39,8 @@ public class TrendDialogVm : INotifyPropertyChanged
         {
             if (i is null) continue;
 
-            foreach (var t in i.Trends)
+            var trends = await i.Trends();
+            foreach (var t in trends)
             {
                 _availableTrends.Add(new(i, t));
             }

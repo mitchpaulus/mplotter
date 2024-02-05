@@ -2,12 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
+using Avalonia.LogicalTree;
 using Avalonia.Platform.Storage;
 using ScottPlot;
 using ScottPlot.Avalonia;
@@ -30,6 +34,13 @@ public class MainViewModel : INotifyPropertyChanged
 
     private ComputedDateTimeState _computedDateTime;
     private readonly ComputedDateTimeState _secondComputedDateTime;
+
+    private readonly List<IDataSource> _dataSources = new();
+    private readonly List<SourceTrendPair> _sourceTrendPairs = new();
+
+    private bool _isClearingChecked = false;
+
+    private string _trendFilter = "";
 
     public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider, MainWindow window)
     {
@@ -84,41 +95,35 @@ public class MainViewModel : INotifyPropertyChanged
     public void UpdatePlots()
     {
         _window.PlotStackPanel.Children.Clear();
-        // AvaPlot.Plot.Clear();
 
-        // double[] dataX = new double[] { 1, 2, 3, 4, 5 };
-        // double[] dataY = new double[] { 1, 4, 9, 16, 25 };
-
-        // double[] dataY = RandomDataGenerator.Generate.RandomSample(5, 25);
-
-        // Middle click to reset axis limits
-        // var scatter = _avaPlot.Plot.Add.Scatter(dataX, dataY);
-
-
-        List<(DataSourceViewModel s, TrendItemViewModel t)> selectedTrends = Sources.SelectMany(s =>
-            s.Trends.Where(t => s.CheckedTrends.Contains(t.Name))
-                    .Select(t => (s, t)))
-                    .ToList();
-
-        var unitGrouped = selectedTrends.GroupBy(tuple => tuple.t.Name.GetUnit());
+        var unitGrouped = _sourceTrendPairs.GroupBy(pair => pair.Name.GetUnit());
 
         List<AvaPlot> plots = new();
 
+         Stopwatch watch = new Stopwatch();
         foreach (var unitGroup in unitGrouped)
         {
             var plot = new AvaPlot();
 
-            foreach ((var (source, t), int trendIndex) in unitGroup.WithIndex())
+            foreach ((var sourcePair, int trendIndex) in unitGroup.WithIndex())
             {
+                 var t = sourcePair.Name;
+                 var source = sourcePair.Source;
+
                  if (_isTs)
                  {
                      plot.Plot.Axes.DateTimeTicksBottom();
-                     var tsData = source.DataSource.GetTimestampData(t.Name);
+                     watch.Restart();
+                     var tsData = sourcePair.Source.GetTimestampData(sourcePair.Name);
+                     watch.Stop();
+
+                     Console.Write($"{watch.ElapsedMilliseconds}\n");
 
                      // Bail if we messed up.
                      if (!tsData.LengthsEqual) continue;
 
-                     double[] yData = tsData.Values.ToArray();
+                     // double[] yData = tsData.Values.ToArray();
+                     List<double> yData = tsData.Values;
 
                      bool didConvert = false;
                      // if (_unitConverterReader.TryGetConversion(t.Name, _unitReader, out Unit? unitToConvertTo))
@@ -136,10 +141,10 @@ public class MainViewModel : INotifyPropertyChanged
                      //     }
                      // }
 
-                     string label = unitGroup.Count(tuple => tuple.t.Name == t.Name) < 2 ? t.Name : $"{source.DataSource.ShortName}: {t.Name}";
+                     string label = unitGroup.Count(tuple => tuple.Name == t) < 2 ? t : $"{source.ShortName}: {t}";
                      // if (didConvert) label = $"{label} in {unitToConvertTo}";
 
-                     if (source.DataSource.DataSourceType == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
+                     if (source.DataSourceType == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
                      {
                          var signalPlot = plot.Plot.Add.Signal(yData, (double)1/24);
                          signalPlot.Label = label;
@@ -147,7 +152,7 @@ public class MainViewModel : INotifyPropertyChanged
                      }
                      else
                      {
-                         double[] xData = tsData.DateTimes.Select(time => time.ToOADate()).ToArray();
+                         List<double> xData = tsData.DateTimes.Select(time => time.ToOADate()).ToList();
                          // TODO: add safety here
                          // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
                          var scatter = plot.Plot.Add.Scatter(xData, yData);
@@ -156,9 +161,9 @@ public class MainViewModel : INotifyPropertyChanged
                  }
                  else if (_isHistogram)
                  {
-                     var data = source.DataSource.DataSourceType == DataSourceType.NonTimeSeries
-                         ? source.DataSource.GetData(t.Name)
-                         : source.DataSource.GetTimestampData(t.Name).Values.ToArray();
+                     var data = source.DataSourceType == DataSourceType.NonTimeSeries
+                         ? source.GetData(t)
+                         : source.GetTimestampData(t).Values;
 
                      (double min, double max) = data.SafeMinMax();
 
@@ -186,7 +191,7 @@ public class MainViewModel : INotifyPropertyChanged
                      plot.Plot.Add.Bars(allBars);
                      plot.Plot.Legend.ManualItems.Add(new LegendItem
                      {
-                         Label = t.Name,
+                         Label = t,
                          Line  = LineStyle.None,
                          Marker = new MarkerStyle { Shape = MarkerShape.FilledSquare },
                          FillColor = colors[trendIndex]
@@ -198,11 +203,11 @@ public class MainViewModel : INotifyPropertyChanged
             if (_isHistogram)
             {
                 plot.Plot.Axes.Left.Label.Text = "Count";
-                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
+                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Name : unitGroup.Key ?? "";
             }
             else
             {
-                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().t.Name : unitGroup.Key ?? "";
+                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Name : unitGroup.Key ?? "";
             }
 
             plot.Plot.Axes.AutoScale();
@@ -230,6 +235,151 @@ public class MainViewModel : INotifyPropertyChanged
         foreach (var p in plots)
         {
             p.Refresh();
+        }
+    }
+
+    public void UpdateTrendFilter(string filter)
+    {
+        _trendFilter = filter;
+
+        foreach (Control c in _window.SourcesStackPanel.Children)
+        {
+            Grid g = (Grid)c;
+            Expander e = g.Children.Where(control => control.GetType() == typeof(Expander)).Cast<Expander>().First();
+            StackPanel stackPanel = (StackPanel)e.Content!;
+
+            if (string.IsNullOrWhiteSpace(_trendFilter))
+            {
+                foreach (var child in stackPanel.Children)
+                {
+                    // Not sure if setting this, even if same, triggers a redraw.
+                    if (!child.IsVisible) child.IsVisible = true;
+                }
+            }
+            else
+            {
+                foreach (var child in stackPanel.Children)
+                {
+                    CheckBox box = (CheckBox)child;
+                    SourceTrendPair pair = (SourceTrendPair)box.Tag!;
+
+                    bool match = pair.Name.ToLower().Contains(_trendFilter.ToLower());
+                    box.IsVisible = match;
+                }
+            }
+        }
+    }
+
+    public async Task UpdateSourceListUi()
+    {
+        List<Grid> grids = new();
+
+        foreach (var s in _dataSources)
+        {
+            var g = await GetGridForSource(s);
+
+            grids.Add(g);
+        }
+
+        _window.SourcesStackPanel.Children.Clear();
+        _window.SourcesStackPanel.Children.AddRange(grids);
+    }
+
+    private async Task<Grid> GetGridForSource(IDataSource s)
+    {
+        Grid g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+        g.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+
+        Expander exp = new Expander();
+        Grid.SetColumn(exp, 0);
+
+        StackPanel stackPanel = new();
+        exp.Content = stackPanel;
+
+        exp.Header = s.Header.EscapeUiText();
+
+        var trends = await s.Trends();
+        trends.Sort();
+        foreach (var t in trends)
+        {
+            CheckBox box = new();
+            box.Content = t;
+            box.Tag = new SourceTrendPair(s, t, box);
+            box.IsCheckedChanged += HandleChecked;
+            stackPanel.Children.Add(box);
+        }
+
+        g.Children.Add(exp);
+
+        Button removeButton = new();
+        removeButton.Content = "Remove";
+        removeButton.Tag = (g, s);
+        removeButton.VerticalAlignment = VerticalAlignment.Top;
+        removeButton.HorizontalAlignment = HorizontalAlignment.Left;
+        removeButton.Margin = new Thickness(10, 0, 10, 0);
+
+        Grid.SetColumn(removeButton, 1);
+        g.Children.Add(removeButton);
+
+        removeButton.Click += RemoveSource;
+        return g;
+    }
+
+    public async Task AddDataSource(IDataSource source)
+    {
+        // Don't add duplicate
+        foreach (var s in _dataSources)
+        {
+            if (s.GetType() != source.GetType()) continue;
+            if (s.Header == source.Header) return;
+        }
+
+        _dataSources.Add(source);
+
+        Grid g = await GetGridForSource(source);
+        _window.SourcesStackPanel.Children.Add(g);
+
+        UpdateTrendFilter(_trendFilter);
+        // await UpdateSourceListUi();
+    }
+
+    public void ClearSelected()
+    {
+        _isClearingChecked = true;
+        foreach (var pair in _sourceTrendPairs) pair.Box.IsChecked = false;
+        _sourceTrendPairs.Clear();
+        _isClearingChecked = false;
+        UpdatePlots();
+    }
+
+    public void HandleChecked(object? sender, EventArgs e)
+    {
+        if (_isClearingChecked) return;
+        if (sender is not CheckBox b) return;
+
+        SourceTrendPair p = (SourceTrendPair)b.Tag!;
+        if (b.IsChecked is null || !(bool)b.IsChecked)
+        {
+            _sourceTrendPairs.RemoveAll(pair => object.ReferenceEquals(pair, p));
+        }
+        else
+        {
+            _sourceTrendPairs.Add(p);
+        }
+
+        UpdatePlots();
+    }
+
+    private void RemoveSource(object? sender, EventArgs e)
+    {
+        if (sender is Button s)
+        {
+            var indexToRemove = ((Grid grid, IDataSource source))s.Tag!;
+            _dataSources.RemoveAll(source => ReferenceEquals(source, indexToRemove.source));
+            _window.SourcesStackPanel.Children.Remove(indexToRemove.grid);
+            _sourceTrendPairs.RemoveAll(pair => ReferenceEquals(pair.Source, indexToRemove.source));
+            UpdatePlots();
         }
     }
 
@@ -301,34 +451,6 @@ public class MainViewModel : INotifyPropertyChanged
     public void MakeNov() => FixMonth(11);
 
     public void MakeDec() => FixMonth(12);
-
-
-    public ObservableCollection<DataSourceViewModel> Sources { get; } = new();
-
-    private string _trendFilter = "";
-    public string TrendFilter
-    {
-        get => _trendFilter;
-        set
-        {
-            if (SetField(ref _trendFilter, value))
-            {
-                foreach (var source in Sources)
-                {
-                    source.FilteredTrendBuffer.Clear();
-                    foreach (var trend in source.Trends)
-                    {
-                        if (trend.Name.ToLowerInvariant().Contains(_trendFilter.ToLowerInvariant()))
-                        {
-                            source.FilteredTrendBuffer.Add(trend);
-                        }
-                    }
-
-                    source.UpdateFilteredTrends();
-                }
-            };
-        }
-    }
 
     private bool _ignoreMonday = false;
     public bool IgnoreMonday
@@ -481,13 +603,12 @@ public class MainViewModel : INotifyPropertyChanged
 
             IDataSource source = DataSourceFactory.SourceFromLocalPath(filePath.Path.LocalPath);
 
-            if (filePath != default(IStorageFile?))
-            {
-                Sources.Add(new(source, this));
+            _dataSources.Add(source);
+            await UpdateSourceListUi();
+            // Sources.Add(new(source, this));
 
-               // Handle the file path (e.g., updating the ViewModel)
-               await SaveToMru(filePath.Path.LocalPath);
-            }
+            // Handle the file path (e.g., updating the ViewModel)
+            await SaveToMru(filePath.Path.LocalPath);
         }
     }
 
@@ -541,7 +662,7 @@ public class MainViewModel : INotifyPropertyChanged
     public async void SelectTrendClick()
     {
         var dialog = new TrendDialog();
-        var vm = new TrendDialogVm(Sources.Select(model => model.DataSource).ToList());
+        var vm = new TrendDialogVm(_dataSources);
         dialog.DataContext = vm;
 
         await dialog.ShowDialog(_window);
@@ -557,9 +678,9 @@ public class DataSourceViewModel : INotifyPropertyChanged
 
     public HashSet<string> CheckedTrends = new();
 
-    public ObservableCollection<TrendItemViewModel> Trends { get; }
+    public ObservableCollection<TrendItemViewModel> Trends { get; set; }
 
-    public readonly ObservableCollection<TrendItemViewModel> FilteredTrendBuffer;
+    public ObservableCollection<TrendItemViewModel> FilteredTrendBuffer { get; set; }
 
     public void UpdateFilteredTrends()
     {
@@ -573,8 +694,14 @@ public class DataSourceViewModel : INotifyPropertyChanged
         MainViewModel = mainViewModel;
         DataSource = dataSource;
         Header = dataSource.Header;
-        Trends = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel(t, this)));
-        FilteredTrendBuffer = new ObservableCollection<TrendItemViewModel>(DataSource.Trends.Select(t => new TrendItemViewModel(t, this)));
+        var init = Init();
+    }
+
+    public async Task Init()
+    {
+        var trends = await DataSource.Trends();
+        Trends = new ObservableCollection<TrendItemViewModel>(trends.Select(t => new TrendItemViewModel(t, this)));
+        FilteredTrendBuffer = new ObservableCollection<TrendItemViewModel>(trends.Select(t => new TrendItemViewModel(t, this)));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -636,4 +763,18 @@ public class TrendItemViewModel : INotifyPropertyChanged
         OnPropertyChanged(propertyName);
         return true;
     }
+}
+
+public class SourceTrendPair
+{
+    public SourceTrendPair(IDataSource source, string name, CheckBox box)
+    {
+        Source = source;
+        Name = name;
+        Box = box;
+    }
+
+    public IDataSource Source { get; }
+    public string Name { get; }
+    public CheckBox Box { get; }
 }

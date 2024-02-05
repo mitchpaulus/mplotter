@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using ScottPlot.Avalonia;
 
 namespace csvplot;
@@ -11,9 +12,9 @@ public static class MainChart
 
 public interface IDataSource
 {
-    List<string> Trends { get; }
+    Task<List<string>> Trends();
 
-    double[] GetData(string trend);
+    List<double> GetData(string trend);
 
     string Header { get; }
 

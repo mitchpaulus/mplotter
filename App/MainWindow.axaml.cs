@@ -28,6 +28,11 @@ public partial class MainWindow : Window
         _vm = new MainViewModel(plot!, StorageProvider, this);
         DataContext = _vm;
 
+        InitMrus();
+    }
+
+    public void InitMrus()
+    {
         var mrus = MostRecentlyUsedFiles();
 
         var buttons = mrus.Select(mru =>
@@ -35,33 +40,19 @@ public partial class MainWindow : Window
                 // Add a button to load that file
                 Button button = new Button();
                 IDataSource source = DataSourceFactory.SourceFromLocalPath(mru);
-                button.Click += (sender, args) =>
+                button.Click += async (sender, args) =>
                 {
-                    // Don't add a duplicate.
-                    if (_vm.Sources.Any(model => model.DataSource.Header == source.Header)) return;
-                    _vm.Sources.Add(new DataSourceViewModel(source, _vm));
+                    await _vm.AddDataSource(source);
                 };
                 button.Content = Path.GetFileName(mru);
 
-                var tooltip = new TextBlock() { Text = mru };
+                var tooltip = new TextBlock { Text = mru };
                 ToolTip.SetTip(button, tooltip);
                 return button;
             }
         );
 
         MruPanel.Children.AddRange(buttons);
-
-        // double[] dataX = new double[] { 1, 2, 3, 4, 5 };
-        // double[] dataY = new double[] { 1, 4, 9, 16, 25 };
-        //
-        //
-        // if (plot is not null)
-        // {
-        //     // Middle click to reset axis limits
-        //     var scatter = plot.Plot.Add.Scatter(dataX, dataY);
-        //     plot.Plot.XLabel("OAT");
-        //     plot.Refresh();
-        // }
     }
 
     public static List<string> MostRecentlyUsedFiles()
@@ -179,29 +170,16 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Button_OnClick(object? sender, RoutedEventArgs e)
+    private void ClearSelections(object? sender, RoutedEventArgs e) => _vm.ClearSelected();
+
+    private async void InfluxButtonClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button button) return;
-        if (button.DataContext is not DataSourceViewModel dataSourceVm) return;
-        _vm.Sources.Remove(dataSourceVm);
-        _vm.UpdatePlots();
-        // _vm.Sources.Remove()
+        await _vm.AddDataSource(new InfluxDataSource("511 John Carpenter"));
     }
 
-    private void ClearSelections(object? sender, RoutedEventArgs e)
+    private void SearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
     {
-        foreach (var s in _vm.Sources)
-        {
-            foreach (var t in s.FilteredTrends)
-            {
-                if (t.Checked) t.Checked = false;
-            }
-
-            foreach (var t in s.Trends)
-            {
-                if (t.Checked) t.Checked = false;
-            }
-        }
+        _vm.UpdateTrendFilter(((TextBox)sender).Text ?? "");
     }
 }
 
