@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using InfluxDB.Client;
+using InfluxDB.Client.Core.Flux.Domain;
 
 namespace csvplot;
 
@@ -116,7 +117,15 @@ public class InfluxDataSource : IDataSource
         var query = $"from(bucket: \"{_bucket}\") |> range(start: -1y) |> filter(fn: (r) => r._measurement == \"{trend}\") |> yield()";
 
         var queryApi = client.GetQueryApi();
-        var tables = queryApi.QueryAsync(query, _influxOrg).Result;
+        List<FluxTable>? tables;
+        try
+        {
+            tables = queryApi.QueryAsync(query, _influxOrg).Result;
+        }
+        catch
+        {
+            return new TimestampData(new(), new());
+        }
 
         var timestamps = new List<DateTime>();
         var values = new List<double>();

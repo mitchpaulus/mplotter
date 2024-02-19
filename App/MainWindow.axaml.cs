@@ -12,8 +12,11 @@ using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Platform.Storage;
 using InfluxDB.Client;
+using InfluxDB.Client.Api.Domain;
+using InfluxDB.Client.Domain;
 using ScottPlot;
 using ScottPlot.Avalonia;
+using File = System.IO.File;
 
 namespace csvplot;
 
@@ -193,9 +196,22 @@ public partial class MainWindow : Window
         {
             var client = new InfluxDBClient(env.InfluxHost, env.InfluxToken);
             var api = client.GetBucketsApi();
-            var buckets = await api.FindBucketsAsync();
 
-            influxDialog.InfluxBucketListBox.ItemsSource = buckets.Select(bucket => bucket.Name).Order().ToList();
+            var buckets = new List<string>();
+            var offset = 0;
+
+            while (true)
+            {
+                List<Bucket>? bucketResponse = await api.FindBucketsAsync(limit: 100, offset: offset);
+
+                if (bucketResponse is null) break;
+
+                buckets.AddRange(bucketResponse.Select(bucket => bucket.Name));
+                if (bucketResponse.Count < 100) break;
+                offset += 100;
+            }
+
+            influxDialog.InfluxBucketListBox.ItemsSource = buckets.Order().ToList();
 
             var selected = await influxDialog.ShowDialog<string>(this);
             if (!string.IsNullOrWhiteSpace(selected))
