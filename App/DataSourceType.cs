@@ -1,4 +1,4 @@
-﻿namespace csvplot;
+namespace csvplot;
 
 public enum DataSourceType
 {

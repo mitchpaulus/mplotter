@@ -6,9 +6,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Platform.Storage;
+using InfluxDB.Client;
 using ScottPlot;
 using ScottPlot.Avalonia;
 
@@ -44,7 +47,7 @@ public partial class MainWindow : Window
                 {
                     await _vm.AddDataSource(source);
                 };
-                button.Content = Path.GetFileName(mru);
+                button.Content = Path.GetFileName(mru).EscapeUiText();
 
                 var tooltip = new TextBlock { Text = mru };
                 ToolTip.SetTip(button, tooltip);
@@ -174,7 +177,36 @@ public partial class MainWindow : Window
 
     private async void InfluxButtonClick(object? sender, RoutedEventArgs e)
     {
-        await _vm.AddDataSource(new InfluxDataSource("511 John Carpenter"));
+        // await _vm.AddDataSource(new InfluxDataSource("511 John Carpenter"));
+
+        var influxDialog = new InfluxDialog();
+        influxDialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        influxDialog.Width = 500;
+        influxDialog.Height = 1000;
+
+        InfluxEnv env = InfluxDataSource.GetEnv();
+        if (!env.IsValid()) return;
+
+        // Get available buckets
+
+        try
+        {
+            var client = new InfluxDBClient(env.InfluxHost, env.InfluxToken);
+            var api = client.GetBucketsApi();
+            var buckets = await api.FindBucketsAsync();
+
+            influxDialog.InfluxBucketListBox.ItemsSource = buckets.Select(bucket => bucket.Name).Order().ToList();
+
+            var selected = await influxDialog.ShowDialog<string>(this);
+            if (!string.IsNullOrWhiteSpace(selected))
+            {
+                await _vm.AddDataSource(new InfluxDataSource(selected));
+            }
+        }
+        catch
+        {
+            // Empty
+        }
     }
 
     private void SearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)

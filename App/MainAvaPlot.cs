@@ -1,4 +1,4 @@
-﻿using ScottPlot.Avalonia;
+using ScottPlot.Avalonia;
 
 namespace csvplot;
 

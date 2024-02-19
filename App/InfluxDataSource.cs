@@ -1,10 +1,26 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using InfluxDB.Client;
 
 namespace csvplot;
+
+public class InfluxEnv
+{
+    public readonly string InfluxToken;
+    public readonly string InfluxHost;
+    public readonly string InfluxOrg;
+
+    public InfluxEnv(string influxToken, string influxHost, string influxOrg)
+    {
+        InfluxToken = influxToken;
+        InfluxHost = influxHost;
+        InfluxOrg = influxOrg;
+    }
+
+    public bool IsValid() => !(string.IsNullOrWhiteSpace(InfluxToken) || string.IsNullOrWhiteSpace(InfluxHost) || string.IsNullOrWhiteSpace(InfluxOrg));
+}
 
 public class InfluxDataSource : IDataSource
 {
@@ -36,6 +52,22 @@ public class InfluxDataSource : IDataSource
         ShortName = $"Influx: {bucket}";
         DataSourceType = DataSourceType.Database;
     }
+
+    public static InfluxEnv GetEnv()
+    {
+        try
+        {
+            string? influxToken = Environment.GetEnvironmentVariable("INFLUX_TOKEN");
+            string? influxHost = Environment.GetEnvironmentVariable("INFLUX_HOST");
+            string? influxOrg = Environment.GetEnvironmentVariable("INFLUX_ORG");
+            return new InfluxEnv(influxToken ?? "", influxHost ?? "", influxOrg ?? "");
+        }
+        catch
+        {
+            return new InfluxEnv(string.Empty, string.Empty, string.Empty);
+        }
+    }
+
 
     public async Task<List<string>> Trends()
     {
