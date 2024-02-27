@@ -34,12 +34,12 @@ public partial class MainWindow : Window
         _vm = new MainViewModel(plot!, StorageProvider, this);
         DataContext = _vm;
 
-        InitMrus();
+        UpdateMrus();
     }
 
-    public void InitMrus()
+    public void UpdateMrus()
     {
-        var mrus = MostRecentlyUsedFiles();
+        List<string> mrus = MostRecentlyUsedFiles();
 
         var buttons = mrus.Select(mru =>
             {
@@ -58,6 +58,7 @@ public partial class MainWindow : Window
             }
         );
 
+        MruPanel.Children.Clear();
         MruPanel.Children.AddRange(buttons);
     }
 

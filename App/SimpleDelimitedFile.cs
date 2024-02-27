@@ -19,26 +19,28 @@ public class SimpleDelimitedFile : IDataSource
         get
         {
             // Assume Windows Path
-            if (Header.Contains("\\"))
+            if (_source.Contains("\\"))
             {
-                return Header.Split('\\').Last();
+                return _source.Split('\\').Last();
             }
 
-            if (Header.Contains('/'))
+            if (_source.Contains('/'))
             {
-                return Header.Split('/').Last();
+                return _source.Split('/').Last();
             }
 
-            return Header;
+            return _source;
         }
     }
 
     private readonly List<string> _trends;
 
+    private readonly string _source;
+
     public SimpleDelimitedFile(string source)
     {
-        Header = source;
-        using FileStream stream = new(Header, FileMode.Open);
+        _source = source;
+        using FileStream stream = new(source, FileMode.Open);
         var sr = new StreamReader(stream);
         var headerLine = sr.ReadLine();
 
@@ -47,13 +49,13 @@ public class SimpleDelimitedFile : IDataSource
             if (source.ToLowerInvariant().EndsWith(".tsv") || headerLine.Contains('\t'))
             {
                 string[] splitHeader = headerLine.Split('\t');
-                _trends = splitHeader.ToList();
+                _trends = splitHeader.Skip(1).ToList();
                 _delimiter = '\t';
             }
             else if (source.ToLowerInvariant().EndsWith(".csv"))
             {
                 string[] splitHeader = headerLine.Split(',');
-                _trends = splitHeader.ToList();
+                _trends = splitHeader.Skip(1).ToList();
                 _delimiter = ',';
             }
             else
@@ -94,7 +96,7 @@ public class SimpleDelimitedFile : IDataSource
 
     public List<double> GetData(string trend)
     {
-        using FileStream stream = new FileStream(Header, FileMode.Open);
+        using FileStream stream = new FileStream(_source, FileMode.Open);
         var sr = new StreamReader(stream);
         var headerLine = sr.ReadLine();
 
@@ -125,7 +127,7 @@ public class SimpleDelimitedFile : IDataSource
     {
         if (DataSourceType == DataSourceType.NonTimeSeries) return new TimestampData(new(), new());
 
-        using FileStream stream = new FileStream(Header, FileMode.Open);
+        using FileStream stream = new FileStream(_source, FileMode.Open);
         var sr = new StreamReader(stream);
         var headerLine = sr.ReadLine();
 
@@ -174,5 +176,5 @@ public class SimpleDelimitedFile : IDataSource
         return new TimestampData(dateTimes, values);
     }
 
-    public string Header { get; }
+    public string Header => ShortName;
 }

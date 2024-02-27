@@ -609,6 +609,8 @@ public class MainViewModel : INotifyPropertyChanged
 
             // Handle the file path (e.g., updating the ViewModel)
             await SaveToMru(filePath.Path.LocalPath);
+
+            _window.UpdateMrus();
         }
     }
 
