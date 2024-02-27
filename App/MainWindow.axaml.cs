@@ -230,23 +230,37 @@ public partial class MainWindow : Window
     {
         _vm.UpdateTrendFilter(((TextBox)sender).Text ?? "");
     }
+
+    private void ExportButtonOnClick(object? sender, RoutedEventArgs e)
+    {
+        if (ExportStartYearComboBox.SelectedItem is not ComboBoxItem { Content: string startYearString }) return;
+        if (ExportStartMonthComboBox.SelectedItem is not ComboBoxItem { Content: string startMonthString }) return;
+        if (ExportStartDayComboBox.SelectedItem is not ComboBoxItem { Content: string startDayString }) return;
+        if (ExportEndYearComboBox.SelectedItem is not ComboBoxItem { Content: string endYearString }) return;
+        if (ExportEndMonthComboBox.SelectedItem is not ComboBoxItem { Content: string endMonthString }) return;
+        if (ExportEndDayComboBox.SelectedItem is not ComboBoxItem { Content: string endDayString }) return;
+
+        int startYear = int.Parse(startYearString);
+        int startMonth = MonthNames.ShortNames.IndexOf(startMonthString) + 1;
+        int startDay = int.Parse(startDayString);
+
+        int endYear = int.Parse(endYearString);
+        int endMonth = MonthNames.ShortNames.IndexOf(endMonthString) + 1;
+        int endDay = int.Parse(endDayString);
+
+        // Truncate day to max in the month
+        startDay = Math.Min(startDay, MonthNames.DaysInMonth[startMonth - 1]);
+        endDay = Math.Min(endDay, MonthNames.DaysInMonth[endMonth - 1]);
+
+        DateTime start = new(startYear, startMonth, startDay);
+        DateTime end = new(endYear, endMonth, endDay);
+
+    }
 }
 
 public static class MonthNames
 {
-    public static readonly List<string> Names = new()
-    {
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December"
-    };
+    public static readonly List<string> Names = new() { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+    public static readonly List<string> ShortNames = new() { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+    public static readonly List<int> DaysInMonth = new() { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
 }
