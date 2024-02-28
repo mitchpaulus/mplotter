@@ -107,6 +107,7 @@ public class InfluxDataSource : IDataSource
     public string Header { get; }
     public string ShortName { get; }
     public DataSourceType DataSourceType { get; }
+
     public TimestampData GetTimestampData(string trend)
     {
         // Get the last year of data from InfluxDb.
@@ -130,19 +131,61 @@ public class InfluxDataSource : IDataSource
         var timestamps = new List<DateTime>();
         var values = new List<double>();
 
-        foreach (var table in tables)
+        foreach (var record in tables.SelectMany(table => table.Records))
         {
-            foreach (var record in table.Records)
+            // Try to get value as double, else skip
+            if (record.GetValue() is not double doubleValue || record.GetTimeInDateTime() is not { } d) continue;
+            values.Add(doubleValue);
+            timestamps.Add(d);
+        }
+
+        return new TimestampData(timestamps, values);
+    }
+
+    public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        // Get the last year of data from InfluxDb.
+        if (!_isValid) return trends.Select(s => new TimestampData(new(), new())).ToList();
+
+        using var client = new InfluxDBClient(_influxHost, _influxToken);
+
+        string measFilter = string.Join(" or ", trends.Select(s => $"r._measurement == \"{s}\""));
+
+        var query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> yield()";
+
+        var queryApi = client.GetQueryApi();
+        List<FluxTable>? tables;
+        try
+        {
+            tables = queryApi.QueryAsync(query, _influxOrg).Result;
+        }
+        catch
+        {
+            return trends.Select(s => new TimestampData(new(), new())).ToList();
+        }
+
+        Dictionary<string, List<FluxRecord>> trendData = tables.SelectMany(table => table.Records)
+            .GroupBy(record => record.GetMeasurement())
+            .ToDictionary(records => records.Key, records => records.ToList());
+
+        List<TimestampData> data = new();
+        foreach (var trend in trends)
+        {
+            List<DateTime> timestamps = new();
+            List<double> values = new();
+            if (trendData.TryGetValue(trend, out var dataRecords))
             {
-                // Try to get value as double, else skip
-                if (record.GetValue() is double doubleValue && record.GetTimeInDateTime() is { } d)
+                foreach (var record in dataRecords)
                 {
+                    if (record.GetValue() is not double doubleValue || record.GetTimeInDateTime() is not { } d)
+                        continue;
                     values.Add(doubleValue);
                     timestamps.Add(d);
                 }
             }
+            data.Add(new TimestampData(timestamps, values));
         }
 
-        return new TimestampData(timestamps, values);
+        return data;
     }
 }

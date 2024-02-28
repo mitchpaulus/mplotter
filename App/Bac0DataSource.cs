@@ -77,4 +77,17 @@ public class Bac0DataSource : IDataSource
 
         return new TimestampData(dates, values);
     }
+
+    public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        List<TimestampData> data = new();
+        foreach (var trend in trends)
+        {
+            TimestampData tsData = GetTimestampData(trend);
+            tsData.TrimDates(startDateInc, endDateExc);
+            data.Add(tsData);
+        }
+
+        return data;
+    }
 }

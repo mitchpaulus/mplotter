@@ -36,7 +36,7 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly ComputedDateTimeState _secondComputedDateTime;
 
     private readonly List<IDataSource> _dataSources = new();
-    private readonly List<SourceTrendPair> _sourceTrendPairs = new();
+    public readonly List<SourceTrendPair> SourceTrendPairs = new();
 
     private bool _isClearingChecked = false;
 
@@ -96,11 +96,11 @@ public class MainViewModel : INotifyPropertyChanged
     {
         _window.PlotStackPanel.Children.Clear();
 
-        var unitGrouped = _sourceTrendPairs.GroupBy(pair => pair.Name.GetUnit());
+        var unitGrouped = SourceTrendPairs.GroupBy(pair => pair.Name.GetUnit());
 
         List<AvaPlot> plots = new();
 
-         Stopwatch watch = new Stopwatch();
+        Stopwatch watch = new Stopwatch();
         foreach (var unitGroup in unitGrouped)
         {
             var plot = new AvaPlot();
@@ -347,8 +347,8 @@ public class MainViewModel : INotifyPropertyChanged
     public void ClearSelected()
     {
         _isClearingChecked = true;
-        foreach (var pair in _sourceTrendPairs) pair.Box.IsChecked = false;
-        _sourceTrendPairs.Clear();
+        foreach (var pair in SourceTrendPairs) pair.Box.IsChecked = false;
+        SourceTrendPairs.Clear();
         _isClearingChecked = false;
         UpdatePlots();
     }
@@ -361,11 +361,11 @@ public class MainViewModel : INotifyPropertyChanged
         SourceTrendPair p = (SourceTrendPair)b.Tag!;
         if (b.IsChecked is null || !(bool)b.IsChecked)
         {
-            _sourceTrendPairs.RemoveAll(pair => object.ReferenceEquals(pair, p));
+            SourceTrendPairs.RemoveAll(pair => object.ReferenceEquals(pair, p));
         }
         else
         {
-            _sourceTrendPairs.Add(p);
+            SourceTrendPairs.Add(p);
         }
 
         UpdatePlots();
@@ -378,7 +378,7 @@ public class MainViewModel : INotifyPropertyChanged
             var indexToRemove = ((Grid grid, IDataSource source))s.Tag!;
             _dataSources.RemoveAll(source => ReferenceEquals(source, indexToRemove.source));
             _window.SourcesStackPanel.Children.Remove(indexToRemove.grid);
-            _sourceTrendPairs.RemoveAll(pair => ReferenceEquals(pair.Source, indexToRemove.source));
+            SourceTrendPairs.RemoveAll(pair => ReferenceEquals(pair.Source, indexToRemove.source));
             UpdatePlots();
         }
     }

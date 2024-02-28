@@ -255,6 +255,11 @@ public partial class MainWindow : Window
         DateTime start = new(startYear, startMonth, startDay);
         DateTime end = new(endYear, endMonth, endDay);
 
+        foreach (var sourcePair in _vm.SourceTrendPairs.GroupBy(pair => pair.Source))
+        {
+            var trends = sourcePair.Select(pair => pair.Name).ToList();
+            var output = sourcePair.Key.GetTimestampData(trends, start, end);
+        }
     }
 }
 

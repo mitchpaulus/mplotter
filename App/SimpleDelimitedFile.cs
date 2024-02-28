@@ -176,5 +176,18 @@ public class SimpleDelimitedFile : IDataSource
         return new TimestampData(dateTimes, values);
     }
 
+    public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDate, DateTime endDate)
+    {
+        List<TimestampData> data = new();
+        foreach (var trend in trends)
+        {
+            TimestampData tsData = GetTimestampData(trend);
+            tsData.TrimDates(startDate, endDate);
+            data.Add(tsData);
+        }
+
+        return data;
+    }
+
     public string Header => ShortName;
 }

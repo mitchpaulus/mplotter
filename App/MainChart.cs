@@ -23,6 +23,8 @@ public interface IDataSource
     DataSourceType DataSourceType { get; }
 
     TimestampData GetTimestampData(string trend);
+
+    List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc);
 }
 
 public class TimestampData
@@ -37,4 +39,16 @@ public class TimestampData
     }
 
     public bool LengthsEqual => DateTimes.Count == Values.Count;
+
+    public void TrimDates(DateTime startDateInc, DateTime endDateExc)
+    {
+        for (int i = Math.Min(DateTimes.Count, Values.Count) - 1; i >= 0; i--)
+        {
+            if (DateTimes[i] < startDateInc || DateTimes[i] >= endDateExc)
+            {
+                DateTimes.RemoveAt(i);
+                Values.RemoveAt(i);
+            }
+        }
+    }
 }
