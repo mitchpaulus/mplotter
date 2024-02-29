@@ -25,6 +25,74 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
 
+    private List<XySerie> _xySeries = new();
+
+    private readonly List<IDataSource> _loadedDataSources = new();
+
+    private void RenderDataSources()
+    {
+        DataSourcesList.Children.Clear();
+
+        foreach (var dataSource in _loadedDataSources)
+        {
+            Grid g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+            g.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+            g.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+            TextBlock b = new TextBlock()
+            {
+                Text = dataSource.ShortName
+            };
+
+            Grid.SetColumn(b, 0);
+
+            Button removeButton = new Button()
+            {
+                Content = "Remove",
+                Tag = dataSource,
+            };
+            Grid.SetColumn(removeButton, 1);
+
+            g.Children.Add(b);
+            g.Children.Add(removeButton);
+
+            removeButton.Click += RemoveDataSource;
+            DataSourcesList.Children.Add(g);
+        }
+    }
+
+    public void AddDataSource(IDataSource source)
+    {
+        // Don't add dup
+        foreach (var s in _loadedDataSources)
+        {
+            if (s.GetType() != source.GetType()) continue;
+            if (s.Header == source.Header) return;
+        }
+
+        _loadedDataSources.Add(source);
+        RenderDataSources();
+    }
+
+    private void RemoveDataSource(object? sender, EventArgs args)
+    {
+        if (sender is not Button b) return;
+
+        var source = (IDataSource)b.Tag!;
+        _loadedDataSources.Remove(source);
+
+        foreach (var c in DataSourcesList.Children)
+        {
+            if (c is not Grid g) continue;
+            if (!g.Children.Any(control => ReferenceEquals(control, b))) continue;
+
+            DataSourcesList.Children.Remove(c);
+            break;
+        }
+    }
+
+
     public MainWindow()
     {
         InitializeComponent();
@@ -228,7 +296,7 @@ public partial class MainWindow : Window
 
     private void SearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
     {
-        _vm.UpdateTrendFilter(((TextBox)sender).Text ?? "");
+        _vm.UpdateTrendFilter(((TextBox)sender!).Text ?? "");
     }
 
     private void ExportButtonOnClick(object? sender, RoutedEventArgs e)
@@ -260,6 +328,66 @@ public partial class MainWindow : Window
             var trends = sourcePair.Select(pair => pair.Name).ToList();
             var output = sourcePair.Key.GetTimestampData(trends, start, end);
         }
+    }
+
+    private async void SelectTrendClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new TrendDialog(_loadedDataSources);
+        await dialog.ShowDialog(this);
+    }
+}
+
+public class PlotTrendConfig : IEquatable<PlotTrendConfig>
+{
+    public readonly IDataSource DataSource;
+    public readonly string TrendName;
+
+    public PlotTrendConfig(IDataSource dataSource, string trendName)
+    {
+        DataSource = dataSource;
+        TrendName = trendName;
+    }
+
+    public bool Equals(PlotTrendConfig? other)
+    {
+        if (ReferenceEquals(null, other)) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return DataSource.Equals(other.DataSource) && TrendName == other.TrendName;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != this.GetType()) return false;
+        return Equals((PlotTrendConfig)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(DataSource, TrendName);
+    }
+
+    public static bool operator ==(PlotTrendConfig? left, PlotTrendConfig? right)
+    {
+        return Equals(left, right);
+    }
+
+    public static bool operator !=(PlotTrendConfig? left, PlotTrendConfig? right)
+    {
+        return !Equals(left, right);
+    }
+}
+
+public class XySerie
+{
+    public readonly PlotTrendConfig? XTrend;
+    public readonly PlotTrendConfig? YTrend;
+
+    public XySerie(PlotTrendConfig? xTrend, PlotTrendConfig? yTrend)
+    {
+        XTrend = xTrend;
+        YTrend = yTrend;
     }
 }
 

@@ -8,49 +8,18 @@
         x:DataType="csvplot:TrendDialogVm"
         Title="TrendDialog">
 
-    <Grid>
-
-        <Grid.RowDefinitions>
-            <RowDefinition Height="1*"></RowDefinition>
-        </Grid.RowDefinitions>
-
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1*"></ColumnDefinition>
-            <ColumnDefinition Width="1*"></ColumnDefinition>
-        </Grid.ColumnDefinitions>
-
+    <Grid RowDefinitions="1*" ColumnDefinitions="1* 1*">
         <StackPanel>
             <!-- <ListBox Grid.Column="0" ItemsSource="{Binding SourceList}" Name="SourceListBox" SelectionMode="Multiple" Selection="{Binding SelectionModel}"> -->
-            <ListBox Grid.Column="0" ItemsSource="{Binding SourceList}" Name="SourceListBox" SelectionMode="Multiple,Toggle" Selection="{Binding SelectionModel}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Header}"></TextBlock>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
+            <ListBox Grid.Column="0" Name="SourceListBox" SelectionMode="Multiple,Toggle" SelectionChanged="SourceListBox_OnSelectionChanged" >
             </ListBox>
         </StackPanel>
 
-
-        <ListBox Grid.Column="1" ItemsSource="{Binding AvailableTrends}" Name="TrendsListBox" SelectionMode="Multiple,Toggle" Selection="{Binding SelectedTrendsSelectionModel}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock Text="{Binding Trend}"></TextBlock>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-
-        <!-- <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto"> -->
-        <!--         ~1~ Add other controls for source selection here @1@ -->
-        <!--         <ItemsControl ItemsSource="{Binding SelectedSources}"> -->
-        <!--             ~1~ Need a delete button for each source @1@ -->
-        <!--             <ItemsControl.ItemTemplate> -->
-        <!--                 <DataTemplate> -->
-        <!--                     <TextBlock Text="{Binding Header}"></TextBlock> -->
-        <!--                 </DataTemplate> -->
-        <!--             </ItemsControl.ItemTemplate> -->
-        <!--         </ItemsControl> -->
-        <!--     </ScrollViewer> -->
-
+        <Grid RowDefinitions="Auto 1* Auto" Grid.Column="1">
+            <TextBox Grid.Row="0" Name="TrendSearchBox" Watermark="Search.." TextChanged="TrendSearchBox_OnTextChanged"></TextBox>
+            <ListBox Grid.Row="1"  Name="TrendsListBox" SelectionMode="Multiple,Toggle" SelectionChanged="TrendsListBox_OnSelectionChanged"></ListBox>
+            <Button Grid.Row="2">Select</Button>
+        </Grid>
     </Grid>
 
 </Window>

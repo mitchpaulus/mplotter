@@ -245,7 +245,15 @@ public class MainViewModel : INotifyPropertyChanged
         foreach (Control c in _window.SourcesStackPanel.Children)
         {
             Grid g = (Grid)c;
-            Expander e = g.Children.Where(control => control.GetType() == typeof(Expander)).Cast<Expander>().First();
+            var children = g.Children;
+
+            var expanders = children.Where(control => control.GetType() == typeof(Expander)).Cast<Expander>().ToList();
+            if (!expanders.Any())
+            {
+                continue;
+            }
+
+            Expander e = expanders.First();
             StackPanel stackPanel = (StackPanel)e.Content!;
 
             if (string.IsNullOrWhiteSpace(_trendFilter))
@@ -328,6 +336,8 @@ public class MainViewModel : INotifyPropertyChanged
 
     public async Task AddDataSource(IDataSource source)
     {
+        _window.AddDataSource(source);
+
         // Don't add duplicate
         foreach (var s in _dataSources)
         {
@@ -663,7 +673,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public async void SelectTrendClick()
     {
-        var dialog = new TrendDialog();
+        var dialog = new TrendDialog(_dataSources);
         var vm = new TrendDialogVm(_dataSources);
         dialog.DataContext = vm;
 
