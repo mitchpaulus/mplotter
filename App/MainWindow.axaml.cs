@@ -5,10 +5,12 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Platform.Storage;
 using InfluxDB.Client;
@@ -16,6 +18,7 @@ using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Domain;
 using ScottPlot;
 using ScottPlot.Avalonia;
+using Brushes = Avalonia.Media.Brushes;
 using File = System.IO.File;
 
 namespace csvplot;
@@ -29,6 +32,8 @@ public partial class MainWindow : Window
 
     private readonly List<IDataSource> _loadedDataSources = new();
 
+    private readonly List<IDataSource> _selectedDataSources = new();
+
     private void RenderDataSources()
     {
         DataSourcesList.Children.Clear();
@@ -40,10 +45,16 @@ public partial class MainWindow : Window
             g.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
             g.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
-            TextBlock b = new TextBlock()
+            Button b = new Button()
             {
-                Text = dataSource.ShortName
+                Content = dataSource.ShortName,
+                Tag = dataSource,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Background =  _selectedDataSources.Contains(dataSource) ? Brushes.LightBlue : Brushes.Transparent,
+                BorderThickness = new Thickness(0),
             };
+
+            b.Click += ClickSource;
 
             Grid.SetColumn(b, 0);
 
@@ -62,6 +73,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ClickSource(object? sender, EventArgs args)
+    {
+        if (sender is not Button b) return;
+
+        var source = (IDataSource)b.Tag!;
+
+        var removed = _selectedDataSources.Remove(source);
+        if (!removed) _selectedDataSources.Add(source);
+
+        RenderDataSources();
+    }
+
     public void AddDataSource(IDataSource source)
     {
         // Don't add dup
@@ -72,6 +95,7 @@ public partial class MainWindow : Window
         }
 
         _loadedDataSources.Add(source);
+        _selectedDataSources.Add(source);
         RenderDataSources();
     }
 
@@ -81,6 +105,7 @@ public partial class MainWindow : Window
 
         var source = (IDataSource)b.Tag!;
         _loadedDataSources.Remove(source);
+        _selectedDataSources.Remove(source);
 
         foreach (var c in DataSourcesList.Children)
         {
