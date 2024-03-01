@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] XY Plot ability
+- [x] XY Plot ability
 - [ ] Unit conversions
 - [ ] HOD plotting
 - [ ] Simple regression fitting
