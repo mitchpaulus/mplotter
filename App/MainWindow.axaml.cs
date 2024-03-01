@@ -12,6 +12,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.Templates;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
@@ -46,6 +47,8 @@ public partial class MainWindow : Window
         SelectionMode = SelectionMode.Multiple | SelectionMode.Toggle,
     };
 
+    private readonly Grid _xyTrendSelectionGrid = new();
+
     public PlotMode Mode;
 
     public MainWindow()
@@ -63,6 +66,162 @@ public partial class MainWindow : Window
 
         Mode = PlotMode.Ts;
         TsRadio.IsChecked = true;
+
+        _xyTrendSelectionGrid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+        _xyTrendSelectionGrid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+        _xyTrendSelectionGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        _xyTrendSelectionGrid.RowDefinitions.Add(new(GridLength.Auto));
+        _xyTrendSelectionGrid.RowDefinitions.Add(new(GridLength.Auto));
+        Grid.SetRow(_xyTrendSelectionGrid, 5);
+
+        Button addXySerieButton = new();
+        addXySerieButton.Content = "Add Series";
+        addXySerieButton.Click += AddXySerieButtonOnClick;
+
+        Grid.SetColumn(addXySerieButton, 0);
+        Grid.SetRow(addXySerieButton, 0);
+        _xyTrendSelectionGrid.Children.Add(addXySerieButton);
+    }
+
+    private void AddXySerieButtonOnClick(object? sender, RoutedEventArgs e)
+    {
+        _xySeries.Add(new XySerie(null, null));
+        UpdateXyGrid();
+    }
+
+    private void UpdateXyGrid()
+    {
+        int numHeaderRows = 2;
+
+        for (int i = _xyTrendSelectionGrid.Children.Count - 1 ; i > 0; i--)
+        {
+            int row = Grid.GetRow(_xyTrendSelectionGrid.Children[i]);
+            if (row >= numHeaderRows) _xyTrendSelectionGrid.Children.RemoveAt(i);
+        }
+
+        int rowDiff = _xySeries.Count - (_xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows);
+        if (rowDiff > 0)
+        {
+            while (_xySeries.Count > _xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows)
+            {
+                _xyTrendSelectionGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            }
+        }
+        else if (rowDiff < 0)
+        {
+            while (_xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows > _xySeries.Count)
+            {
+                _xyTrendSelectionGrid.RowDefinitions.RemoveAt(_xyTrendSelectionGrid.RowDefinitions.Count - 1);
+            }
+        }
+
+        foreach (var (serie, row) in _xySeries.WithIndex(numHeaderRows))
+        {
+            if (serie.XTrend is { } xTrend)
+            {
+                TextBlock b = new();
+                b.Text = xTrend.TrendName;
+                b.TextWrapping = TextWrapping.Wrap;
+                b.Tag = serie.XTrend;
+                Grid.SetRow(b, row);
+                Grid.SetColumn(b, 0);
+                _xyTrendSelectionGrid.Children.Add(b);
+            }
+            else
+            {
+                Button b = new();
+                b.Content = "Select X";
+                b.Tag = serie.XTrend;
+                b.Click += BOnClick;
+                Grid.SetRow(b, row);
+                Grid.SetColumn(b, 0);
+                _xyTrendSelectionGrid.Children.Add(b);
+            }
+
+            if (serie.YTrend is { } yTrend)
+            {
+                TextBlock b = new();
+                b.Text = yTrend.TrendName;
+                b.TextWrapping = TextWrapping.Wrap;
+                b.Tag = serie.YTrend;
+                Grid.SetRow(b, row);
+                Grid.SetColumn(b, 1);
+                _xyTrendSelectionGrid.Children.Add(b);
+            }
+            else
+            {
+                Button b = new();
+                b.Content = "Select Y";
+                b.Tag = serie.YTrend;
+                b.Click += BOnClick;
+                Grid.SetRow(b, row);
+                Grid.SetColumn(b, 1);
+                _xyTrendSelectionGrid.Children.Add(b);
+            }
+
+            Button removeButton = new();
+            removeButton.Content = "Remove";
+            removeButton.Click += RemoveXySerie;
+            removeButton.Tag = serie;
+            Grid.SetRow(removeButton, row);
+            Grid.SetColumn(removeButton, 2);
+            _xyTrendSelectionGrid.Children.Add(removeButton);
+        }
+    }
+
+    private async void BOnClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button b) return;
+
+        TrendDialog dialog = new TrendDialog(_selectedDataSources, SelectionMode.Single | SelectionMode.Toggle);
+
+        await dialog.ShowDialog(this);
+
+        if (dialog.SelectedConfigs.Any())
+        {
+            var first = dialog.SelectedConfigs.First();
+            foreach (var series in _xySeries)
+            {
+                if (ReferenceEquals(series.XTrend, b.Tag))
+                {
+                    series.XTrend = first;
+                    break;
+                }
+
+                if (ReferenceEquals(series.YTrend, b.Tag))
+                {
+                    series.YTrend = first;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            foreach (var series in _xySeries)
+            {
+                if (ReferenceEquals(series.XTrend, b.Tag))
+                {
+                    series.XTrend = null;
+                    break;
+                }
+
+                if (ReferenceEquals(series.YTrend, b.Tag))
+                {
+                    series.YTrend = null;
+                    break;
+                }
+            }
+        }
+
+        UpdateXyGrid();
+    }
+
+    private void RemoveXySerie(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button b) return;
+        if (b.Tag is not XySerie s) return;
+        _xySeries.RemoveAll(serie => ReferenceEquals(serie, s));
+        UpdateXyGrid();
     }
 
     private void HandlePlotTypeChange()
@@ -70,11 +229,17 @@ public partial class MainWindow : Window
         if (XyRadio.IsChecked ?? false)
         {
             MainSourceGrid.Children.Remove(_timeSeriesTrendsListBox);
+            if (!MainSourceGrid.Children.Contains(_xyTrendSelectionGrid))
+            {
+                MainSourceGrid.Children.Add(_xyTrendSelectionGrid);
+            }
             Mode = PlotMode.Xy;
+
         }
         else if (TsRadio.IsChecked ?? false)
         {
             Mode = PlotMode.Ts;
+            MainSourceGrid.Children.Remove(_xyTrendSelectionGrid);
             if (!MainSourceGrid.Children.Contains(_timeSeriesTrendsListBox))
             {
                 MainSourceGrid.Children.Add(_timeSeriesTrendsListBox);
@@ -485,7 +650,7 @@ public partial class MainWindow : Window
 
     private async void SelectTrendClick(object? sender, RoutedEventArgs e)
     {
-        var dialog = new TrendDialog(_loadedDataSources);
+        var dialog = new TrendDialog(_loadedDataSources, SelectionMode.Multiple | SelectionMode.Toggle);
         await dialog.ShowDialog(this);
     }
 
@@ -579,8 +744,8 @@ public class PlotTrendConfig : IEquatable<PlotTrendConfig>
 
 public class XySerie
 {
-    public readonly PlotTrendConfig? XTrend;
-    public readonly PlotTrendConfig? YTrend;
+    public PlotTrendConfig? XTrend;
+    public PlotTrendConfig? YTrend;
 
     public XySerie(PlotTrendConfig? xTrend, PlotTrendConfig? yTrend)
     {

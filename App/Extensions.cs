@@ -133,9 +133,9 @@ public static class Extensions
          return (min, max);
     }
 
-    public static IEnumerable<(T, int)> WithIndex<T>(this IEnumerable<T> source)
+    public static IEnumerable<(T, int)> WithIndex<T>(this IEnumerable<T> source, int start = 0)
     {
-        return source.Select((item, index) => (item, index));
+        return source.Select((item, index) => (item, index + start));
     }
 
     public static string EscapeUiText(this string input) => input.Replace("_", "__");

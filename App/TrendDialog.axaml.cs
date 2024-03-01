@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using ScottPlot.Plottables;
 
@@ -14,7 +16,7 @@ public partial class TrendDialog : Window
     private readonly List<TextBlock> _trendsList1 = new();
     private readonly List<TextBlock> _trendsList2 = new();
     private int _currentList = 1;
-    private readonly List<PlotTrendConfig> _selectedConfigs = new();
+    public readonly List<PlotTrendConfig> SelectedConfigs = new();
 
     private bool _filterUpdate = false;
 
@@ -22,12 +24,14 @@ public partial class TrendDialog : Window
     {
         InitializeComponent();
         InitSources(new ());
+        TrendsListBox.SelectionMode = SelectionMode.Toggle | SelectionMode.Multiple;
     }
 
-    public TrendDialog(List<IDataSource> sources)
+    public TrendDialog(List<IDataSource> sources, SelectionMode selectionMode)
     {
         InitializeComponent();
         InitSources(sources);
+        TrendsListBox.SelectionMode = selectionMode;
     }
 
     private void InitSources(List<IDataSource> sources)
@@ -50,12 +54,12 @@ public partial class TrendDialog : Window
 
         foreach (var added in e.AddedItems.Cast<TextBlock>())
         {
-            _selectedConfigs.Add((PlotTrendConfig)added.Tag!);
+            SelectedConfigs.Add((PlotTrendConfig)added.Tag!);
         }
 
         foreach (var remove in e.RemovedItems.Cast<TextBlock>())
         {
-            _selectedConfigs.Remove((PlotTrendConfig)remove.Tag!);
+            SelectedConfigs.Remove((PlotTrendConfig)remove.Tag!);
         }
     }
 
@@ -122,7 +126,7 @@ public partial class TrendDialog : Window
          {
              TextBlock b = (TextBlock)item;
              PlotTrendConfig c = (PlotTrendConfig)b.Tag!;
-             if (_selectedConfigs.Any(config => config.Equals(c )))
+             if (SelectedConfigs.Any(config => config.Equals(c )))
              {
                  TrendsListBox.SelectedItems!.Add(item);
              }
@@ -135,5 +139,10 @@ public partial class TrendDialog : Window
     private async void TrendSearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
     {
         await PopulateListBox();
+    }
+
+    private void Button_OnClick(object? sender, RoutedEventArgs e)
+    {
+        Close(SelectedConfigs);
     }
 }

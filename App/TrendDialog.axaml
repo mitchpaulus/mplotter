@@ -18,7 +18,7 @@
         <Grid RowDefinitions="Auto 1* Auto" Grid.Column="1">
             <TextBox Grid.Row="0" Name="TrendSearchBox" Watermark="Search.." TextChanged="TrendSearchBox_OnTextChanged"></TextBox>
             <ListBox Grid.Row="1"  Name="TrendsListBox" SelectionMode="Multiple,Toggle" SelectionChanged="TrendsListBox_OnSelectionChanged"></ListBox>
-            <Button Grid.Row="2">Select</Button>
+            <Button Grid.Row="2" Click="Button_OnClick">Select</Button>
         </Grid>
     </Grid>
 
