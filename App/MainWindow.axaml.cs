@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -17,6 +19,7 @@ using Avalonia.Platform.Storage;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Domain;
+using OfficeOpenXml;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using Brushes = Avalonia.Media.Brushes;
@@ -619,8 +622,31 @@ public partial class MainWindow : Window
         await UpdateAvailableTimeSeriesTrendList();
     }
 
-    private void ExportButtonOnClick(object? sender, RoutedEventArgs e)
+    private async void ExportButtonOnClick(object? sender, RoutedEventArgs e)
     {
+        var exportType = ExportType.Tsv;
+        if (CsvComboBox.IsSelected) exportType = ExportType.Csv;
+        else if (XlsxComboBox.IsSelected) exportType = ExportType.Xlsx;
+
+        string extension = exportType switch
+        {
+            ExportType.Tsv => ".tsv",
+            ExportType.Csv => ".csv",
+            ExportType.Xlsx => ".xlsx",
+            _ => throw new ArgumentOutOfRangeException()
+        };
+
+        var pickerResult = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions()
+        {
+            Title = "Save data export",
+            DefaultExtension = extension,
+            SuggestedFileName = $"{DateTime.Now:yyyy-MM-dd HHmm} Export{extension}"
+        });
+
+        int minuteInterval = int.Parse((string)((ComboBoxItem)MinuteIntervalComboBox.SelectedItem!).Content!);
+
+        if (pickerResult is null) return;
+
         if (ExportStartYearComboBox.SelectedItem is not ComboBoxItem { Content: string startYearString }) return;
         if (ExportStartMonthComboBox.SelectedItem is not ComboBoxItem { Content: string startMonthString }) return;
         if (ExportStartDayComboBox.SelectedItem is not ComboBoxItem { Content: string startDayString }) return;
@@ -643,17 +669,128 @@ public partial class MainWindow : Window
         DateTime start = new(startYear, startMonth, startDay);
         DateTime end = new(endYear, endMonth, endDay);
 
+        List<TimestampData> allData = new();
+        List<string> headers = new();
+
         foreach (var sourcePair in SelectedTimeSeriesTrends.GroupBy(pair => pair.DataSource))
         {
             var trends = sourcePair.Select(pair => pair.TrendName).ToList();
-            var output = sourcePair.Key.GetTimestampData(trends, start, end);
-        }
-    }
+            List<TimestampData> output = sourcePair.Key.GetTimestampData(trends, start, end);
 
-    private async void SelectTrendClick(object? sender, RoutedEventArgs e)
-    {
-        var dialog = new TrendDialog(_loadedDataSources, SelectionMode.Multiple | SelectionMode.Toggle);
-        await dialog.ShowDialog(this);
+            headers.AddRange(trends);
+
+            foreach (var tsData in output)
+            {
+                tsData.AlignToMinuteInterval(start, end, minuteInterval);
+                allData.Add(tsData);
+            }
+        }
+
+        if (!allData.Any()) return;
+
+        try
+        {
+            if (exportType == ExportType.Tsv)
+            {
+                await using Stream stream = await pickerResult.OpenWriteAsync();
+                await using StreamWriter writer = new StreamWriter(stream);
+
+                var headerString = string.Join("\t", headers);
+                await writer.WriteAsync(headerString);
+                await writer.WriteAsync('\n');
+
+                List<DateTime> dateTimes = allData[0].DateTimes;
+
+                List<string> fields = new List<string>(allData.Count);
+                for (int i = 0; i < dateTimes.Count; i++)
+                {
+                    fields.Clear();
+                    fields.Add(dateTimes[i].ToString("yyyy-MM-dd HH:mm"));
+                    foreach (var t in allData)
+                    {
+                        double value = t.Values[i];
+                        string valueStr = double.IsNaN(value) ? "" : value.ToString(CultureInfo.InvariantCulture);
+                        fields.Add(valueStr);
+                    }
+
+                    string tabSepLine = string.Join("\t", fields);
+                    await writer.WriteAsync(tabSepLine);
+                    await writer.WriteAsync('\n');
+                }
+            }
+            else if (exportType == ExportType.Csv)
+            {
+                await using Stream stream = await pickerResult.OpenWriteAsync();
+                await using StreamWriter writer = new StreamWriter(stream);
+
+                var headerString = string.Join(",", headers.Select(s => s.ToCsvCell()));
+                await writer.WriteAsync(headerString);
+                await writer.WriteAsync('\n');
+
+                List<DateTime> dateTimes = allData[0].DateTimes;
+
+                List<string> fields = new List<string>(allData.Count);
+                for (int i = 0; i < dateTimes.Count; i++)
+                {
+                    fields.Clear();
+                    fields.Add(dateTimes[i].ToString("yyyy-MM-dd HH:mm"));
+                    foreach (var t in allData)
+                    {
+                        double value = t.Values[i];
+                        string valueStr = double.IsNaN(value) ? "" : value.ToString(CultureInfo.InvariantCulture);
+                        fields.Add(valueStr);
+                    }
+
+                    string tabSepLine = string.Join(",", fields.Select(s => s.ToCsvCell()));
+                    await writer.WriteAsync(tabSepLine);
+                    await writer.WriteAsync('\n');
+                }
+            }
+            else if (exportType == ExportType.Xlsx)
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+                await using Stream stream = await pickerResult.OpenWriteAsync();
+                using ExcelPackage package = new ExcelPackage(stream);
+
+                var sheet = package.Workbook.Worksheets.Add($"{DateTime.Now:yyyy-MM-dd HHmm} Export");
+
+                sheet.Cells[1, 1].Value = "DateTime";
+                foreach ((string header, int col) in headers.WithIndex(2))
+                {
+                    sheet.Cells[1, col].Value = header;
+                }
+
+                List<DateTime> dateTimes = allData[0].DateTimes;
+                for (int i = 0; i < dateTimes.Count; i++)
+                {
+                    var row = i + 2;
+                    sheet.Cells[row, 1].Value = dateTimes[i];
+
+                    for (int index = 0; index < allData.Count; index++)
+                    {
+                        var t = allData[index];
+                        double value = t.Values[i];
+                        if (double.IsNaN(value)) continue;
+                        sheet.Cells[row, index + 2].Value = value;
+                    }
+                }
+
+                sheet.Column(1).Style.Numberformat.Format = "yyyy-MM-dd HH:mm";
+
+                sheet.Column(1).AutoFit();
+                for (int i = 0; i < allData.Count; i++)
+                {
+                    sheet.Column(i + 2).AutoFit();
+                }
+
+                await package.SaveAsync();
+            }
+        }
+        catch
+        {
+            // Ignored
+        }
     }
 
     private void TimeSeriesTrendList_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -768,4 +905,11 @@ public enum PlotMode
     Histogram,
     Ts,
     Xy,
+}
+
+public enum ExportType
+{
+    Tsv,
+    Csv,
+    Xlsx,
 }

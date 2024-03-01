@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Avalonia.Controls;
 
 namespace csvplot;
@@ -148,4 +149,26 @@ public static class Extensions
     //
     //
     // }
+
+    /// <summary>
+    /// Turn a string into a CSV cell output. https://stackoverflow.com/a/6377656/5932184
+    /// </summary>
+    /// <param name="str">String to output</param>
+    /// <returns>The CSV cell formatted string</returns>
+    public static string ToCsvCell(this string str)
+    {
+        bool mustQuote = str.Contains(',') || str.Contains('\"') || str.Contains('\r') || str.Contains('\n');
+        if (!mustQuote) return str;
+
+        StringBuilder sb = new();
+        sb.Append('\"');
+        foreach (char nextChar in str)
+        {
+            sb.Append(nextChar);
+            if (nextChar == '"') sb.Append('\"');
+        }
+        sb.Append('\"');
+        return sb.ToString();
+    }
+
 }

@@ -38,11 +38,6 @@
                                 VerticalAlignment="Top"
                                 Click="BrowseButtonOnClick" />
 
-                        <Button Grid.Row="0" Content="Trend Select"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
-                                Click="SelectTrendClick" />
-
                         <Button Click="InfluxButtonClick">Influx</Button>
 
                     </StackPanel>
@@ -138,9 +133,9 @@
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Margin="0 0 10 10">Export Type</TextBlock>
                     <ComboBox Name="ExportTypeComboBox" Grid.Row="1" Grid.Column="1" SelectedIndex="0" Width="100">
-                        <ComboBoxItem Content="TSV" />
-                        <ComboBoxItem Content="CSV" />
-                        <ComboBoxItem Content="XLSX" />
+                        <ComboBoxItem Name="TsvComboBox" Content="TSV" />
+                        <ComboBoxItem Name="CsvComboBox" Content="CSV" />
+                        <ComboBoxItem Name="XlsxComboBox" Content="XLSX" />
                     </ComboBox>
 
                     <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 10 10">Start Year</TextBlock>
