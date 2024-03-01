@@ -41,6 +41,57 @@ public partial class MainWindow : Window
     private int _currentTimeSeriesTextBlocks = 1;
     private bool _currentlyFiltering = false;
 
+    private readonly ListBox _timeSeriesTrendsListBox = new()
+    {
+        SelectionMode = SelectionMode.Multiple | SelectionMode.Toggle,
+    };
+
+    public PlotMode Mode;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        AvaPlot? plot = this.Find<AvaPlot>("AvaPlot");
+
+        _vm = new MainViewModel(plot!, StorageProvider, this);
+        DataContext = _vm;
+
+        UpdateMrus();
+        _timeSeriesTrendsListBox.SelectionChanged += TimeSeriesTrendList_OnSelectionChanged;
+        Grid.SetRow(_timeSeriesTrendsListBox, 5);
+
+        Mode = PlotMode.Ts;
+        TsRadio.IsChecked = true;
+    }
+
+    private void HandlePlotTypeChange()
+    {
+        if (XyRadio.IsChecked ?? false)
+        {
+            MainSourceGrid.Children.Remove(_timeSeriesTrendsListBox);
+            Mode = PlotMode.Xy;
+        }
+        else if (TsRadio.IsChecked ?? false)
+        {
+            Mode = PlotMode.Ts;
+            if (!MainSourceGrid.Children.Contains(_timeSeriesTrendsListBox))
+            {
+                MainSourceGrid.Children.Add(_timeSeriesTrendsListBox);
+            }
+        }
+        else if (HistogramRadio.IsChecked ?? false)
+        {
+            Mode = PlotMode.Histogram;
+            if (!MainSourceGrid.Children.Contains(_timeSeriesTrendsListBox))
+            {
+                MainSourceGrid.Children.Add(_timeSeriesTrendsListBox);
+            }
+        }
+
+        _vm.UpdatePlots();
+    }
+
     private void RenderDataSources()
     {
         DataSourcesList.Children.Clear();
@@ -164,17 +215,17 @@ public partial class MainWindow : Window
         }
         _currentlyFiltering = true;
 
-        TimeSeriesTrendList.ItemsSource = timeSeriesTextBlocks;
+        _timeSeriesTrendsListBox.ItemsSource = timeSeriesTextBlocks;
         _currentTimeSeriesTextBlocks = 1 - _currentTimeSeriesTextBlocks;
 
         // Add back selected if required.
-        foreach (var item in TimeSeriesTrendList.ItemsSource)
+        foreach (var item in _timeSeriesTrendsListBox.ItemsSource)
         {
              TextBlock b = (TextBlock)item;
              PlotTrendConfig c = (PlotTrendConfig)b.Tag!;
              if (SelectedTimeSeriesTrends.Any(config => config.Equals(c )))
              {
-                 TimeSeriesTrendList.SelectedItems!.Add(item);
+                 _timeSeriesTrendsListBox.SelectedItems!.Add(item);
              }
         }
 
@@ -202,17 +253,6 @@ public partial class MainWindow : Window
     }
 
 
-    public MainWindow()
-    {
-        InitializeComponent();
-
-        AvaPlot? plot = this.Find<AvaPlot>("AvaPlot");
-
-        _vm = new MainViewModel(plot!, StorageProvider, this);
-        DataContext = _vm;
-
-        UpdateMrus();
-    }
 
     public void UpdateMrus()
     {
@@ -356,7 +396,7 @@ public partial class MainWindow : Window
     private void ClearSelections(object? sender, RoutedEventArgs e)
     {
         SelectedTimeSeriesTrends.Clear();
-        TimeSeriesTrendList.SelectedItems!.Clear();
+        _timeSeriesTrendsListBox.SelectedItems!.Clear();
         _vm.UpdatePlots();
     }
 
@@ -436,9 +476,9 @@ public partial class MainWindow : Window
         DateTime start = new(startYear, startMonth, startDay);
         DateTime end = new(endYear, endMonth, endDay);
 
-        foreach (var sourcePair in _vm.SourceTrendPairs.GroupBy(pair => pair.Source))
+        foreach (var sourcePair in SelectedTimeSeriesTrends.GroupBy(pair => pair.DataSource))
         {
-            var trends = sourcePair.Select(pair => pair.Name).ToList();
+            var trends = sourcePair.Select(pair => pair.TrendName).ToList();
             var output = sourcePair.Key.GetTimestampData(trends, start, end);
         }
     }
@@ -487,6 +527,12 @@ public partial class MainWindow : Window
             UpdateMrus();
         }
     }
+
+    private void XyRadio_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
+
+    private void Histogram_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
+
+    private void Ts_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
 }
 
 public class PlotTrendConfig : IEquatable<PlotTrendConfig>
@@ -548,4 +594,11 @@ public static class MonthNames
     public static readonly List<string> Names = new() { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
     public static readonly List<string> ShortNames = new() { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
     public static readonly List<int> DaysInMonth = new() { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+}
+
+public enum PlotMode
+{
+    Histogram,
+    Ts,
+    Xy,
 }

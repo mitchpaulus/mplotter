@@ -21,7 +21,7 @@
         </Grid.ColumnDefinitions>
         <TabControl Grid.Column="0">
             <TabItem Header="Source">
-                <Grid>
+                <Grid Name="MainSourceGrid">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"></RowDefinition>
                         <RowDefinition Height="Auto"></RowDefinition>
@@ -60,9 +60,9 @@
                         <Button Click="ClearSelections" Margin="10 0 0 0" Grid.Column="1">Clear</Button>
                     </Grid>
 
-                    <ListBox Grid.Row="5" Name="TimeSeriesTrendList" SelectionChanged="TimeSeriesTrendList_OnSelectionChanged" SelectionMode="Multiple,Toggle">
-
-                    </ListBox>
+                    <!-- <ListBox Grid.Row="5" Name="TimeSeriesTrendList" SelectionChanged="TimeSeriesTrendList_OnSelectionChanged" SelectionMode="Multiple,Toggle"> -->
+                    <!-- -->
+                    <!-- </ListBox> -->
 
                     <!-- <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto" Name="SourcesScrollViewer"> -->
                     <!--     <StackPanel Name="SourcesStackPanel" Spacing="10"> -->
@@ -105,9 +105,9 @@
             </TabItem>
             <TabItem Header="Plot Type">
                 <StackPanel>
-                    <RadioButton Content="Histogram" IsChecked="{Binding IsHistogram}"></RadioButton>
-                    <RadioButton Content="TS" IsChecked="{Binding IsTs}"></RadioButton>
-                    <RadioButton Content="XY" IsChecked="{Binding IsXy}"></RadioButton>
+                    <RadioButton Name="HistogramRadio" IsCheckedChanged="Histogram_OnIsCheckedChanged" Content="Histogram"></RadioButton>
+                    <RadioButton Name="TsRadio" IsCheckedChanged="Ts_OnIsCheckedChanged">Time Series</RadioButton>
+                    <RadioButton Name="XyRadio" IsCheckedChanged="XyRadio_OnIsCheckedChanged"  Content="Scatter"></RadioButton>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Export">

@@ -18,9 +18,20 @@ public partial class TrendDialog : Window
 
     private bool _filterUpdate = false;
 
+    public TrendDialog()
+    {
+        InitializeComponent();
+        InitSources(new ());
+    }
+
     public TrendDialog(List<IDataSource> sources)
     {
         InitializeComponent();
+        InitSources(sources);
+    }
+
+    private void InitSources(List<IDataSource> sources)
+    {
         var blocks = sources.Select(source =>
         {
             TextBlock b = new TextBlock

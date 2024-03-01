@@ -36,11 +36,6 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly ComputedDateTimeState _secondComputedDateTime;
 
     private readonly List<IDataSource> _dataSources = new();
-    public readonly List<SourceTrendPair> SourceTrendPairs = new();
-
-    private bool _isClearingChecked = false;
-
-    private string _trendFilter = "";
 
     public MainViewModel(AvaPlot avaPlot, IStorageProvider storageProvider, MainWindow window)
     {
@@ -112,7 +107,7 @@ public class MainViewModel : INotifyPropertyChanged
                  var t = sourcePair.TrendName;
                  var source = sourcePair.DataSource;
 
-                 if (_isTs)
+                 if (_window.Mode == PlotMode.Ts)
                  {
                      plot.Plot.Axes.DateTimeTicksBottom();
                      watch.Restart();
@@ -127,7 +122,7 @@ public class MainViewModel : INotifyPropertyChanged
                      // double[] yData = tsData.Values.ToArray();
                      List<double> yData = tsData.Values;
 
-                     bool didConvert = false;
+                     // bool didConvert = false;
                      // if (_unitConverterReader.TryGetConversion(t.Name, _unitReader, out Unit? unitToConvertTo))
                      // {
                      //     foreach ((var unitTypeKey, Dictionary<string, Unit> associatedUnits) in _units)
@@ -161,7 +156,7 @@ public class MainViewModel : INotifyPropertyChanged
                          scatter.Label = label;
                      }
                  }
-                 else if (_isHistogram)
+                 else if (_window.Mode == PlotMode.Histogram)
                  {
                      var data = source.DataSourceType == DataSourceType.NonTimeSeries
                          ? source.GetData(t)
@@ -202,7 +197,7 @@ public class MainViewModel : INotifyPropertyChanged
             }
 
 
-            if (_isHistogram)
+            if (_window.Mode == PlotMode.Histogram)
             {
                 plot.Plot.Axes.Left.Label.Text = "Count";
                 plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().TrendName : unitGroup.Key ?? "";
@@ -358,49 +353,6 @@ public class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _ignoreSunday, value);
     }
 
-    private bool _isHistogram = false;
-
-    public bool IsHistogram
-    {
-        get => _isHistogram;
-        set
-        {
-            if (SetField(ref _isHistogram, value))
-            {
-                UpdatePlots();
-            }
-        }
-    }
-
-    private bool _isTs = true;
-
-    public bool IsTs
-    {
-        get => _isTs;
-        set
-        {
-            if (SetField(ref _isTs, value))
-            {
-                UpdatePlots();
-            }
-        }
-    }
-
-    private bool _isXy = false;
-
-    public bool IsXy
-    {
-        get => _isXy;
-        set
-        {
-            if (SetField(ref _isXy, value))
-            {
-                UpdatePlots();
-            }
-        }
-    }
-
-
     // public MainViewModel()
     // {
     //     AvaPlot p = new AvaPlot();
@@ -491,123 +443,4 @@ public class MainViewModel : INotifyPropertyChanged
             }
         }
     }
-
-    public async void SelectTrendClick()
-    {
-        var dialog = new TrendDialog(_dataSources);
-        var vm = new TrendDialogVm(_dataSources);
-        dialog.DataContext = vm;
-
-        await dialog.ShowDialog(_window);
-    }
-}
-
-public class DataSourceViewModel : INotifyPropertyChanged
-{
-    public readonly MainViewModel MainViewModel;
-    public IDataSource DataSource { get; }
-    public string Header { get; set; }
-    public string EscapedHeader => Header.Replace("_", "__");
-
-    public HashSet<string> CheckedTrends = new();
-
-    public ObservableCollection<TrendItemViewModel> Trends { get; set; }
-
-    public ObservableCollection<TrendItemViewModel> FilteredTrendBuffer { get; set; }
-
-    public void UpdateFilteredTrends()
-    {
-        OnPropertyChanged(nameof(FilteredTrends));
-    }
-
-    public ObservableCollection<TrendItemViewModel> FilteredTrends => FilteredTrendBuffer;
-
-    public DataSourceViewModel(IDataSource dataSource, MainViewModel mainViewModel)
-    {
-        MainViewModel = mainViewModel;
-        DataSource = dataSource;
-        Header = dataSource.Header;
-        var init = Init();
-    }
-
-    public async Task Init()
-    {
-        var trends = await DataSource.Trends();
-        Trends = new ObservableCollection<TrendItemViewModel>(trends.Select(t => new TrendItemViewModel(t, this)));
-        FilteredTrendBuffer = new ObservableCollection<TrendItemViewModel>(trends.Select(t => new TrendItemViewModel(t, this)));
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
-}
-
-public class TrendItemViewModel : INotifyPropertyChanged
-{
-    private readonly DataSourceViewModel _dataSourceViewModel;
-    public string Name { get; set; }
-    public string EscapedName => Name.Replace("_", "__");
-
-    public bool Checked
-    {
-        get => _dataSourceViewModel.CheckedTrends.Contains(Name);
-        set
-        {
-            if (value)
-            {
-                _dataSourceViewModel.CheckedTrends.Add(Name);
-            }
-            else
-            {
-                _dataSourceViewModel.CheckedTrends.Remove(Name);
-            }
-            OnPropertyChanged();
-            _dataSourceViewModel.MainViewModel.UpdatePlots();
-        }
-    }
-
-    public TrendItemViewModel(string name, DataSourceViewModel dataSourceViewModel)
-    {
-        _dataSourceViewModel = dataSourceViewModel;
-        Name = name;
-    }
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
-
-    protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
-        field = value;
-        OnPropertyChanged(propertyName);
-        return true;
-    }
-}
-
-public class SourceTrendPair
-{
-    public SourceTrendPair(IDataSource source, string name, CheckBox box)
-    {
-        Source = source;
-        Name = name;
-        Box = box;
-    }
-
-    public IDataSource Source { get; }
-    public string Name { get; }
-    public CheckBox Box { get; }
 }
