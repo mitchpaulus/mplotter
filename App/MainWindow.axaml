@@ -36,7 +36,7 @@
                         <Button Grid.Row="0" Content="Browse"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Top"
-                                Command="{Binding BrowseButton_Click}" />
+                                Click="BrowseButtonOnClick" />
 
                         <Button Grid.Row="0" Content="Trend Select"
                                 HorizontalAlignment="Center"
@@ -60,39 +60,14 @@
                         <Button Click="ClearSelections" Margin="10 0 0 0" Grid.Column="1">Clear</Button>
                     </Grid>
 
-                    <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto" Name="SourcesScrollViewer">
-                        <StackPanel Name="SourcesStackPanel" Spacing="10">
+                    <ListBox Grid.Row="5" Name="TimeSeriesTrendList" SelectionChanged="TimeSeriesTrendList_OnSelectionChanged" SelectionMode="Multiple,Toggle">
 
-                        </StackPanel>
-                        <!-- Add other controls for source selection here -->
-                        <!-- <ItemsControl ItemsSource="{Binding Sources}"> -->
-                        <!--     ~1~ Need a delete button for each source @1@ -->
-                        <!--     <ItemsControl.ItemTemplate> -->
-                        <!--         <DataTemplate> -->
-                        <!--             <Grid RowDefinitions="Auto"> -->
-                        <!--                 <Grid.ColumnDefinitions> -->
-                        <!--                     <ColumnDefinition Width="*"></ColumnDefinition> -->
-                        <!--                     <ColumnDefinition Width="Auto"></ColumnDefinition> -->
-                        <!--                 </Grid.ColumnDefinitions> -->
-                        <!--                 <Expander Grid.Column="0" Header="{Binding EscapedHeader}"> -->
-                        <!--                     <StackPanel> -->
-                        <!--                         ~1~ Generate a checkbox item for each Trend for the current source @1@ -->
-                        <!--                         <ItemsControl ItemsSource="{Binding FilteredTrends}"> -->
-                        <!--                             <ItemsControl.ItemTemplate> -->
-                        <!--                                 <DataTemplate> -->
-                        <!--                                     <CheckBox Content="{Binding EscapedName}" -->
-                        <!--                                               IsChecked="{Binding Checked}" /> -->
-                        <!--                                 </DataTemplate> -->
-                        <!--                             </ItemsControl.ItemTemplate> -->
-                        <!--                         </ItemsControl> -->
-                        <!--                     </StackPanel> -->
-                        <!--                 </Expander> -->
-                        <!--                 <Button Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10" Click="Button_OnClick" >Remove</Button> -->
-                        <!--             </Grid> -->
-                        <!--         </DataTemplate> -->
-                        <!--     </ItemsControl.ItemTemplate> -->
-                        <!-- </ItemsControl> -->
-                    </ScrollViewer>
+                    </ListBox>
+
+                    <!-- <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto" Name="SourcesScrollViewer"> -->
+                    <!--     <StackPanel Name="SourcesStackPanel" Spacing="10"> -->
+                    <!--     </StackPanel> -->
+                    <!-- </ScrollViewer> -->
                 </Grid>
             </TabItem>
             <TabItem Header="Ignore">

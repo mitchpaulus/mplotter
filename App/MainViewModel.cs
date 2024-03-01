@@ -96,7 +96,9 @@ public class MainViewModel : INotifyPropertyChanged
     {
         _window.PlotStackPanel.Children.Clear();
 
-        var unitGrouped = SourceTrendPairs.GroupBy(pair => pair.Name.GetUnit());
+        // var unitGrouped = SourceTrendPairs.GroupBy(pair => pair.Name.GetUnit());
+
+        var unitGrouped = _window.SelectedTimeSeriesTrends.GroupBy(config => config.TrendName.GetUnit());
 
         List<AvaPlot> plots = new();
 
@@ -105,16 +107,16 @@ public class MainViewModel : INotifyPropertyChanged
         {
             var plot = new AvaPlot();
 
-            foreach ((var sourcePair, int trendIndex) in unitGroup.WithIndex())
+            foreach ((PlotTrendConfig sourcePair, int trendIndex) in unitGroup.WithIndex())
             {
-                 var t = sourcePair.Name;
-                 var source = sourcePair.Source;
+                 var t = sourcePair.TrendName;
+                 var source = sourcePair.DataSource;
 
                  if (_isTs)
                  {
                      plot.Plot.Axes.DateTimeTicksBottom();
                      watch.Restart();
-                     var tsData = sourcePair.Source.GetTimestampData(sourcePair.Name);
+                     var tsData = source.GetTimestampData(t);
                      watch.Stop();
 
                      Console.Write($"{watch.ElapsedMilliseconds}\n");
@@ -141,7 +143,7 @@ public class MainViewModel : INotifyPropertyChanged
                      //     }
                      // }
 
-                     string label = unitGroup.Count(tuple => tuple.Name == t) < 2 ? t : $"{source.ShortName}: {t}";
+                     string label = unitGroup.Count(tuple => tuple.TrendName == t) < 2 ? t : $"{source.ShortName}: {t}";
                      // if (didConvert) label = $"{label} in {unitToConvertTo}";
 
                      if (source.DataSourceType == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
@@ -203,11 +205,11 @@ public class MainViewModel : INotifyPropertyChanged
             if (_isHistogram)
             {
                 plot.Plot.Axes.Left.Label.Text = "Count";
-                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Name : unitGroup.Key ?? "";
+                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().TrendName : unitGroup.Key ?? "";
             }
             else
             {
-                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Name : unitGroup.Key ?? "";
+                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().TrendName : unitGroup.Key ?? "";
             }
 
             plot.Plot.Axes.AutoScale();
@@ -235,161 +237,6 @@ public class MainViewModel : INotifyPropertyChanged
         foreach (var p in plots)
         {
             p.Refresh();
-        }
-    }
-
-    public void UpdateTrendFilter(string filter)
-    {
-        _trendFilter = filter;
-
-        foreach (Control c in _window.SourcesStackPanel.Children)
-        {
-            Grid g = (Grid)c;
-            var children = g.Children;
-
-            var expanders = children.Where(control => control.GetType() == typeof(Expander)).Cast<Expander>().ToList();
-            if (!expanders.Any())
-            {
-                continue;
-            }
-
-            Expander e = expanders.First();
-            StackPanel stackPanel = (StackPanel)e.Content!;
-
-            if (string.IsNullOrWhiteSpace(_trendFilter))
-            {
-                foreach (var child in stackPanel.Children)
-                {
-                    // Not sure if setting this, even if same, triggers a redraw.
-                    if (!child.IsVisible) child.IsVisible = true;
-                }
-            }
-            else
-            {
-                foreach (var child in stackPanel.Children)
-                {
-                    CheckBox box = (CheckBox)child;
-                    SourceTrendPair pair = (SourceTrendPair)box.Tag!;
-
-                    bool match = pair.Name.ToLower().Contains(_trendFilter.ToLower());
-                    box.IsVisible = match;
-                }
-            }
-        }
-    }
-
-    public async Task UpdateSourceListUi()
-    {
-        List<Grid> grids = new();
-
-        foreach (var s in _dataSources)
-        {
-            var g = await GetGridForSource(s);
-
-            grids.Add(g);
-        }
-
-        _window.SourcesStackPanel.Children.Clear();
-        _window.SourcesStackPanel.Children.AddRange(grids);
-    }
-
-    private async Task<Grid> GetGridForSource(IDataSource s)
-    {
-        Grid g = new Grid();
-        g.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-        g.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-
-        Expander exp = new Expander();
-        Grid.SetColumn(exp, 0);
-
-        StackPanel stackPanel = new();
-        exp.Content = stackPanel;
-
-        exp.Header = s.Header.EscapeUiText();
-
-        var trends = await s.Trends();
-        trends.Sort();
-        foreach (var t in trends)
-        {
-            CheckBox box = new();
-            box.Content = t;
-            box.Tag = new SourceTrendPair(s, t, box);
-            box.IsCheckedChanged += HandleChecked;
-            stackPanel.Children.Add(box);
-        }
-
-        g.Children.Add(exp);
-
-        Button removeButton = new();
-        removeButton.Content = "Remove";
-        removeButton.Tag = (g, s);
-        removeButton.VerticalAlignment = VerticalAlignment.Top;
-        removeButton.HorizontalAlignment = HorizontalAlignment.Left;
-        removeButton.Margin = new Thickness(10, 0, 10, 0);
-
-        Grid.SetColumn(removeButton, 1);
-        g.Children.Add(removeButton);
-
-        removeButton.Click += RemoveSource;
-        return g;
-    }
-
-    public async Task AddDataSource(IDataSource source)
-    {
-        _window.AddDataSource(source);
-
-        // Don't add duplicate
-        foreach (var s in _dataSources)
-        {
-            if (s.GetType() != source.GetType()) continue;
-            if (s.Header == source.Header) return;
-        }
-
-        _dataSources.Add(source);
-
-        Grid g = await GetGridForSource(source);
-        _window.SourcesStackPanel.Children.Add(g);
-
-        UpdateTrendFilter(_trendFilter);
-        // await UpdateSourceListUi();
-    }
-
-    public void ClearSelected()
-    {
-        _isClearingChecked = true;
-        foreach (var pair in SourceTrendPairs) pair.Box.IsChecked = false;
-        SourceTrendPairs.Clear();
-        _isClearingChecked = false;
-        UpdatePlots();
-    }
-
-    public void HandleChecked(object? sender, EventArgs e)
-    {
-        if (_isClearingChecked) return;
-        if (sender is not CheckBox b) return;
-
-        SourceTrendPair p = (SourceTrendPair)b.Tag!;
-        if (b.IsChecked is null || !(bool)b.IsChecked)
-        {
-            SourceTrendPairs.RemoveAll(pair => object.ReferenceEquals(pair, p));
-        }
-        else
-        {
-            SourceTrendPairs.Add(p);
-        }
-
-        UpdatePlots();
-    }
-
-    private void RemoveSource(object? sender, EventArgs e)
-    {
-        if (sender is Button s)
-        {
-            var indexToRemove = ((Grid grid, IDataSource source))s.Tag!;
-            _dataSources.RemoveAll(source => ReferenceEquals(source, indexToRemove.source));
-            _window.SourcesStackPanel.Children.Remove(indexToRemove.grid);
-            SourceTrendPairs.RemoveAll(pair => ReferenceEquals(pair.Source, indexToRemove.source));
-            UpdatePlots();
         }
     }
 
@@ -598,33 +445,7 @@ public class MainViewModel : INotifyPropertyChanged
         return true;
     }
 
-    public async void BrowseButton_Click()
-    {
-        // Use StorageProvider to show the dialog
-        var result = await _storageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
-        {
-            FileTypeFilter = new []{ MainWindow.DateFileTypes }
-        } );
-
-        if (result.Any())
-        {
-            // Get the selected file path
-            IStorageFile? filePath = result[0];
-
-            IDataSource source = DataSourceFactory.SourceFromLocalPath(filePath.Path.LocalPath);
-
-            _dataSources.Add(source);
-            await UpdateSourceListUi();
-            // Sources.Add(new(source, this));
-
-            // Handle the file path (e.g., updating the ViewModel)
-            await SaveToMru(filePath.Path.LocalPath);
-
-            _window.UpdateMrus();
-        }
-    }
-
-    private static async Task SaveToMru(string localPath)
+    public static async Task SaveToMru(string localPath)
     {
         // Save to MRU file list (up to 20)
         if (OperatingSystem.IsWindows())

@@ -23,7 +23,6 @@ using File = System.IO.File;
 
 namespace csvplot;
 
-
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
@@ -33,6 +32,14 @@ public partial class MainWindow : Window
     private readonly List<IDataSource> _loadedDataSources = new();
 
     private readonly List<IDataSource> _selectedDataSources = new();
+
+    public readonly List<PlotTrendConfig> SelectedTimeSeriesTrends = new();
+    private readonly List<PlotTrendConfig> _availableTimeSeriesTrends = new();
+
+    private readonly List<TextBlock> _timeSeriesTextBlocks1 = new();
+    private readonly List<TextBlock> _timeSeriesTextBlocks2 = new();
+    private int _currentTimeSeriesTextBlocks = 1;
+    private bool _currentlyFiltering = false;
 
     private void RenderDataSources()
     {
@@ -73,19 +80,32 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ClickSource(object? sender, EventArgs args)
+    private async void ClickSource(object? sender, EventArgs args)
     {
         if (sender is not Button b) return;
-
         var source = (IDataSource)b.Tag!;
 
         var removed = _selectedDataSources.Remove(source);
         if (!removed) _selectedDataSources.Add(source);
+        else
+        {
+            // Remove all selected trends that had that source
+            SelectedTimeSeriesTrends.RemoveAll(config => config.DataSource.Equals(source));
+        }
 
         RenderDataSources();
+        await UpdateAvailableTimeSeriesTrendList();
+        _vm.UpdatePlots();
     }
 
-    public void AddDataSource(IDataSource source)
+    public async void AddDataSourceMruClick(object? sender, EventArgs args)
+    {
+        if (sender is not Button b) return;
+        if (b.Tag is not IDataSource source) return;
+        await AddDataSource(source);
+    }
+
+    public async Task AddDataSource(IDataSource source)
     {
         // Don't add dup
         foreach (var s in _loadedDataSources)
@@ -97,9 +117,71 @@ public partial class MainWindow : Window
         _loadedDataSources.Add(source);
         _selectedDataSources.Add(source);
         RenderDataSources();
+        await UpdateAvailableTimeSeriesTrendList();
     }
 
-    private void RemoveDataSource(object? sender, EventArgs args)
+    private async Task UpdateAvailableTimeSeriesTrendList()
+    {
+        _availableTimeSeriesTrends.Clear();
+        foreach (var s in _selectedDataSources)
+        {
+            var trends = await s.Trends();
+            _availableTimeSeriesTrends.AddRange(trends.Select(trend => new PlotTrendConfig(s, trend)));
+        }
+
+        Dictionary<string, List<PlotTrendConfig>> grouped = _availableTimeSeriesTrends.GroupBy(config => config.TrendName).ToDictionary(configs => configs.Key, configs => configs.ToList());
+        var sortedKeys = grouped.Keys.OrderBy(s => s.ToLowerInvariant());
+
+        List<TextBlock> timeSeriesTextBlocks = _currentTimeSeriesTextBlocks == 1 ? _timeSeriesTextBlocks2 : _timeSeriesTextBlocks1;
+
+        timeSeriesTextBlocks.Clear();
+
+        string loweredSearchText = SearchBox.Text ?? "".ToLowerInvariant();
+
+        foreach (var key in sortedKeys)
+        {
+            if (!key.ToLowerInvariant().Contains(loweredSearchText)) continue;
+
+            List<PlotTrendConfig> trends = grouped[key];
+            if (trends.Count > 1)
+            {
+                foreach (var t in trends)
+                {
+                    TextBlock b = new TextBlock();
+                    b.Text = $"{t.DataSource.ShortName}: {t.TrendName}";
+                    b.Tag = t;
+                    timeSeriesTextBlocks.Add(b);
+                }
+            }
+            else
+            {
+                var t = trends[0];
+                TextBlock b = new TextBlock();
+                b.Text = $"{t.TrendName}";
+                b.Tag = t;
+                timeSeriesTextBlocks.Add(b);
+            }
+        }
+        _currentlyFiltering = true;
+
+        TimeSeriesTrendList.ItemsSource = timeSeriesTextBlocks;
+        _currentTimeSeriesTextBlocks = 1 - _currentTimeSeriesTextBlocks;
+
+        // Add back selected if required.
+        foreach (var item in TimeSeriesTrendList.ItemsSource)
+        {
+             TextBlock b = (TextBlock)item;
+             PlotTrendConfig c = (PlotTrendConfig)b.Tag!;
+             if (SelectedTimeSeriesTrends.Any(config => config.Equals(c )))
+             {
+                 TimeSeriesTrendList.SelectedItems!.Add(item);
+             }
+        }
+
+        _currentlyFiltering = false;
+    }
+
+    private async void RemoveDataSource(object? sender, EventArgs args)
     {
         if (sender is not Button b) return;
 
@@ -115,6 +197,8 @@ public partial class MainWindow : Window
             DataSourcesList.Children.Remove(c);
             break;
         }
+
+        await UpdateAvailableTimeSeriesTrendList();
     }
 
 
@@ -139,11 +223,9 @@ public partial class MainWindow : Window
                 // Add a button to load that file
                 Button button = new Button();
                 IDataSource source = DataSourceFactory.SourceFromLocalPath(mru);
-                button.Click += async (sender, args) =>
-                {
-                    await _vm.AddDataSource(source);
-                };
+                button.Click += AddDataSourceMruClick;
                 button.Content = Path.GetFileName(mru).EscapeUiText();
+                button.Tag = source;
 
                 var tooltip = new TextBlock { Text = mru };
                 ToolTip.SetTip(button, tooltip);
@@ -177,6 +259,7 @@ public partial class MainWindow : Window
     {
         Patterns = new[] { "*.csv", "*.tsv", "*.txt", "*.sql", "*.db" }
     };
+
 
     private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)
     {
@@ -270,7 +353,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ClearSelections(object? sender, RoutedEventArgs e) => _vm.ClearSelected();
+    private void ClearSelections(object? sender, RoutedEventArgs e)
+    {
+        SelectedTimeSeriesTrends.Clear();
+        TimeSeriesTrendList.SelectedItems!.Clear();
+        _vm.UpdatePlots();
+    }
 
     private async void InfluxButtonClick(object? sender, RoutedEventArgs e)
     {
@@ -310,7 +398,7 @@ public partial class MainWindow : Window
             var selected = await influxDialog.ShowDialog<string>(this);
             if (!string.IsNullOrWhiteSpace(selected))
             {
-                await _vm.AddDataSource(new InfluxDataSource(selected));
+                await AddDataSource(new InfluxDataSource(selected));
             }
         }
         catch
@@ -319,9 +407,9 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
+    private async void SearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
     {
-        _vm.UpdateTrendFilter(((TextBox)sender!).Text ?? "");
+        await UpdateAvailableTimeSeriesTrendList();
     }
 
     private void ExportButtonOnClick(object? sender, RoutedEventArgs e)
@@ -359,6 +447,45 @@ public partial class MainWindow : Window
     {
         var dialog = new TrendDialog(_loadedDataSources);
         await dialog.ShowDialog(this);
+    }
+
+    private void TimeSeriesTrendList_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_currentlyFiltering) return;
+        foreach (var added in e.AddedItems.Cast<TextBlock>())
+        {
+            SelectedTimeSeriesTrends.Add((PlotTrendConfig)added.Tag!);
+        }
+
+        foreach (var remove in e.RemovedItems.Cast<TextBlock>())
+        {
+            SelectedTimeSeriesTrends.Remove((PlotTrendConfig)remove.Tag!);
+        }
+        _vm.UpdatePlots();
+    }
+
+    private async void BrowseButtonOnClick(object? sender, RoutedEventArgs e)
+    {
+        // Use StorageProvider to show the dialog
+        var result = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions()
+        {
+            FileTypeFilter = new[] { MainWindow.DateFileTypes }
+        });
+
+        if (result.Any())
+        {
+            // Get the selected file path
+            IStorageFile? filePath = result[0];
+
+            IDataSource source = DataSourceFactory.SourceFromLocalPath(filePath.Path.LocalPath);
+
+            await AddDataSource(source);
+
+            // Handle the file path (e.g., updating the ViewModel)
+            await MainViewModel.SaveToMru(filePath.Path.LocalPath);
+
+            UpdateMrus();
+        }
     }
 }
 
