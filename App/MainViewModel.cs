@@ -93,6 +93,73 @@ public class MainViewModel : INotifyPropertyChanged
 
         // var unitGrouped = SourceTrendPairs.GroupBy(pair => pair.Name.GetUnit());
 
+        if (_window.Mode == PlotMode.Xy)
+        {
+            AvaPlot plot = new AvaPlot();
+
+            var validSeries = _window.XySeries.Where(serie => serie.XTrend is not null && serie.YTrend is not null)
+                .ToList();
+
+            foreach (var serie in validSeries)
+            {
+                var xData = serie.XTrend!.DataSource.GetTimestampData(serie.XTrend.TrendName);
+                var yData = serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.TrendName);
+                if (!xData.DateTimes.Any() && yData.DateTimes.Any()) continue;
+
+                DateTime minDate = DateTime.MaxValue;
+                DateTime maxDate = DateTime.MinValue;
+
+                foreach (var dt in xData.DateTimes)
+                {
+                    if (dt < minDate) minDate = dt;
+                    if (dt > maxDate) maxDate = dt;
+                }
+
+                foreach (var dt in yData.DateTimes)
+                {
+                    if (dt < minDate) minDate = dt;
+                    if (dt > maxDate) maxDate = dt;
+                }
+
+                // Round up maxDate to the nearest day
+                var maxDateTemp = maxDate.Date;
+                if (maxDateTemp != maxDate)
+                {
+                    maxDate = maxDateTemp.AddDays(1);
+                }
+
+
+                xData.AlignToMinuteInterval(minDate.Date, maxDate, 15);
+                yData.AlignToMinuteInterval(minDate.Date, maxDate, 15);
+
+                for (int i = xData.Values.Count - 1; i >= 0; i--)
+                {
+                    if (double.IsNaN(xData.Values[i]) || double.IsNaN(yData.Values[i]))
+                    {
+                        xData.Values.RemoveAt(i);
+                        yData.Values.RemoveAt(i);
+                    }
+                }
+
+                var scatter = plot.Plot.Add.Scatter(xData.Values, yData.Values);
+                scatter.LineStyle = new LineStyle()
+                {
+                    IsVisible = false
+                };
+            }
+
+            if (validSeries.Count == 1)
+            {
+                plot.Plot.Axes.Bottom.Label.Text = validSeries[0].XTrend!.TrendName;
+                plot.Plot.Axes.Left.Label.Text = validSeries[0].YTrend!.TrendName;
+            }
+
+            _window.PlotStackPanel.Children.Add(plot);
+            plot.Refresh();
+            return;
+        }
+
+
         var unitGrouped = _window.SelectedTimeSeriesTrends.GroupBy(config => config.TrendName.GetUnit());
 
         List<AvaPlot> plots = new();

@@ -60,7 +60,6 @@ public class TimestampData
         DateTime currentDate = startDateInc;
         int currentIndex = 0;
 
-        int interpolatedIndex = 0;
         while (currentDate < endDateExc)
         {
             interpolatedDateTimes.Add(currentDate);
@@ -73,16 +72,18 @@ public class TimestampData
 
             if (currentIndex == 0)
             {
-                newValues[interpolatedIndex] = double.NaN;
+                // Check if right on border.
+                newValues.Add(currentDate == DateTimes[currentIndex] ? Values[currentIndex] : double.NaN);
             }
             else if (currentIndex >= Values.Count)
             {
-                newValues[interpolatedIndex] = double.NaN;
+                newValues.Add(double.NaN);
             }
             else
             {
                 var slope = (Values[currentIndex] - Values[currentIndex - 1]) / ((double)DateTimes[currentIndex].Ticks - DateTimes[currentIndex - 1].Ticks);
-                newValues[interpolatedIndex] = Values[currentIndex - 1] + (currentDate.Ticks -  DateTimes[currentIndex - 1].Ticks) * slope;
+                var value = Values[currentIndex - 1] + (currentDate.Ticks -  DateTimes[currentIndex - 1].Ticks) * slope;
+                newValues.Add(value);
             }
 
             currentDate = currentDate.AddTicks(minuteInterval * TimeSpan.TicksPerMinute);

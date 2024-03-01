@@ -28,7 +28,7 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
 
-    private List<XySerie> _xySeries = new();
+    public readonly List<XySerie> XySeries = new();
 
     private readonly List<IDataSource> _loadedDataSources = new();
 
@@ -85,7 +85,7 @@ public partial class MainWindow : Window
 
     private void AddXySerieButtonOnClick(object? sender, RoutedEventArgs e)
     {
-        _xySeries.Add(new XySerie(null, null));
+        XySeries.Add(new XySerie(null, null));
         UpdateXyGrid();
     }
 
@@ -99,23 +99,23 @@ public partial class MainWindow : Window
             if (row >= numHeaderRows) _xyTrendSelectionGrid.Children.RemoveAt(i);
         }
 
-        int rowDiff = _xySeries.Count - (_xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows);
+        int rowDiff = XySeries.Count - (_xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows);
         if (rowDiff > 0)
         {
-            while (_xySeries.Count > _xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows)
+            while (XySeries.Count > _xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows)
             {
                 _xyTrendSelectionGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
             }
         }
         else if (rowDiff < 0)
         {
-            while (_xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows > _xySeries.Count)
+            while (_xyTrendSelectionGrid.RowDefinitions.Count - numHeaderRows > XySeries.Count)
             {
                 _xyTrendSelectionGrid.RowDefinitions.RemoveAt(_xyTrendSelectionGrid.RowDefinitions.Count - 1);
             }
         }
 
-        foreach (var (serie, row) in _xySeries.WithIndex(numHeaderRows))
+        foreach (var (serie, row) in XySeries.WithIndex(numHeaderRows))
         {
             if (serie.XTrend is { } xTrend)
             {
@@ -180,7 +180,7 @@ public partial class MainWindow : Window
         if (dialog.SelectedConfigs.Any())
         {
             var first = dialog.SelectedConfigs.First();
-            foreach (var series in _xySeries)
+            foreach (var series in XySeries)
             {
                 if (ReferenceEquals(series.XTrend, b.Tag))
                 {
@@ -197,7 +197,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            foreach (var series in _xySeries)
+            foreach (var series in XySeries)
             {
                 if (ReferenceEquals(series.XTrend, b.Tag))
                 {
@@ -214,14 +214,16 @@ public partial class MainWindow : Window
         }
 
         UpdateXyGrid();
+        _vm.UpdatePlots();
     }
 
     private void RemoveXySerie(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button b) return;
         if (b.Tag is not XySerie s) return;
-        _xySeries.RemoveAll(serie => ReferenceEquals(serie, s));
+        XySeries.RemoveAll(serie => ReferenceEquals(serie, s));
         UpdateXyGrid();
+        _vm.UpdatePlots();
     }
 
     private void HandlePlotTypeChange()
