@@ -262,7 +262,7 @@ public class MainViewModel : INotifyPropertyChanged
                                  Value = values[i],
                                  Position = binCenters[i],
                                  Size = hist.BinSize,
-                                 FillColor = colors[trendIndex]
+                                 FillColor = colors[trendIndex % colors.Count]
                              });
                          }
 
@@ -272,7 +272,7 @@ public class MainViewModel : INotifyPropertyChanged
                              Label = t,
                              Line = LineStyle.None,
                              Marker = new MarkerStyle { Shape = MarkerShape.FilledSquare },
-                             FillColor = colors[trendIndex]
+                             FillColor = colors[trendIndex % colors.Count]
                          });
 
                          trendIndex++;

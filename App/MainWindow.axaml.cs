@@ -839,6 +839,11 @@ public partial class MainWindow : Window
     private void Histogram_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
 
     private void Ts_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
+
+    private void NoaaButtonClick(object? sender, RoutedEventArgs e)
+    {
+        throw new NotImplementedException();
+    }
 }
 
 public class PlotTrendConfig : IEquatable<PlotTrendConfig>

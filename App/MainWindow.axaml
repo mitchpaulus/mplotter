@@ -39,6 +39,7 @@
                                 Click="BrowseButtonOnClick" />
 
                         <Button Click="InfluxButtonClick">Influx</Button>
+                        <Button Click="NoaaButtonClick">NOAA</Button>
 
                     </StackPanel>
 

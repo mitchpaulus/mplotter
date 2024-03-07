@@ -44,7 +44,7 @@ public class Tests
         var list2 = list1.Where(@class => @class.Name == "init").Select(s => s).ToList();
 
         list1[0].Name = "new";
-        
+
         Console.WriteLine(list2[0].Name);
     }
 
@@ -57,12 +57,19 @@ public class Tests
         string connectionString = $"Data Source={filepath}";
 
         using SQLiteConnection conn = new SQLiteConnection(connectionString);
-        
+
         conn.Open();
 
         var dataTable = conn.GetSchema("TABLES");
 
         var table2 = conn.GetSchema("COLUMNS", new[] { null, null, "history" });
+    }
+
+    [Test]
+    public async Task TestNoaaStations()
+    {
+        var stations = await NoaaWeather.GetStations();
+        var txStations = stations.Where(station => station.St == "TX");
     }
 }
 
