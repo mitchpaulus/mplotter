@@ -97,7 +97,8 @@ public class MainViewModel : INotifyPropertyChanged
         {
             AvaPlot plot = new AvaPlot();
 
-            var validSeries = _window.XySeries.Where(serie => serie.XTrend is not null && serie.YTrend is not null)
+            var validSeries = _window.XySeries
+                .Where(serie => serie.XTrend is not null && serie.YTrend is not null)
                 .ToList();
 
             foreach (var serie in validSeries)
@@ -159,107 +160,123 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-
-        var unitGrouped = _window.SelectedTimeSeriesTrends.GroupBy(config => config.TrendName.GetUnit());
+        IEnumerable<IGrouping<string?,PlotTrendConfig>> unitGrouped = _window.SelectedTimeSeriesTrends.GroupBy(config => config.TrendName.GetUnit());
 
         List<AvaPlot> plots = new();
 
         Stopwatch watch = new Stopwatch();
+
+        var trendIndex = 0;
+
         foreach (var unitGroup in unitGrouped)
         {
             var plot = new AvaPlot();
 
-            foreach ((PlotTrendConfig sourcePair, int trendIndex) in unitGroup.WithIndex())
+            var sourceGrouped = unitGroup.GroupBy(ug => ug.DataSource);
+
+            foreach (var sourceGroup in sourceGrouped)
             {
-                 var t = sourcePair.TrendName;
-                 var source = sourcePair.DataSource;
+                 // var t = sourcePair.TrendName;
+                 var source = sourceGroup.Key;
+
+                 List<string> trends = sourceGroup.Select(config => config.TrendName).ToList();
 
                  if (_window.Mode == PlotMode.Ts)
                  {
                      plot.Plot.Axes.DateTimeTicksBottom();
                      watch.Restart();
-                     var tsData = source.GetTimestampData(t);
+                     var tsDatas = source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
                      watch.Stop();
 
                      Console.Write($"{watch.ElapsedMilliseconds}\n");
 
-                     // Bail if we messed up.
-                     if (!tsData.LengthsEqual) continue;
-
-                     // double[] yData = tsData.Values.ToArray();
-                     List<double> yData = tsData.Values;
-
-                     // bool didConvert = false;
-                     // if (_unitConverterReader.TryGetConversion(t.Name, _unitReader, out Unit? unitToConvertTo))
-                     // {
-                     //     foreach ((var unitTypeKey, Dictionary<string, Unit> associatedUnits) in _units)
-                     //     {
-                     //         if (associatedUnits.TryGetValue(unit, out Unit? fromUnit) && associatedUnits.TryGetValue(unitToConvertTo, out var toUnit))
-                     //         {
-                     //             yData = yData.Select(d =>
-                     //                     d * fromUnit.Factor / toUnit.Factor)
-                     //                     .ToArray();
-                     //             didConvert = true;
-                     //             break;
-                     //         }
-                     //     }
-                     // }
-
-                     string label = unitGroup.Count(tuple => tuple.TrendName == t) < 2 ? t : $"{source.ShortName}: {t}";
-                     // if (didConvert) label = $"{label} in {unitToConvertTo}";
-
-                     if (source.DataSourceType == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
+                     foreach ((TimestampData tsData, string t) in tsDatas.Zip(trends))
                      {
-                         var signalPlot = plot.Plot.Add.Signal(yData, (double)1/24);
-                         signalPlot.Label = label;
-                         signalPlot.Data.XOffset = tsData.DateTimes.First().ToOADate();
-                     }
-                     else
-                     {
-                         List<double> xData = tsData.DateTimes.Select(time => time.ToOADate()).ToList();
-                         // TODO: add safety here
-                         // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
-                         var scatter = plot.Plot.Add.Scatter(xData, yData);
-                         scatter.Label = label;
+                         // Bail if we messed up.
+                         if (!tsData.LengthsEqual) continue;
+
+                         // double[] yData = tsData.Values.ToArray();
+                         List<double> yData = tsData.Values;
+
+                         string label = unitGroup.Count(tuple => tuple.TrendName == t) < 2
+                             ? t
+                             : $"{source.ShortName}: {t}";
+                         // if (didConvert) label = $"{label} in {unitToConvertTo}";
+
+                         if (source.DataSourceType == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
+                         {
+                             var signalPlot = plot.Plot.Add.Signal(yData, (double)1 / 24);
+                             signalPlot.Label = label;
+                             signalPlot.Data.XOffset = tsData.DateTimes.First().ToOADate();
+                         }
+                         else
+                         {
+                             List<double> xData = tsData.DateTimes.Select(time => time.ToOADate()).ToList();
+                             // TODO: add safety here
+                             // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
+                             var scatter = plot.Plot.Add.Scatter(xData, yData);
+                             scatter.Label = label;
+                         }
                      }
                  }
                  else if (_window.Mode == PlotMode.Histogram)
                  {
-                     var data = source.DataSourceType == DataSourceType.NonTimeSeries
-                         ? source.GetData(t)
-                         : source.GetTimestampData(t).Values;
-
-                     (double min, double max) = data.SafeMinMax();
-
-                     var hist = new Histogram(min, max, 50);
-                     hist.AddRange(data);
-
-                     var values = hist.Counts;
-                     var binCenters = hist.BinCenters;
-
-                     List<Bar> allBars = new(binCenters.Length);
-
-                     var colors = ColorCycle.GetColors(unitGroup.Count());
-
-                     for (int i = 0; i < values.Length; i++)
+                     List<List<double>> datas = new();
+                     if (source.DataSourceType == DataSourceType.NonTimeSeries)
                      {
-                         allBars.Add(new Bar
+                         foreach (var t in trends)
                          {
-                             Value = values[i],
-                             Position = binCenters[i],
-                             Size = hist.BinSize,
-                             FillColor = colors[trendIndex]
-                         });
+                             var d = source.GetData(t);
+                             datas.Add(d);
+                         }
+                     }
+                     else
+                     {
+                         var tsDatas = source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
+                         datas.AddRange(tsDatas.Select(tsData => tsData.Values));
                      }
 
-                     plot.Plot.Add.Bars(allBars);
-                     plot.Plot.Legend.ManualItems.Add(new LegendItem
+                     // var data = source.DataSourceType == DataSourceType.NonTimeSeries
+                     //     ? source.GetData(t)
+                     //     : source.GetTimestampData(t).Values;
+                     for (var index = 0; index < datas.Count; index++)
                      {
-                         Label = t,
-                         Line  = LineStyle.None,
-                         Marker = new MarkerStyle { Shape = MarkerShape.FilledSquare },
-                         FillColor = colors[trendIndex]
-                     });
+                         var t = trends[index];
+                         var data = datas[index];
+                         (double min, double max) = data.SafeMinMax();
+
+                         var hist = new Histogram(min, max, 50);
+                         hist.AddRange(data);
+
+                         var values = hist.Counts;
+                         var binCenters = hist.BinCenters;
+
+                         List<Bar> allBars = new(binCenters.Length);
+
+                         var colors = ColorCycle.GetColors(unitGroup.Count());
+
+                         for (int i = 0; i < values.Length; i++)
+                         {
+                             allBars.Add(new Bar
+                             {
+                                 Value = values[i],
+                                 Position = binCenters[i],
+                                 Size = hist.BinSize,
+                                 FillColor = colors[trendIndex]
+                             });
+                         }
+
+                         plot.Plot.Add.Bars(allBars);
+                         plot.Plot.Legend.ManualItems.Add(new LegendItem
+                         {
+                             Label = t,
+                             Line = LineStyle.None,
+                             Marker = new MarkerStyle { Shape = MarkerShape.FilledSquare },
+                             FillColor = colors[trendIndex]
+                         });
+
+                         trendIndex++;
+                     }
                  }
             }
 

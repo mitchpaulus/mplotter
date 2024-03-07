@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace csvplot;
@@ -77,6 +78,8 @@ public class Bac0DataSource : IDataSource
 
         return new TimestampData(dates, values);
     }
+
+    public List<TimestampData> GetTimestampData(List<string> trends) => trends.Select(GetTimestampData).ToList();
 
     public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {

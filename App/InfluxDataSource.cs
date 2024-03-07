@@ -142,6 +142,8 @@ public class InfluxDataSource : IDataSource
         return new TimestampData(timestamps, values);
     }
 
+    public List<TimestampData> GetTimestampData(List<string> trends) => GetTimestampData(trends, DateTime.Now.Date.AddDays(-365), DateTime.Now.Date.AddDays(1));
+
     public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
         // Get the last year of data from InfluxDb.

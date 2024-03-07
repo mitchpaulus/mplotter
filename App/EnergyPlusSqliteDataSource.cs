@@ -149,6 +149,8 @@ public class EnergyPlusSqliteDataSource : IDataSource
         return new TimestampData(dateTimes, data);
     }
 
+    public List<TimestampData> GetTimestampData(List<string> trends) => trends.Select(GetTimestampData).ToList();
+
     public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
          List<TimestampData> data = new();

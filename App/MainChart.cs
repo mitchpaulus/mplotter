@@ -25,6 +25,8 @@ public interface IDataSource
 
     TimestampData GetTimestampData(string trend);
 
+    List<TimestampData> GetTimestampData(List<string> trends);
+
     List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc);
 }
 
