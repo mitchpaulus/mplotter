@@ -675,7 +675,7 @@ public partial class MainWindow : Window
         foreach (var sourcePair in SelectedTimeSeriesTrends.GroupBy(pair => pair.DataSource))
         {
             var trends = sourcePair.Select(pair => pair.TrendName).ToList();
-            List<TimestampData> output = sourcePair.Key.GetTimestampData(trends, start, end);
+            List<TimestampData> output = sourcePair.Key.GetTimestampData(trends, start.AddDays(-1), end.AddDays(1));
 
             headers.AddRange(trends);
 
@@ -695,6 +695,7 @@ public partial class MainWindow : Window
                 await using Stream stream = await pickerResult.OpenWriteAsync();
                 await using StreamWriter writer = new StreamWriter(stream);
 
+                headers.Insert(0, "Timestamp");
                 var headerString = string.Join("\t", headers);
                 await writer.WriteAsync(headerString);
                 await writer.WriteAsync('\n');
@@ -723,6 +724,7 @@ public partial class MainWindow : Window
                 await using Stream stream = await pickerResult.OpenWriteAsync();
                 await using StreamWriter writer = new StreamWriter(stream);
 
+                headers.Insert(0, "Timestamp");
                 var headerString = string.Join(",", headers.Select(s => s.ToCsvCell()));
                 await writer.WriteAsync(headerString);
                 await writer.WriteAsync('\n');
@@ -755,7 +757,7 @@ public partial class MainWindow : Window
 
                 var sheet = package.Workbook.Worksheets.Add($"{DateTime.Now:yyyy-MM-dd HHmm} Export");
 
-                sheet.Cells[1, 1].Value = "DateTime";
+                sheet.Cells[1, 1].Value = "Timestamp";
                 foreach ((string header, int col) in headers.WithIndex(2))
                 {
                     sheet.Cells[1, col].Value = header;

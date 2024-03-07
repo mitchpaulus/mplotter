@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Threading.Tasks;
 using ScottPlot.Avalonia;
 
@@ -39,6 +40,19 @@ public class TimestampData
     }
 
     public bool LengthsEqual => DateTimes.Count == Values.Count;
+
+    public void Sort()
+    {
+        var zipped = DateTimes.Zip(Values, (dt, v) => (dt, v)).ToList();
+        zipped.Sort((a, b) => a.dt.CompareTo(b.dt));
+        DateTimes.Clear();
+        Values.Clear();
+        foreach (var (dt, v) in zipped)
+        {
+            DateTimes.Add(dt);
+            Values.Add(v);
+        }
+    }
 
     public void TrimDates(DateTime startDateInc, DateTime endDateExc)
     {
