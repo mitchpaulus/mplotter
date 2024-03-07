@@ -840,9 +840,11 @@ public partial class MainWindow : Window
 
     private void Ts_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
 
-    private void NoaaButtonClick(object? sender, RoutedEventArgs e)
+    private async void NoaaButtonClick(object? sender, RoutedEventArgs e)
     {
-        throw new NotImplementedException();
+        NoaaDialog d = new();
+        await d.AddStations();
+        await d.ShowDialog(this);
     }
 }
 
