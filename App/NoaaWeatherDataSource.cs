@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
@@ -42,8 +43,39 @@ public class NoaaWeather
     public static async Task<List<NoaaStation>> GetStations()
     {
         // Download from: https://www1.ncdc.noaa.gov/pub/data/noaa/isd-history.txt
-
         var stations = new List<NoaaStation>();
+
+        // First check if we've already downloaded the file today. NOAA doesn't update it that often.
+        string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        if (localAppData is not null)
+        {
+            try
+            {
+                // First read from LOCALAPPDATA/mplotter/cache.txt. First line has timestamp of last download for isd-history.txt
+                string cachePath = Path.Combine(localAppData, "mplotter", "cache.txt");
+
+                StreamReader cacheReader = new StreamReader(cachePath);
+                string? lastDownload = await cacheReader.ReadLineAsync();
+
+                // If date of last download was today, read from LOCALAPPDATA/mplotter/isd-history.txt
+                if (DateTime.ParseExact(lastDownload.Trim(), "yyyyMMdd", CultureInfo.InvariantCulture) == DateTime.Today)
+                {
+                    string isdHistoryPath = Path.Combine(localAppData, "mplotter", "isd-history.txt");
+                    using StreamReader isdHistoryReader = new StreamReader(isdHistoryPath);
+                    while (await isdHistoryReader.ReadLineAsync() is { } line)
+                    {
+                        if (TryParseNoaaStationLine(line, out var station)) stations.Add(station);
+                    }
+
+                    return stations;
+                }
+            }
+            catch
+            {
+                // Ignore
+            }
+        }
+
 
         HttpClient client = new HttpClient();
         HttpResponseMessage response;
@@ -62,18 +94,48 @@ public class NoaaWeather
         }
 
         // Read file as UTF-8
-        using var stream = await response.Content.ReadAsStreamAsync();
+        await using var stream = await response.Content.ReadAsStreamAsync();
         using var reader = new StreamReader(stream, Encoding.UTF8);
 
         while (await reader.ReadLineAsync() is { } line)
         {
+            if (TryParseNoaaStationLine(line, out var station)) stations.Add(station);
+        }
+
+        stream.Position = 0;
+        // Try to Save to LOCALAPPDATA/mplotter/isd-history.txt
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(localAppData, "mplotter"));
+            await using var fileStream = File.Create(Path.Combine(localAppData, "mplotter", "isd-history.txt"));
+            await stream.CopyToAsync(fileStream);
+
+            // Write to LOCALAPPDATA/mplotter/cache.txt. First line has timestamp of last download for isd-history.txt
+            await using var cacheStream = File.Create(Path.Combine(localAppData, "mplotter", "cache.txt"));
+            byte[] cacheBytes = Encoding.UTF8.GetBytes(DateTime.Today.ToString("yyyyMMdd") + '\n');
+            await cacheStream.WriteAsync(cacheBytes);
+        }
+        catch
+        {
+            // Ignore
+        }
+
+        return stations;
+    }
+
+
+    static bool TryParseNoaaStationLine(string? origLine, [NotNullWhen(true)] out NoaaStation? station)
+    {
+        if (origLine is { } line)
+        {
             if (line.Length < 99)
             {
-                continue;
+                station = null;
+                return false;
             }
 
-
-            var station = new NoaaStation
+            // TODO: actually handle bad line for floats, begin/end
+            station = new NoaaStation
             {
                 Usaf = line.Substring(0, 6).Trim(),
                 Wban = line.Substring(7, 5).Trim(),
@@ -87,12 +149,14 @@ public class NoaaWeather
                 Begin = DateTime.ParseExact(line.Substring(82, 8).Trim(), "yyyyMMdd", CultureInfo.InvariantCulture),
                 End = DateTime.ParseExact(line.Substring(91, 8).Trim(), "yyyyMMdd", CultureInfo.InvariantCulture)
             };
-
-            stations.Add(station);
+            return true;
         }
 
-        return stations;
+        station = null;
+        return false;
     }
+
+
 }
 
 public class NoaaWeatherDataSource : IDataSource

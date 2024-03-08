@@ -6,8 +6,22 @@
         x:Class="csvplot.NoaaDialog"
         Title="NoaaDialog">
 
-        <ListBox Name="NoaaStationsListBox">
+        <Grid RowDefinitions="Auto 1*">
+                <Grid Grid.Row="0" RowDefinitions="auto auto auto auto auto" ColumnDefinitions="auto auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0">USAF</TextBlock>
+                        <TextBlock Grid.Row="1" Grid.Column="0">WBAN</TextBlock>
+                        <TextBlock Grid.Row="2" Grid.Column="0">Station Name</TextBlock>
+                        <TextBlock Grid.Row="3" Grid.Column="0">Call Num</TextBlock>
+                        <TextBlock Grid.Row="4" Grid.Column="0">State</TextBlock>
+
+                        <TextBox Grid.Row="0" Grid.Column="1" Width="150" TextChanged="UsafSearchChanged"></TextBox>
+                        <TextBox Grid.Row="1" Grid.Column="1" Width="150" TextChanged="WbanSearchChanged"></TextBox>
+                        <TextBox Grid.Row="2" Grid.Column="1" Width="150" TextChanged="StationNameSearchChanged"></TextBox>
+                        <TextBox Grid.Row="3" Grid.Column="1" Width="150"  TextChanged="CallNumSearchChanged"></TextBox>
+                        <TextBox Grid.Row="4" Grid.Column="1" Width="150" TextChanged="StateSearchChanged"></TextBox>
+                </Grid>
 
 
-        </ListBox>
+                <ListBox Grid.Row="1" Name="NoaaStationsListBox"></ListBox>
+        </Grid>
 </Window>

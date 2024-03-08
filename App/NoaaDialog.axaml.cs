@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,29 +10,79 @@ namespace csvplot;
 
 public partial class NoaaDialog : Window
 {
+    private List<Grid> _allGrids = new();
+
+    private List<Grid> _grids1 = new();
+    private List<Grid> _grids2 = new();
+
+    private int _currentGrid = 1;
+    private List<NoaaStation> _stations; // Initialized in AddStations.
+
+    private string? _usafSearch = "";
+    private string? _wbanSearch = "";
+    private string? _stationNameSearch = "";
+    private string? _callNumSearch = "";
+    private string? _stateSearch = "";
+
     public NoaaDialog()
     {
         InitializeComponent();
     }
 
+    public void UpdateStationList()
+    {
+        var grid = _currentGrid == 1 ? _grids2 : _grids1;
+
+        grid.Clear();
+        foreach (var g in _allGrids)
+        {
+            NoaaStation s = (NoaaStation)g.Tag!;
+
+            if (!string.IsNullOrWhiteSpace(_usafSearch)        && !s.Usaf.ToLower().Contains(_usafSearch.ToLower())) continue;
+            if (!string.IsNullOrWhiteSpace(_wbanSearch)        && !s.Wban.ToLower().Contains(_wbanSearch.ToLower())) continue;
+            if (!string.IsNullOrWhiteSpace(_stationNameSearch) && !s.StationName.ToLower().Contains(_stationNameSearch.ToLower())) continue;
+            if (!string.IsNullOrWhiteSpace(_callNumSearch)     && !s.Icao.ToLower().Contains(_callNumSearch.ToLower())) continue;
+            if (!string.IsNullOrWhiteSpace(_stateSearch)       && !s.St.ToLower().Contains(_stateSearch.ToLower())) continue;
+
+            grid.Add(g);
+        }
+
+        NoaaStationsListBox.ItemsSource = grid;
+        _currentGrid = 1 - _currentGrid;
+    }
 
     public async Task AddStations()
     {
-        List<NoaaStation> stations = await NoaaWeather.GetStations();
+        _stations = await NoaaWeather.GetStations();
 
-        var usStations = stations.Where(s => s.Ctry == "US").ToList();
+        var usStations = _stations
+            .Where(s => s.Ctry == "US")
+            .Where(s => s.End > DateTime.Now.AddYears(-4))
+            .ToList();
+
         // For each station, add a single row horizontal grid with the properties of the station.
-
-        var grids = new List<Grid>();
+        _allGrids.Clear();
         foreach (var station in usStations)
         {
             var row = new Grid();
 
-            // 11 columns
-            for (int i = 0; i < 11; i++)
-            {
-                row.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
-            }
+            row.ColumnDefinitions.Add(new ColumnDefinition(100, GridUnitType.Pixel)); // USAF
+            row.ColumnDefinitions.Add(new ColumnDefinition(100, GridUnitType.Pixel)); // WBAN
+            row.ColumnDefinitions.Add(new ColumnDefinition(400, GridUnitType.Pixel)); // StationName
+            row.ColumnDefinitions.Add(new ColumnDefinition(75, GridUnitType.Pixel)); // Ctry
+            row.ColumnDefinitions.Add(new ColumnDefinition(75, GridUnitType.Pixel)); // St
+            row.ColumnDefinitions.Add(new ColumnDefinition(100, GridUnitType.Pixel)); // Icao
+            row.ColumnDefinitions.Add(new ColumnDefinition(125, GridUnitType.Pixel)); // Lat
+            row.ColumnDefinitions.Add(new ColumnDefinition(125, GridUnitType.Pixel)); // Lon
+            row.ColumnDefinitions.Add(new ColumnDefinition(100, GridUnitType.Pixel)); // Elev
+            row.ColumnDefinitions.Add(new ColumnDefinition(125, GridUnitType.Pixel)); // Begin
+            row.ColumnDefinitions.Add(new ColumnDefinition(125, GridUnitType.Pixel)); // End
+
+            // // 11 columns
+            // for (int i = 0; i < 11; i++)
+            // {
+            //     row.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
+            // }
 
             // public string Usaf { get; set; }
             // public string Wban { get; set; }
@@ -73,10 +124,10 @@ public partial class NoaaDialog : Window
             elev.Text = station.Elev.ToString();
 
             var begin = new TextBlock();
-            begin.Text = station.Begin.ToString();
+            begin.Text = station.Begin.ToString("yyyy-MM-dd");
 
             var end = new TextBlock();
-            end.Text = station.End.ToString();
+            end.Text = station.End.ToString("yyyy-MM-dd");
 
             row.Children.Add(usaf);
             row.Children.Add(wban);
@@ -102,10 +153,45 @@ public partial class NoaaDialog : Window
             Grid.SetColumn(begin, 9);
             Grid.SetColumn(end, 10);
 
-            grids.Add(row);
+            row.Tag = station;
 
+            _allGrids.Add(row);
         }
 
-        NoaaStationsListBox.ItemsSource = grids;
+        _grids1.Clear();
+        _grids1.AddRange(_allGrids);
+
+        NoaaStationsListBox.ItemsSource = _grids1;
+        _currentGrid = 1;
+    }
+
+    private void UsafSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        _usafSearch = ((TextBox)sender!).Text;
+        UpdateStationList();
+    }
+
+    private void WbanSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        _wbanSearch = ((TextBox)sender!).Text;
+        UpdateStationList();
+    }
+
+    private void StationNameSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        _stationNameSearch = ((TextBox)sender!).Text;
+        UpdateStationList();
+    }
+
+    private void CallNumSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        _callNumSearch = ((TextBox)sender!).Text;
+        UpdateStationList();
+    }
+
+    private void StateSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        _stateSearch = ((TextBox)sender!).Text;
+        UpdateStationList();
     }
 }
