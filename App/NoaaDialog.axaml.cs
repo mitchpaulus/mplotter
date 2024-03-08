@@ -10,10 +10,10 @@ namespace csvplot;
 
 public partial class NoaaDialog : Window
 {
-    private List<Grid> _allGrids = new();
+    private readonly List<Grid> _allGrids = new();
 
-    private List<Grid> _grids1 = new();
-    private List<Grid> _grids2 = new();
+    private readonly List<Grid> _grids1 = new();
+    private readonly List<Grid> _grids2 = new();
 
     private int _currentGrid = 1;
     private List<NoaaStation> _stations; // Initialized in AddStations.

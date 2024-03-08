@@ -71,6 +71,35 @@ public class Tests
         var stations = await NoaaWeather.GetStations();
         var txStations = stations.Where(station => station.St == "TX");
     }
+
+
+    [Test]
+    public async Task TestReadNoaaData()
+    {
+        string usaf = "722590";
+        string wban = "03927";
+        int year = 2024;
+        var stream = await NoaaWeatherDataSource.GetNoaaWeatherStreamUncompressedWeb(usaf, wban, year);
+
+        List<NoaaWeatherRecord> records = NoaaWeatherDataSource.GetRecordsFromStream(stream);
+
+        foreach (var record in records)
+        {
+            Console.Write(record.ToString());
+            Console.Write('\n');
+        }
+    }
+
+    [Test]
+    public async Task TestNoaaCache()
+    {
+        string usaf = "722590";
+        string wban = "03927";
+        int year = 2023;
+
+        var s = await NoaaWeatherDataSource.TryGetStreamFromCache(usaf, wban, year);
+        s = await NoaaWeatherDataSource.TryGetStreamFromCache(usaf, wban, year);
+    }
 }
 
 public class TestClass
