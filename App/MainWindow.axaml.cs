@@ -675,7 +675,7 @@ public partial class MainWindow : Window
         foreach (var sourcePair in SelectedTimeSeriesTrends.GroupBy(pair => pair.DataSource))
         {
             var trends = sourcePair.Select(pair => pair.TrendName).ToList();
-            List<TimestampData> output = sourcePair.Key.GetTimestampData(trends, start.AddDays(-1), end.AddDays(1));
+            List<TimestampData> output = await sourcePair.Key.GetTimestampData(trends, start.AddDays(-1), end.AddDays(1));
 
             headers.AddRange(trends);
 
@@ -845,6 +845,11 @@ public partial class MainWindow : Window
         NoaaDialog d = new();
         await d.AddStations();
         await d.ShowDialog(this);
+
+        if (d.SelectedStation is not null)
+        {
+            await AddDataSource(new NoaaWeatherDataSource(d.SelectedStation));
+        }
     }
 }
 

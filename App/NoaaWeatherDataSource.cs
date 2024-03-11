@@ -163,7 +163,7 @@ public class NoaaWeatherDataSource : IDataSource
 {
     private readonly NoaaStation _station;
 
-    private readonly List<string> _trends = new List<string>()
+    private readonly List<string> _trends = new()
     {
         "NOAA Dry Bulb Air Temperature (°F)",
         "NOAA Dew Point Temperature (°F)",
@@ -179,27 +179,16 @@ public class NoaaWeatherDataSource : IDataSource
 
     public Task<List<string>> Trends() => Task.FromResult(_trends);
 
-    public List<double> GetData(string trend)
-    {
-        throw new NotImplementedException();
-    }
+    public async Task<List<double>> GetData(string trend) => (await GetTimestampData(trend)).Values;
 
     public string Header { get; }
     public string ShortName { get; }
     public DataSourceType DataSourceType { get; }
-    public TimestampData GetTimestampData(string trend)
+    public async Task<TimestampData> GetTimestampData(string trend)
     {
         // Pull last 2 years of data by default.
         int currentYear = DateTime.Now.Year;
-
-        (bool success, Stream s) = TryGetStreamFromCache(_station.Usaf, _station.Wban, currentYear - 1).Result;
-        if (!success) return new TimestampData(new(), new());
-        List<NoaaWeatherRecord> records1 = GetRecordsFromStream(s);
-
-
-        (success, s) = TryGetStreamFromCache(_station.Usaf, _station.Wban, currentYear).Result;
-        if (!success) return new TimestampData(new(), new());
-        List<NoaaWeatherRecord> records2 = GetRecordsFromStream(s);
+        int numPastYears = 2;
 
         List<DateTime> localDateTimes = new();
         List<double> values = new();
@@ -221,29 +210,32 @@ public class NoaaWeatherDataSource : IDataSource
 
         var tz = TimeZoneInfo.Local;
 
-        foreach (var rec in records1)
-        {
-            var recValue = trendSelector(rec);
-            if (recValue is { } d and < 200)
-            {
-                var local = TimeZoneInfo.ConvertTimeFromUtc(rec.DateTime, tz);
-                localDateTimes.Add(local);
-                values.Add(d);
-            }
-        }
+        DateTime lastDate = DateTime.MinValue;
+        bool needsSort = false;
 
-        foreach (var rec in records2)
+        for (int i = numPastYears; i >= 0; i--)
         {
-            var recValue = trendSelector(rec);
-            if (recValue is { } d and < 200)
+            (bool success, Stream s) = await TryGetStreamFromCache(_station.Usaf, _station.Wban, currentYear - i);
+            if (!success) return new TimestampData(new(), new());
+            List<NoaaWeatherRecord> records = GetRecordsFromStream(s);
+
+            foreach (var rec in records)
             {
-                var local = TimeZoneInfo.ConvertTimeFromUtc(rec.DateTime, tz);
-                localDateTimes.Add(local);
-                values.Add(d);
+                var recValue = trendSelector(rec);
+                if (recValue is { } d and < 200)
+                {
+                    var local = TimeZoneInfo.ConvertTimeFromUtc(rec.DateTime, tz);
+                    if (local < lastDate) needsSort = true;
+                    lastDate = local;
+                    localDateTimes.Add(local);
+                    values.Add(d);
+                }
             }
         }
 
         TimestampData tsData = new TimestampData(localDateTimes, values);
+        if (needsSort) tsData.Sort();
+
         return tsData;
     }
 
@@ -345,9 +337,19 @@ public class NoaaWeatherDataSource : IDataSource
         }
     }
 
-    public List<TimestampData> GetTimestampData(List<string> trends) => trends.Select(GetTimestampData).ToList();
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends)
+    {
+        var data = new List<TimestampData>();
+        foreach (var t in trends)
+        {
+            var d = await GetTimestampData(t);
+            data.Add(d);
+        }
 
-    public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc) => trends.Select(GetTimestampData).ToList();
+        return data;
+    }
+
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc) => await GetTimestampData(trends);
 
     public static List<NoaaWeatherRecord> GetRecordsFromStream(Stream stream)
     {

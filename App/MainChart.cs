@@ -15,7 +15,7 @@ public interface IDataSource
 {
     Task<List<string>> Trends();
 
-    List<double> GetData(string trend);
+    Task<List<double>> GetData(string trend);
 
     string Header { get; }
 
@@ -23,11 +23,11 @@ public interface IDataSource
 
     DataSourceType DataSourceType { get; }
 
-    TimestampData GetTimestampData(string trend);
+    Task<TimestampData> GetTimestampData(string trend);
 
-    List<TimestampData> GetTimestampData(List<string> trends);
+    Task<List<TimestampData>> GetTimestampData(List<string> trends);
 
-    List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc);
+    Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc);
 }
 
 public class TimestampData

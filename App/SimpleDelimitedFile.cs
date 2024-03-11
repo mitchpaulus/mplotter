@@ -94,9 +94,9 @@ public class SimpleDelimitedFile : IDataSource
         }
     }
 
-    public List<double> GetData(string trend)
+    public async Task<List<double>> GetData(string trend)
     {
-        using FileStream stream = new FileStream(_source, FileMode.Open);
+        await using FileStream stream = new FileStream(_source, FileMode.Open);
         var sr = new StreamReader(stream);
         var headerLine = sr.ReadLine();
 
@@ -111,7 +111,7 @@ public class SimpleDelimitedFile : IDataSource
         }
 
         List<double> values = new();
-        while (sr.ReadLine() is { } line)
+        while (await sr.ReadLineAsync() is { } line)
         {
             string[] splitLine = line.Split(_delimiter);
             if (double.TryParse(splitLine[col], out var val))
@@ -123,13 +123,13 @@ public class SimpleDelimitedFile : IDataSource
         return values;
     }
 
-    public TimestampData GetTimestampData(string trend)
+    public async Task<TimestampData> GetTimestampData(string trend)
     {
         if (DataSourceType == DataSourceType.NonTimeSeries) return new TimestampData(new(), new());
 
-        using FileStream stream = new FileStream(_source, FileMode.Open);
+        await using FileStream stream = new FileStream(_source, FileMode.Open);
         var sr = new StreamReader(stream);
-        var headerLine = sr.ReadLine();
+        var headerLine = await sr.ReadLineAsync();
 
         if (headerLine is null) return new TimestampData(new(), new());
 
@@ -147,7 +147,7 @@ public class SimpleDelimitedFile : IDataSource
         if (DataSourceType == DataSourceType.EnergyModel)
         {
              DateTime date = new DateTime(DateTime.Now.Year, 1, 1);
-             while (sr.ReadLine() is { } line)
+             while (await sr.ReadLineAsync() is { } line)
              {
                  string[] splitLine = line.Split(_delimiter);
                  if (col >= splitLine.Length) continue;
@@ -160,7 +160,7 @@ public class SimpleDelimitedFile : IDataSource
         }
         else if (DataSourceType == DataSourceType.TimeSeries)
         {
-            while (sr.ReadLine() is { } line)
+            while (await sr.ReadLineAsync() is { } line)
             {
                 string[] splitLine = line.Split(_delimiter);
                 if (!DateTime.TryParse(splitLine[0], out var dt)) continue;
@@ -178,14 +178,24 @@ public class SimpleDelimitedFile : IDataSource
         return data;
     }
 
-    public List<TimestampData> GetTimestampData(List<string> trends) => trends.Select(GetTimestampData).ToList();
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends)
+    {
+        var data = new List<TimestampData>();
+        foreach (var t in trends)
+        {
+            var d = await GetTimestampData(t);
+            data.Add(d);
+        }
 
-    public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDate, DateTime endDate)
+        return data;
+    }
+
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDate, DateTime endDate)
     {
         List<TimestampData> data = new();
         foreach (var trend in trends)
         {
-            TimestampData tsData = GetTimestampData(trend);
+            TimestampData tsData = await GetTimestampData(trend);
             tsData.TrimDates(startDate, endDate);
             data.Add(tsData);
         }

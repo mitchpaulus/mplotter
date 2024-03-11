@@ -21,7 +21,6 @@
                         <TextBox Grid.Row="4" Grid.Column="1" Width="150" TextChanged="StateSearchChanged"></TextBox>
                 </Grid>
 
-
-                <ListBox Grid.Row="1" Name="NoaaStationsListBox"></ListBox>
+                <ListBox Grid.Row="1" Name="NoaaStationsListBox" DoubleTapped="NoaaStationsListBox_OnDoubleTapped"></ListBox>
         </Grid>
 </Window>

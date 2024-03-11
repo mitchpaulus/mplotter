@@ -31,20 +31,20 @@ public class Bac0DataSource : IDataSource
 
     public Task<List<string>> Trends() => Task.FromResult(_trends);
 
-    public List<double> GetData(string trend)
+    public Task<List<double>> GetData(string trend)
     {
-        throw new NotImplementedException();
+        return Task.FromResult<List<double>>(new());
     }
 
     public string Header => _sqliteFilePath;
     public string ShortName => Path.GetFileName(_sqliteFilePath);
     public DataSourceType DataSourceType => DataSourceType.TimeSeries;
-    public TimestampData GetTimestampData(string trend)
+    public async Task<TimestampData> GetTimestampData(string trend)
     {
         // Check that trend is in possible trends
         if (!_trends.Contains(trend)) return new TimestampData(new(), new());
 
-        using SQLiteConnection conn = new SQLiteConnection(_sqliteFilePath.ToSqliteConnString());
+        await using SQLiteConnection conn = new SQLiteConnection(_sqliteFilePath.ToSqliteConnString());
         conn.Open();
 
         List<DateTime> dates = new();
@@ -52,14 +52,14 @@ public class Bac0DataSource : IDataSource
 
         try
         {
-            using SQLiteCommand cmd = new SQLiteCommand($"SELECT \"index\", \"{trend}\" FROM history", conn);
+            await using SQLiteCommand cmd = new SQLiteCommand($"SELECT \"index\", \"{trend}\" FROM history", conn);
 
-            using SQLiteDataReader reader = cmd.ExecuteReader();
+            await using var reader = await cmd.ExecuteReaderAsync();
 
             int trendCol = reader.GetOrdinal(trend);
             if (trendCol < 0) return new TimestampData(new(), new());
 
-            while (reader.Read())
+            while (await reader.ReadAsync())
             {
                 string dateTimeStr = reader.GetString(0);
                 var dateTimeParseSuccess = DateTime.TryParse(dateTimeStr, out var parsedDateTime);
@@ -79,14 +79,24 @@ public class Bac0DataSource : IDataSource
         return new TimestampData(dates, values);
     }
 
-    public List<TimestampData> GetTimestampData(List<string> trends) => trends.Select(GetTimestampData).ToList();
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends)
+    {
+        var data = new List<TimestampData>();
+        foreach (var t in trends)
+        {
+            var d = await GetTimestampData(t);
+            data.Add(d);
+        }
 
-    public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+        return data;
+    }
+
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
         List<TimestampData> data = new();
         foreach (var trend in trends)
         {
-            TimestampData tsData = GetTimestampData(trend);
+            TimestampData tsData = await GetTimestampData(trend);
             tsData.TrimDates(startDateInc, endDateExc);
             data.Add(tsData);
         }

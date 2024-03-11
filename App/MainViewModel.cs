@@ -87,7 +87,7 @@ public class MainViewModel : INotifyPropertyChanged
     public UiState<bool> IgnoreSunday2 { get; set; }
 
 
-    public void UpdatePlots()
+    public async Task UpdatePlots()
     {
         _window.PlotStackPanel.Children.Clear();
 
@@ -103,8 +103,8 @@ public class MainViewModel : INotifyPropertyChanged
 
             foreach (var serie in validSeries)
             {
-                var xData = serie.XTrend!.DataSource.GetTimestampData(serie.XTrend.TrendName);
-                var yData = serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.TrendName);
+                var xData = await serie.XTrend!.DataSource.GetTimestampData(serie.XTrend.TrendName);
+                var yData = await serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.TrendName);
                 if (!xData.DateTimes.Any() && yData.DateTimes.Any()) continue;
 
                 DateTime minDate = DateTime.MaxValue;
@@ -185,7 +185,7 @@ public class MainViewModel : INotifyPropertyChanged
                  {
                      plot.Plot.Axes.DateTimeTicksBottom();
                      watch.Restart();
-                     var tsDatas = source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
+                     var tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
                      watch.Stop();
 
                      Console.Write($"{watch.ElapsedMilliseconds}\n");
@@ -226,13 +226,13 @@ public class MainViewModel : INotifyPropertyChanged
                      {
                          foreach (var t in trends)
                          {
-                             var d = source.GetData(t);
+                             var d = await source.GetData(t);
                              datas.Add(d);
                          }
                      }
                      else
                      {
-                         var tsDatas = source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
+                         var tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
                          datas.AddRange(tsDatas.Select(tsData => tsData.Values));
                      }
 

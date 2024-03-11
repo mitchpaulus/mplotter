@@ -98,9 +98,9 @@ public class InfluxDataSource : IDataSource
         }
     }
 
-    public List<double> GetData(string trend)
+    public Task<List<double>> GetData(string trend)
     {
-        return new List<double>();
+        return Task.FromResult(new List<double>());
         // throw new System.NotImplementedException();
     }
 
@@ -108,7 +108,7 @@ public class InfluxDataSource : IDataSource
     public string ShortName { get; }
     public DataSourceType DataSourceType { get; }
 
-    public TimestampData GetTimestampData(string trend)
+    public async Task<TimestampData> GetTimestampData(string trend)
     {
         // Get the last year of data from InfluxDb.
         if (!_isValid) return new TimestampData(new List<DateTime>(), new List<double>());
@@ -121,7 +121,7 @@ public class InfluxDataSource : IDataSource
         List<FluxTable>? tables;
         try
         {
-            tables = queryApi.QueryAsync(query, _influxOrg).Result;
+            tables = await queryApi.QueryAsync(query, _influxOrg);
         }
         catch
         {
@@ -142,9 +142,9 @@ public class InfluxDataSource : IDataSource
         return new TimestampData(timestamps, values);
     }
 
-    public List<TimestampData> GetTimestampData(List<string> trends) => GetTimestampData(trends, DateTime.Now.Date.AddDays(-365), DateTime.Now.Date.AddDays(1));
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends) => await GetTimestampData(trends, DateTime.Now.Date.AddDays(-365), DateTime.Now.Date.AddDays(1));
 
-    public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
         // Get the last year of data from InfluxDb.
         if (!_isValid) return trends.Select(s => new TimestampData(new(), new())).ToList();
@@ -159,7 +159,7 @@ public class InfluxDataSource : IDataSource
         List<FluxTable>? tables;
         try
         {
-            tables = queryApi.QueryAsync(query, _influxOrg).Result;
+            tables = await queryApi.QueryAsync(query, _influxOrg);
         }
         catch
         {

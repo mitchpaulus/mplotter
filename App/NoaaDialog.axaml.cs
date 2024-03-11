@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 
 namespace csvplot;
@@ -24,7 +25,9 @@ public partial class NoaaDialog : Window
     private string? _callNumSearch = "";
     private string? _stateSearch = "";
 
-    public NoaaDialog()
+    public NoaaStation? SelectedStation { get; private set; }
+
+public NoaaDialog()
     {
         InitializeComponent();
     }
@@ -193,5 +196,13 @@ public partial class NoaaDialog : Window
     {
         _stateSearch = ((TextBox)sender!).Text;
         UpdateStationList();
+    }
+
+    private void NoaaStationsListBox_OnDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        var lb = (ListBox)sender!;
+        var station = (NoaaStation)((Grid)lb.SelectedItem!).Tag!;
+        SelectedStation = station;
+        Close(SelectedStation);
     }
 }

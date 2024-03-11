@@ -13,51 +13,60 @@ namespace csvplot;
 
 public class EnergyPlusSqliteDataSource : IDataSource
 {
-    private readonly List<string> _trends;
+    private List<string>? _trends;
+    private readonly string _connectionString;
 
     public EnergyPlusSqliteDataSource(string sourceFile)
     {
         Header = sourceFile;
-
-        string connectionString = $"Data Source={sourceFile};";
-
-        using SQLiteConnection conn = new SQLiteConnection(connectionString);
-        conn.Open();
-
-        string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
-
-        using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
-
-        using var reader = cmd.ExecuteReader();
-
-        _trends = new List<string>();
-
-        while (reader.Read())
-        {
-            object keyValueObj = reader["KeyValue"];
-            string keyValue;
-            if (keyValueObj is DBNull)
-            {
-                keyValue = "";
-            }
-            else
-            {
-                keyValue = (string) keyValueObj;
-            }
-
-            var name = (string) reader["Name"];
-            var units = (string) reader["Units"];
-            var reportingFrequency = (string) reader["ReportingFrequency"];
-
-            if (reportingFrequency == "Hourly")
-            {
-                _trends.Add($"{keyValue}: {name} [{units}]");
-            }
-        }
+        _connectionString = $"Data Source={sourceFile};";
     }
 
-    public Task<List<string>> Trends() => Task.FromResult(_trends);
-    public List<double> GetData(string trend)
+    public async Task<List<string>> Trends()
+    {
+        if (_trends is not null && _trends.Any()) return _trends;
+
+        try
+        {
+            await using SQLiteConnection conn = new SQLiteConnection(_connectionString);
+            conn.Open();
+            string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
+            await using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            _trends = new List<string>();
+
+            while (await reader.ReadAsync())
+            {
+                object keyValueObj = reader["KeyValue"];
+                string keyValue;
+                if (keyValueObj is DBNull)
+                {
+                    keyValue = "";
+                }
+                else
+                {
+                    keyValue = (string)keyValueObj;
+                }
+
+                var name = (string)reader["Name"];
+                var units = (string)reader["Units"];
+                var reportingFrequency = (string)reader["ReportingFrequency"];
+
+                if (reportingFrequency == "Hourly")
+                {
+                    _trends.Add($"{keyValue}: {name} [{units}]");
+                }
+            }
+        }
+        catch
+        {
+            return new List<string>();
+        }
+
+        return _trends;
+    }
+
+    public async Task<List<double>> GetData(string trend)
     {
         // Split name into keyValue, name, units
 
@@ -66,9 +75,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
         var name = strings[1].Trim().Split('[')[0].Trim();
         var units = strings[1].Trim().Split('[')[1].Trim().TrimEnd(']');
 
-        string connectionString = $"Data Source={Header};";
-
-        using SQLiteConnection conn = new SQLiteConnection(connectionString);
+        await using SQLiteConnection conn = new SQLiteConnection(_connectionString);
         conn.Open();
 
         // First get the 'ReportDataDictionaryIndex' for the trend
@@ -76,12 +83,12 @@ public class EnergyPlusSqliteDataSource : IDataSource
 
         // SQLite returning 64 bit ints for whatever reason.
         object reportDataDictionaryIndex = -1;
-        using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
+        await using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
         {
-            using (var reader = cmd.ExecuteReader())
+            await using (var reader = await cmd.ExecuteReaderAsync())
             {
                 // Should only be one row
-                var hasRow = reader.Read();
+                var hasRow = await reader.ReadAsync();
 
                 // Return empty array if no row found
                 if (!hasRow) return new List<double>();
@@ -113,11 +120,11 @@ public class EnergyPlusSqliteDataSource : IDataSource
         w.Restart();
         sql = b.ToString();
         var data = new List<double>(8760);
-        using (var cmd = new SQLiteCommand(sql, conn))
+        await using (var cmd = new SQLiteCommand(sql, conn))
         {
-            using (var reader = cmd.ExecuteReader())
+            await using (var reader = await cmd.ExecuteReaderAsync())
             {
-                while (reader.Read())
+                while (await reader.ReadAsync())
                 {
                     var variableValue = reader.GetDouble("VariableValue");
                     data.Add(variableValue);
@@ -131,10 +138,10 @@ public class EnergyPlusSqliteDataSource : IDataSource
         return data;
     }
 
-    public TimestampData GetTimestampData(string trend)
+    public async Task<TimestampData> GetTimestampData(string trend)
     {
         int year = DateTime.Now.Year;
-        List<double> data = GetData(trend);
+        List<double> data = await GetData(trend);
 
         List<DateTime> dateTimes = new(8760);
 
@@ -149,14 +156,24 @@ public class EnergyPlusSqliteDataSource : IDataSource
         return new TimestampData(dateTimes, data);
     }
 
-    public List<TimestampData> GetTimestampData(List<string> trends) => trends.Select(GetTimestampData).ToList();
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends)
+    {
+        var data = new List<TimestampData>();
+        foreach (var t in trends)
+        {
+            var d = await GetTimestampData(t);
+            data.Add(d);
+        }
 
-    public List<TimestampData> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+        return data;
+    }
+
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
          List<TimestampData> data = new();
          foreach (var trend in trends)
          {
-             TimestampData tsData = GetTimestampData(trend);
+             TimestampData tsData = await GetTimestampData(trend);
              tsData.TrimDates(startDateInc, endDateExc);
              data.Add(tsData);
          }
