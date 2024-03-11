@@ -17,7 +17,7 @@ public partial class NoaaDialog : Window
     private readonly List<Grid> _grids2 = new();
 
     private int _currentGrid = 1;
-    private List<NoaaStation> _stations; // Initialized in AddStations.
+    private List<NoaaStation>? _stations; // Initialized in AddStations.
 
     private string? _usafSearch = "";
     private string? _wbanSearch = "";
@@ -27,7 +27,7 @@ public partial class NoaaDialog : Window
 
     public NoaaStation? SelectedStation { get; private set; }
 
-public NoaaDialog()
+    public NoaaDialog()
     {
         InitializeComponent();
     }

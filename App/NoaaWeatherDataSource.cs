@@ -24,17 +24,17 @@ public record NoaaStation
     // ELEV = Elevation in meters Cols 75-81
     // BEGIN = Beginning Period Of Record (YYYYMMDD). There may be reporting gaps within the P.O.R. Cols 83-90
     // END = Ending Period Of Record (YYYYMMDD). There may be reporting gaps within the P.O.R. Cols 92-99
-    public string Usaf { get; set; }
-    public string Wban { get; set; }
-    public string StationName { get; set; }
-    public string Ctry { get; set; }
-    public string St { get; set; }
-    public string Icao { get; set; }
-    public double? Lat { get; set; }
-    public double? Lon { get; set; }
-    public double? Elev { get; set; }
-    public DateTime Begin { get; set; }
-    public DateTime End { get; set; }
+    public required string Usaf { get; set; }
+    public required string Wban { get; set; }
+    public required string StationName { get; set; }
+    public required string Ctry { get; set; }
+    public required string St { get; set; }
+    public required string Icao { get; set; }
+    public required double? Lat { get; set; }
+    public required double? Lon { get; set; }
+    public required double? Elev { get; set; }
+    public required DateTime Begin { get; set; }
+    public required DateTime End { get; set; }
 }
 
 
@@ -324,8 +324,8 @@ public class NoaaWeatherDataSource : IDataSource
         {
             string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
             // Write to LOCALAPPDATA/mplotter/weather/USAF-WBAN-Year-YYYYMMDD.gz
-            string cachePath = Path.Combine(localAppData, "mplotter", "weather", $"{usaf}-{wban}-{year}-{DateTime.Today:yyyyMMdd}.gz");
-            Directory.CreateDirectory(Path.Combine(localAppData, "mplotter", "weather"));
+            string cachePath = Path.Combine(localAppData!, "mplotter", "weather", $"{usaf}-{wban}-{year}-{DateTime.Today:yyyyMMdd}.gz");
+            Directory.CreateDirectory(Path.Combine(localAppData!, "mplotter", "weather"));
 
             await using var fileStream = File.Create(cachePath);
             await s.CopyToAsync(fileStream);

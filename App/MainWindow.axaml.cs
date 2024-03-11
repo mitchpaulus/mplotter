@@ -217,19 +217,19 @@ public partial class MainWindow : Window
         }
 
         UpdateXyGrid();
-        _vm.UpdatePlots();
+        await _vm.UpdatePlots();
     }
 
-    private void RemoveXySerie(object? sender, RoutedEventArgs e)
+    private async void RemoveXySerie(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button b) return;
         if (b.Tag is not XySerie s) return;
         XySeries.RemoveAll(serie => ReferenceEquals(serie, s));
         UpdateXyGrid();
-        _vm.UpdatePlots();
+        await _vm.UpdatePlots();
     }
 
-    private void HandlePlotTypeChange()
+    private async Task HandlePlotTypeChange()
     {
         if (XyRadio.IsChecked ?? false)
         {
@@ -259,7 +259,7 @@ public partial class MainWindow : Window
             }
         }
 
-        _vm.UpdatePlots();
+        await _vm.UpdatePlots();
     }
 
     private void RenderDataSources()
@@ -316,7 +316,7 @@ public partial class MainWindow : Window
 
         RenderDataSources();
         await UpdateAvailableTimeSeriesTrendList();
-        _vm.UpdatePlots();
+        await _vm.UpdatePlots();
     }
 
     public async void AddDataSourceMruClick(object? sender, EventArgs args)
@@ -563,11 +563,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ClearSelections(object? sender, RoutedEventArgs e)
+    private async void ClearSelections(object? sender, RoutedEventArgs e)
     {
         SelectedTimeSeriesTrends.Clear();
         _timeSeriesTrendsListBox.SelectedItems!.Clear();
-        _vm.UpdatePlots();
+        await _vm.UpdatePlots();
     }
 
     private async void InfluxButtonClick(object? sender, RoutedEventArgs e)
@@ -795,7 +795,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void TimeSeriesTrendList_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void TimeSeriesTrendList_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_currentlyFiltering) return;
         foreach (var added in e.AddedItems.Cast<TextBlock>())
@@ -807,7 +807,7 @@ public partial class MainWindow : Window
         {
             SelectedTimeSeriesTrends.Remove((PlotTrendConfig)remove.Tag!);
         }
-        _vm.UpdatePlots();
+        await _vm.UpdatePlots();
     }
 
     private async void BrowseButtonOnClick(object? sender, RoutedEventArgs e)
@@ -834,11 +834,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private void XyRadio_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
+    private async void XyRadio_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => await HandlePlotTypeChange();
 
-    private void Histogram_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
+    private async void Histogram_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => await HandlePlotTypeChange();
 
-    private void Ts_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => HandlePlotTypeChange();
+    private async void Ts_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => await HandlePlotTypeChange();
 
     private async void NoaaButtonClick(object? sender, RoutedEventArgs e)
     {
@@ -850,6 +850,11 @@ public partial class MainWindow : Window
         {
             await AddDataSource(new NoaaWeatherDataSource(d.SelectedStation));
         }
+    }
+
+    private async void IgnoreDow_OnIsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        await _vm.UpdatePlots();
     }
 }
 

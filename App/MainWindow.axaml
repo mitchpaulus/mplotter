@@ -68,13 +68,13 @@
             </TabItem>
             <TabItem Header="Ignore">
                 <StackPanel>
-                    <CheckBox IsChecked="{Binding IgnoreMonday}">Ignore Monday?</CheckBox>
-                    <CheckBox IsChecked="{Binding IgnoreTuesday}">Ignore Tuesday?</CheckBox>
-                    <CheckBox IsChecked="{Binding IgnoreWednesday}">Ignore Wednesday?</CheckBox>
-                    <CheckBox IsChecked="{Binding IgnoreThursday}">Ignore Thursday?</CheckBox>
-                    <CheckBox IsChecked="{Binding IgnoreFriday}">Ignore Friday?</CheckBox>
-                    <CheckBox IsChecked="{Binding IgnoreSaturday}">Ignore Saturday?</CheckBox>
-                    <CheckBox IsChecked="{Binding IgnoreSunday}">Ignore Sunday?</CheckBox>
+                    <CheckBox IsCheckedChanged="IgnoreDow_OnIsCheckedChanged">Ignore Monday?</CheckBox>
+                    <CheckBox IsCheckedChanged="IgnoreDow_OnIsCheckedChanged">Ignore Tuesday?</CheckBox>
+                    <CheckBox IsCheckedChanged="IgnoreDow_OnIsCheckedChanged">Ignore Wednesday?</CheckBox>
+                    <CheckBox IsCheckedChanged="IgnoreDow_OnIsCheckedChanged">Ignore Thursday?</CheckBox>
+                    <CheckBox IsCheckedChanged="IgnoreDow_OnIsCheckedChanged">Ignore Friday?</CheckBox>
+                    <CheckBox IsCheckedChanged="IgnoreDow_OnIsCheckedChanged">Ignore Saturday?</CheckBox>
+                    <CheckBox IsCheckedChanged="IgnoreDow_OnIsCheckedChanged">Ignore Sunday?</CheckBox>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Dates">

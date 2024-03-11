@@ -32,7 +32,7 @@ public class MainViewModel : INotifyPropertyChanged
     public readonly DateTimeState EndDateLocal;
     public readonly DateTimeState StartDateLocal;
 
-    private ComputedDateTimeState _computedDateTime;
+    private readonly ComputedDateTimeState _computedDateTime;
     private readonly ComputedDateTimeState _secondComputedDateTime;
 
     private readonly List<IDataSource> _dataSources = new();
@@ -68,24 +68,7 @@ public class MainViewModel : INotifyPropertyChanged
 
         EndDateLocal.AddSubscriber(_computedDateTime);
         _computedDateTime.AddSubscriber(_secondComputedDateTime);
-
-        IgnoreMonday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
-        IgnoreTuesday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
-        IgnoreWednesday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
-        IgnoreThursday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
-        IgnoreFriday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
-        IgnoreSaturday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
-        IgnoreSunday2 = new UiState<bool>(false, b => { UpdatePlots(); }, this);
     }
-
-    public UiState<bool> IgnoreMonday2 { get; set; }
-    public UiState<bool> IgnoreTuesday2 { get; set; }
-    public UiState<bool> IgnoreWednesday2 { get; set; }
-    public UiState<bool> IgnoreThursday2 { get; set; }
-    public UiState<bool> IgnoreFriday2 { get; set; }
-    public UiState<bool> IgnoreSaturday2 { get; set; }
-    public UiState<bool> IgnoreSunday2 { get; set; }
-
 
     public async Task UpdatePlots()
     {
