@@ -467,7 +467,7 @@ public partial class MainWindow : Window
 
     public static readonly FilePickerFileType DateFileTypes = new("Data Files")
     {
-        Patterns = new[] { "*.csv", "*.tsv", "*.txt", "*.sql", "*.db" }
+        Patterns = new[] { "*.csv", "*.tsv", "*.txt", "*.sql", "*.db" , "*.eso" }
     };
 
 

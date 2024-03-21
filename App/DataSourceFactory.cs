@@ -11,7 +11,7 @@ public class DataSourceFactory
         if (localPath.EndsWith(".sql") || localPath.EndsWith(".db"))
         {
             string fullPath = Path.GetFullPath(localPath);
-            
+
             string connectionString = $"Data Source={fullPath};";
 
             using SQLiteConnection conn = new SQLiteConnection(connectionString);
@@ -28,12 +28,15 @@ public class DataSourceFactory
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
 
             using var reader = cmd.ExecuteReader();
-            
+
            return new EnergyPlusSqliteDataSource(localPath);
         }
-        else
+
+        if (localPath.EndsWith(".eso"))
         {
-            return new SimpleDelimitedFile(localPath);
+            return new EnergyPlusEsoDataSource(localPath);
         }
+
+        return new SimpleDelimitedFile(localPath);
     }
 }
