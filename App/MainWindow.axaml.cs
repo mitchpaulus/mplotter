@@ -229,28 +229,28 @@ public partial class MainWindow : Window
         await _vm.UpdatePlots();
     }
 
-    private async Task HandlePlotTypeChange()
+    private async Task HandlePlotTypeChange(PlotMode mode)
     {
-        if (XyRadio.IsChecked ?? false)
+        if (mode == PlotMode.Xy)
         {
             MainSourceGrid.Children.Remove(_timeSeriesTrendsListBox);
             if (!MainSourceGrid.Children.Contains(_xyTrendSelectionGrid))
             {
                 MainSourceGrid.Children.Add(_xyTrendSelectionGrid);
             }
-            Mode = PlotMode.Xy;
 
+            Mode = mode;
         }
-        else if (TsRadio.IsChecked ?? false)
+        else if (mode == PlotMode.Ts)
         {
-            Mode = PlotMode.Ts;
+            Mode = mode;
             MainSourceGrid.Children.Remove(_xyTrendSelectionGrid);
             if (!MainSourceGrid.Children.Contains(_timeSeriesTrendsListBox))
             {
                 MainSourceGrid.Children.Add(_timeSeriesTrendsListBox);
             }
         }
-        else if (HistogramRadio.IsChecked ?? false)
+        else if (mode == PlotMode.Histogram)
         {
             Mode = PlotMode.Histogram;
             if (!MainSourceGrid.Children.Contains(_timeSeriesTrendsListBox))
@@ -258,7 +258,6 @@ public partial class MainWindow : Window
                 MainSourceGrid.Children.Add(_timeSeriesTrendsListBox);
             }
         }
-
         await _vm.UpdatePlots();
     }
 
@@ -834,11 +833,29 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void XyRadio_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => await HandlePlotTypeChange();
+    private async void XyRadio_OnIsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        if (((RadioButton)sender!).IsChecked ?? false)
+        {
+            await HandlePlotTypeChange(PlotMode.Xy);
+        }
+    }
 
-    private async void Histogram_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => await HandlePlotTypeChange();
+    private async void Histogram_OnIsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        if (((RadioButton)sender!).IsChecked ?? false)
+        {
+            await HandlePlotTypeChange(PlotMode.Histogram);
+        }
+    }
 
-    private async void Ts_OnIsCheckedChanged(object? sender, RoutedEventArgs e) => await HandlePlotTypeChange();
+    private async void Ts_OnIsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        if (((RadioButton)sender!).IsChecked ?? false)
+        {
+            await HandlePlotTypeChange(PlotMode.Ts);
+        }
+    }
 
     private async void NoaaButtonClick(object? sender, RoutedEventArgs e)
     {
