@@ -54,10 +54,13 @@ public partial class MainWindow : Window
 
     public PlotMode Mode;
 
+    public readonly TrendConfigListener Listener = new();
+
     public MainWindow()
     {
         InitializeComponent();
 
+        Listener.Load();
         AvaPlot? plot = this.Find<AvaPlot>("AvaPlot");
 
         _vm = new MainViewModel(plot!, StorageProvider, this);
@@ -431,7 +434,7 @@ public partial class MainWindow : Window
             {
                 // Add a button to load that file
                 Button button = new Button();
-                IDataSource source = DataSourceFactory.SourceFromLocalPath(mru);
+                IDataSource source = DataSourceFactory.SourceFromLocalPath(mru, Listener);
                 button.Click += AddDataSourceMruClick;
                 button.Content = Path.GetFileName(mru).EscapeUiText();
                 button.Tag = source;
@@ -822,7 +825,7 @@ public partial class MainWindow : Window
             // Get the selected file path
             IStorageFile? filePath = result[0];
 
-            IDataSource source = DataSourceFactory.SourceFromLocalPath(filePath.Path.LocalPath);
+            IDataSource source = DataSourceFactory.SourceFromLocalPath(filePath.Path.LocalPath, Listener);
 
             await AddDataSource(source);
 

@@ -6,7 +6,7 @@ namespace csvplot;
 
 public class DataSourceFactory
 {
-    public static IDataSource SourceFromLocalPath(string localPath)
+    public static IDataSource SourceFromLocalPath(string localPath, TrendConfigListener listener)
     {
         if (localPath.EndsWith(".sql") || localPath.EndsWith(".db"))
         {
@@ -34,7 +34,14 @@ public class DataSourceFactory
 
         if (localPath.EndsWith(".eso"))
         {
-            return new EnergyPlusEsoDataSource(localPath);
+            if (listener.typeMatches.TryGetValue("eso", out var trendMatcher))
+            {
+                return new EnergyPlusEsoDataSource(localPath, trendMatcher);
+            }
+            else
+            {
+                return new EnergyPlusEsoDataSource(localPath, new TrendMatcher());
+            }
         }
 
         return new SimpleDelimitedFile(localPath);

@@ -171,4 +171,9 @@ public static class Extensions
         return sb.ToString();
     }
 
+    public static string ParseString(this string inputString)
+    {
+        // TODO: Handle escapes
+        return inputString.Substring(1, inputString.Length - 2);
+    }
 }

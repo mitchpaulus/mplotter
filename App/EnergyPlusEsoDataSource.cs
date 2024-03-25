@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace csvplot;
@@ -10,6 +11,7 @@ namespace csvplot;
 public class EnergyPlusEsoDataSource : IDataSource
 {
     private readonly string _filePath;
+    private readonly TrendMatcher _matcher;
 
     private readonly Dictionary<string, int> _dataDictionary = new();
     private readonly Dictionary<int, List<string>> _dataValues = new();
@@ -17,9 +19,10 @@ public class EnergyPlusEsoDataSource : IDataSource
     private readonly Dictionary<int, List<double>> _cachedData = new();
     private bool _loaded = false;
 
-    public EnergyPlusEsoDataSource(string filePath)
+    public EnergyPlusEsoDataSource(string filePath, TrendMatcher matcher)
     {
         _filePath = filePath;
+        _matcher = matcher;
         Header = filePath;
     }
 
@@ -45,6 +48,15 @@ public class EnergyPlusEsoDataSource : IDataSource
                 var trendType = split[3].Substring(0, split[3].Length - 8);
                 var trendName = $"{split[2]} {trendType}";
 
+                // foreach (var findreplace in _matcher.regextransforms)
+                // {
+                //     var match = findreplace.item1.match(trendname);
+                //     if (match.success)
+                //     {
+                //         foreach (var )
+                //     }
+                // }
+
                 _dataDictionary[trendName] = int.Parse(split[0]);
             }
 
@@ -66,7 +78,7 @@ public class EnergyPlusEsoDataSource : IDataSource
 
             _loaded = true;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             // Ignore
         }

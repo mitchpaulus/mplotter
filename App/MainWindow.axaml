@@ -101,7 +101,7 @@
             </TabItem>
             <TabItem Header="Plot Type">
                 <StackPanel>
-                    <RadioButton Name="HistogramRadio" IsCheckedChanged="Histogram_OnIsCheckedChanged" Content="Histogram"></RadioButton>
+                    <RadioButton Name="HistogramRadio"  IsCheckedChanged="Histogram_OnIsCheckedChanged" Content="Histogram"></RadioButton>
                     <RadioButton Name="TsRadio" IsCheckedChanged="Ts_OnIsCheckedChanged">Time Series</RadioButton>
                     <RadioButton Name="XyRadio" IsCheckedChanged="XyRadio_OnIsCheckedChanged"  Content="Scatter"></RadioButton>
                 </StackPanel>
