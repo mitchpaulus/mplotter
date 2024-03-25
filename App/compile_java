@@ -1,0 +1,6 @@
+#!/bin/sh
+
+rm -f ./*.java ./*.class
+
+java -jar "$ANTLR_JAR" -Dlanguage=Java Mconfig.g4
+javac ./*.java
