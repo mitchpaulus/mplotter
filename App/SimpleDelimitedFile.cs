@@ -98,7 +98,7 @@ public class SimpleDelimitedFile : IDataSource
     {
         await using FileStream stream = new FileStream(_source, FileMode.Open);
         var sr = new StreamReader(stream);
-        var headerLine = sr.ReadLine();
+        var headerLine = await sr.ReadLineAsync();
 
         if (headerLine is null) return new List<double>();
 
@@ -127,55 +127,62 @@ public class SimpleDelimitedFile : IDataSource
     {
         if (DataSourceType == DataSourceType.NonTimeSeries) return new TimestampData(new(), new());
 
-        await using FileStream stream = new FileStream(_source, FileMode.Open);
-        var sr = new StreamReader(stream);
-        var headerLine = await sr.ReadLineAsync();
-
-        if (headerLine is null) return new TimestampData(new(), new());
-
-        string[] splitHeader = headerLine.Split(_delimiter);
-        int col = -1;
-
-        for (int i = 0; i < splitHeader.Length; i++)
+        try
         {
-            if (trend == splitHeader[i]) col = i;
-        }
+            await using FileStream stream = new FileStream(_source, FileMode.Open, FileAccess.Read);
+            var sr = new StreamReader(stream);
+            var headerLine = await sr.ReadLineAsync();
 
-        List<DateTime> dateTimes = new();
-        List<double> values = new();
+            if (headerLine is null) return new TimestampData(new(), new());
 
-        if (DataSourceType == DataSourceType.EnergyModel)
-        {
-             DateTime date = new DateTime(DateTime.Now.Year, 1, 1);
-             while (await sr.ReadLineAsync() is { } line)
-             {
-                 string[] splitLine = line.Split(_delimiter);
-                 if (col >= splitLine.Length) continue;
-                 if (!double.TryParse(splitLine[col], out var d)) continue;
+            string[] splitHeader = headerLine.Split(_delimiter);
+            int col = -1;
 
-                 dateTimes.Add(date);
-                 date = date.AddHours(1);
-                 values.Add(d);
-             }
-        }
-        else if (DataSourceType == DataSourceType.TimeSeries)
-        {
-            while (await sr.ReadLineAsync() is { } line)
+            for (int i = 0; i < splitHeader.Length; i++)
             {
-                string[] splitLine = line.Split(_delimiter);
-                if (!DateTime.TryParse(splitLine[0], out var dt)) continue;
-                if (col >= splitLine.Length) continue;
-
-                if (!double.TryParse(splitLine[col], out var d)) continue;
-
-                dateTimes.Add(dt);
-                values.Add(d);
+                if (trend == splitHeader[i]) col = i;
             }
-        }
 
-        var data = new TimestampData(dateTimes, values);
-        data.Sort();
-        return data;
+            List<DateTime> dateTimes = new();
+            List<double> values = new();
+
+            if (DataSourceType == DataSourceType.EnergyModel)
+            {
+                DateTime date = new DateTime(DateTime.Now.Year, 1, 1);
+                while (await sr.ReadLineAsync() is { } line)
+                {
+                    string[] splitLine = line.Split(_delimiter);
+                    if (col >= splitLine.Length) continue;
+                    if (!double.TryParse(splitLine[col], out var d)) continue;
+
+                    dateTimes.Add(date);
+                    date = date.AddHours(1);
+                    values.Add(d);
+                }
+            }
+            else if (DataSourceType == DataSourceType.TimeSeries)
+            {
+                while (await sr.ReadLineAsync() is { } line)
+                {
+                    string[] splitLine = line.Split(_delimiter);
+                    if (!DateTime.TryParse(splitLine[0], out var dt)) continue;
+                    if (col >= splitLine.Length) continue;
+
+                    if (!double.TryParse(splitLine[col], out var d)) continue;
+
+                    dateTimes.Add(dt);
+                    values.Add(d);
+                }
+            }
+
+            var data = new TimestampData(dateTimes, values);
+            data.Sort();
+            return data;
+        }
+        catch
+        {
+            return new TimestampData(new(), new());
+        }
     }
 
     public async Task<List<TimestampData>> GetTimestampData(List<string> trends)
