@@ -310,39 +310,26 @@ public class MainViewModel : INotifyPropertyChanged
     private void FixMonth(int month)
     {
         if (month is < 1 or > 12) throw new ArgumentException("Month should be passed as 1-12");
-        int currentYear = DateTime.Now.Year;
+        DateTime now = DateTime.Now;
+        int currentMonth = now.Month;
+
         foreach (var p in AllPlots())
         {
-            if (month < 12)
-            {
-                p.Plot.Axes.Bottom.Min = new DateTime(currentYear, month, 1).ToOADate();
-                p.Plot.Axes.Bottom.Max = new DateTime(currentYear, month + 1, 1).ToOADate();
-                StartDateLocal.Update(new DateTime(currentYear, month, 1));
-                EndDateLocal.Update(new DateTime(currentYear, month + 1, 1));
-            }
-            else
-            {
-                p.Plot.Axes.Bottom.Min = new DateTime(currentYear, month, 1).ToOADate();
-                p.Plot.Axes.Bottom.Max = new DateTime(currentYear + 1, 1, 1).ToOADate();
-                StartDateLocal.Update(new DateTime(currentYear, month, 1));
-                EndDateLocal.Update(new DateTime(currentYear + 1, 1, 1));
-            }
+            int startYear = month <= currentMonth ? now.Year : now.Year - 1;
+            int startMonthId = startYear * 12 + (month - 1);
+            int endMonthId = startMonthId + 1;
+
+            var endYear = endMonthId / 12;
+            var endMonth = (endMonthId % 12) + 1;
+
+            p.Plot.Axes.Bottom.Min = new DateTime(startYear, month, 1).ToOADate();
+            p.Plot.Axes.Bottom.Max = new DateTime(endYear, endMonth, 1).ToOADate();
+            StartDateLocal.Update(new DateTime(startYear, month, 1));
+            EndDateLocal.Update(new DateTime(endYear, endMonth, 1));
 
             p.Plot.Axes.Bottom.Label.Text = MonthNames.Names[month - 1];
             p.Refresh();
         }
-
-        if (month < 12)
-        {
-            StartDateLocal.Update(new DateTime(currentYear, month, 1));
-            EndDateLocal.Update(new DateTime(currentYear, month + 1, 1));
-        }
-        else
-        {
-            StartDateLocal.Update(new DateTime(currentYear, month, 1));
-            EndDateLocal.Update(new DateTime(currentYear + 1, 1, 1));
-        }
-
     }
 
     public void MakeJan() => FixMonth(1);
