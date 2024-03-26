@@ -29,11 +29,6 @@ public class MainViewModel : INotifyPropertyChanged
     private readonly UnitConverterReader _unitConverterReader = new();
     private readonly UnitReader _unitReader = new();
 
-    public readonly DateTimeState EndDateLocal;
-    public readonly DateTimeState StartDateLocal;
-
-    private readonly ComputedDateTimeState _computedDateTime;
-    private readonly ComputedDateTimeState _secondComputedDateTime;
 
     private readonly List<IDataSource> _dataSources = new();
 
@@ -44,30 +39,6 @@ public class MainViewModel : INotifyPropertyChanged
         _window = window;
         _unitConverterReader.Read();
         _unitReader.Read();
-
-        EndDateLocal = new DateTimeState(DateTime.Now, (newVal) =>
-        {
-            window.EndDateTextBlock.Text = $"End Date: {newVal:yyyy-MM-dd}";
-        }, this);
-
-        StartDateLocal = new DateTimeState(EndDateLocal.Value.AddDays(-7), newVal =>
-        {
-            window.StartDateTextBlock.Text = $"Start Date: {newVal:yyyy-MM-dd}";
-        }, this);
-
-        _computedDateTime = new ComputedDateTimeState(model => model.EndDateLocal.Value.AddDays(10), time =>
-        {
-            window.ComputedDateTextBlock.Text = $"Computed Date: {time:yyyy-MM-dd}";
-        }, this);
-
-        _secondComputedDateTime = new ComputedDateTimeState(model => model._computedDateTime.Value.AddDays(10), time =>
-        {
-            window.ChainedComputedDate.Text = $"Chained Computed Date: {time:yyyy-MM-dd}";
-        }, this);
-
-
-        EndDateLocal.AddSubscriber(_computedDateTime);
-        _computedDateTime.AddSubscriber(_secondComputedDateTime);
     }
 
     public async Task UpdatePlots()
@@ -90,31 +61,44 @@ public class MainViewModel : INotifyPropertyChanged
                 var yData = await serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.TrendName);
                 if (!xData.DateTimes.Any() && yData.DateTimes.Any()) continue;
 
-                DateTime minDate = DateTime.MaxValue;
-                DateTime maxDate = DateTime.MinValue;
+                DateTime startDate;
+                DateTime endDate;
 
-                foreach (var dt in xData.DateTimes)
+                if (_window.DateMode == DateMode.Specified)
                 {
-                    if (dt < minDate) minDate = dt;
-                    if (dt > maxDate) maxDate = dt;
+                    startDate = _window.StartDate;
+                    endDate = _window.EndDate;
+                }
+                else
+                {
+                    DateTime minDate = DateTime.MaxValue;
+                    DateTime maxDate = DateTime.MinValue;
+
+                    foreach (var dt in xData.DateTimes)
+                    {
+                        if (dt < minDate) minDate = dt;
+                        if (dt > maxDate) maxDate = dt;
+                    }
+
+                    foreach (var dt in yData.DateTimes)
+                    {
+                        if (dt < minDate) minDate = dt;
+                        if (dt > maxDate) maxDate = dt;
+                    }
+
+                    // Round up maxDate to the nearest day
+                    var maxDateTemp = maxDate.Date;
+                    if (maxDateTemp != maxDate)
+                    {
+                        maxDate = maxDateTemp.AddDays(1);
+                    }
+
+                    startDate = minDate.Date;
+                    endDate = maxDate;
                 }
 
-                foreach (var dt in yData.DateTimes)
-                {
-                    if (dt < minDate) minDate = dt;
-                    if (dt > maxDate) maxDate = dt;
-                }
-
-                // Round up maxDate to the nearest day
-                var maxDateTemp = maxDate.Date;
-                if (maxDateTemp != maxDate)
-                {
-                    maxDate = maxDateTemp.AddDays(1);
-                }
-
-
-                xData.AlignToMinuteInterval(minDate.Date, maxDate, 15);
-                yData.AlignToMinuteInterval(minDate.Date, maxDate, 15);
+                xData.AlignToMinuteInterval(startDate, endDate, 15);
+                yData.AlignToMinuteInterval(startDate, endDate, 15);
 
                 for (int i = xData.Values.Count - 1; i >= 0; i--)
                 {
@@ -307,7 +291,7 @@ public class MainViewModel : INotifyPropertyChanged
         return _window.PlotStackPanel.Children.Where(control => control is AvaPlot).Cast<AvaPlot>().ToList();
     }
 
-    private void FixMonth(int month)
+    private async Task FixMonth(int month)
     {
         if (month is < 1 or > 12) throw new ArgumentException("Month should be passed as 1-12");
         DateTime now = DateTime.Now;
@@ -322,41 +306,50 @@ public class MainViewModel : INotifyPropertyChanged
             var endYear = endMonthId / 12;
             var endMonth = (endMonthId % 12) + 1;
 
-            p.Plot.Axes.Bottom.Min = new DateTime(startYear, month, 1).ToOADate();
-            p.Plot.Axes.Bottom.Max = new DateTime(endYear, endMonth, 1).ToOADate();
-            StartDateLocal.Update(new DateTime(startYear, month, 1));
-            EndDateLocal.Update(new DateTime(endYear, endMonth, 1));
+            _window.SetDateMode(DateMode.Specified);
+            _window.StartDate = new DateTime(startYear, month, 1);
+            _window.EndDate = new DateTime(endYear, endMonth, 1);
+
+            if (_window.Mode == PlotMode.Ts)
+            {
+                p.Plot.Axes.Bottom.Min = _window.StartDate.ToOADate();
+                p.Plot.Axes.Bottom.Max = _window.EndDate.ToOADate();
+            }
+            else
+            {
+                await UpdatePlots();
+            }
 
             p.Plot.Axes.Bottom.Label.Text = MonthNames.Names[month - 1];
             p.Refresh();
         }
     }
 
-    public void MakeJan() => FixMonth(1);
-    public void MakeFeb() => FixMonth(2);
+    public async Task MakeJan() => await FixMonth(1);
+    public async Task MakeFeb() => await FixMonth(2);
 
-    public void MakeMar() => FixMonth(3);
+    public async Task MakeMar() => await FixMonth(3);
 
-    public void MakeApr() => FixMonth(4);
+    public async Task MakeApr() => await FixMonth(4);
 
-    public void MakeMay() => FixMonth(5);
+    public async Task MakeMay() => await FixMonth(5);
 
-    public void MakeJun() => FixMonth(6);
+    public async Task MakeJun() => await FixMonth(6);
 
-    public void MakeJul() => FixMonth(7);
-
-
-    public void MakeAug() => FixMonth(8);
-
-    public void MakeSep() => FixMonth(9);
+    public async Task MakeJul() => await FixMonth(7);
 
 
-    public void MakeOct() => FixMonth(10);
+    public async Task MakeAug() => await FixMonth(8);
+
+    public async Task MakeSep() => await FixMonth(9);
 
 
-    public void MakeNov() => FixMonth(11);
+    public async Task MakeOct() => await FixMonth(10);
 
-    public void MakeDec() => FixMonth(12);
+
+    public async Task MakeNov() => await FixMonth(11);
+
+    public async Task MakeDec() => await FixMonth(12);
 
     private bool _ignoreMonday = false;
     public bool IgnoreMonday

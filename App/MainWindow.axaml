@@ -79,10 +79,8 @@
             </TabItem>
             <TabItem Header="Dates">
                 <StackPanel>
-                    <TextBlock Name="StartDateTextBlock">Start Date:</TextBlock>
-                    <TextBlock Name="EndDateTextBlock">End Date:</TextBlock>
-                    <TextBlock Name="ComputedDateTextBlock">Computed:</TextBlock>
-                    <TextBlock Name="ChainedComputedDate">Computed:</TextBlock>
+                    <TextBlock Name="DateModeTextBlock"> </TextBlock>
+                    <Button Click="ClearDateMode">Unset</Button>
                     <WrapPanel>
                         <Button Command="{Binding MakeJan}">Jan</Button>
                         <Button Command="{Binding MakeFeb}">Feb</Button>
@@ -109,6 +107,7 @@
             <TabItem Header="Export">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"></RowDefinition>
                         <RowDefinition Height="Auto"></RowDefinition>
                         <RowDefinition Height="Auto"></RowDefinition>
                         <RowDefinition Height="Auto"></RowDefinition>
@@ -177,7 +176,13 @@
                         <ComboBoxItem Content="1" /> <ComboBoxItem Content="2" /> <ComboBoxItem Content="3" /> <ComboBoxItem Content="4" /> <ComboBoxItem Content="5" /> <ComboBoxItem Content="6" /> <ComboBoxItem Content="7" /> <ComboBoxItem Content="8" /> <ComboBoxItem Content="9" /> <ComboBoxItem Content="10" /> <ComboBoxItem Content="11" /> <ComboBoxItem Content="12" /> <ComboBoxItem Content="13" /> <ComboBoxItem Content="14" /> <ComboBoxItem Content="15" /> <ComboBoxItem Content="16" /> <ComboBoxItem Content="17" /> <ComboBoxItem Content="18" /> <ComboBoxItem Content="19" /> <ComboBoxItem Content="20" /> <ComboBoxItem Content="21" /> <ComboBoxItem Content="22" /> <ComboBoxItem Content="23" /> <ComboBoxItem Content="24" /> <ComboBoxItem Content="25" /> <ComboBoxItem Content="26" /> <ComboBoxItem Content="27" /> <ComboBoxItem Content="28" /> <ComboBoxItem Content="29" /> <ComboBoxItem Content="30" /> <ComboBoxItem Content="31" />
                     </ComboBox>
 
-                    <Button Grid.Row="8" Grid.Column="1" Click="ExportButtonOnClick">Export</Button>
+                    <TextBlock Grid.Row="8" Grid.Column="0" Margin="0 0 10 10">Include?</TextBlock>
+                    <ComboBox Grid.Row="8" Grid.Column="1" Name="ExportIncludeOption" SelectedIndex="0" Width="200">
+                        <ComboBoxItem Content="Include All Rows"></ComboBoxItem>
+                        <ComboBoxItem Content="Only Complete Rows"></ComboBoxItem>
+                    </ComboBox>
+
+                    <Button Grid.Row="9" Grid.Column="1" Click="ExportButtonOnClick">Export</Button>
                 </Grid>
             </TabItem>
             <!-- You can add more TabItems here if needed -->

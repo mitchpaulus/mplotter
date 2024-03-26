@@ -54,6 +54,11 @@ public partial class MainWindow : Window
 
     public PlotMode Mode;
 
+    public DateMode DateMode = DateMode.Unspecified;
+
+    public DateTime StartDate = DateTime.Today.AddDays(-28);
+    public DateTime EndDate = DateTime.Today;
+
     public readonly TrendConfigListener Listener = new();
 
     public MainWindow()
@@ -72,6 +77,8 @@ public partial class MainWindow : Window
 
         Mode = PlotMode.Ts;
         TsRadio.IsChecked = true;
+
+        SetDateMode(DateMode.Unspecified);
 
         _xyTrendSelectionGrid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
         _xyTrendSelectionGrid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
@@ -876,6 +883,19 @@ public partial class MainWindow : Window
     {
         await _vm.UpdatePlots();
     }
+
+    private async void ClearDateMode(object? sender, RoutedEventArgs e)
+    {
+        SetDateMode(DateMode.Unspecified);
+        await _vm.UpdatePlots();
+    }
+
+    public void SetDateMode(DateMode mode)
+    {
+        DateMode = mode;
+        DateModeTextBlock.Text = $"Date mode: {DateMode}";
+    }
+
 }
 
 public class PlotTrendConfig : IEquatable<PlotTrendConfig>
@@ -951,4 +971,16 @@ public enum ExportType
     Tsv,
     Csv,
     Xlsx,
+}
+
+public enum DateMode
+{
+    Unspecified,
+    Specified,
+}
+
+public enum ExportIncludeOption
+{
+    IncludeAllRows,
+    IncludeOnlyFull,
 }
