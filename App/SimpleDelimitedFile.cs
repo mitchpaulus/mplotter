@@ -11,8 +11,12 @@ public class SimpleDelimitedFile : IDataSource
     public Task<List<string>> Trends() => Task.FromResult(_trends);
 
     private readonly char _delimiter = '\t';
-
     public DataSourceType DataSourceType { get; }
+
+    private readonly Dictionary<string, List<string>> _cachedData = new();
+    private readonly List<DateTime> _cachedParsedDateTimes = new();
+
+    private bool _needsSort = false;
 
     public string ShortName
     {
@@ -94,95 +98,100 @@ public class SimpleDelimitedFile : IDataSource
         }
     }
 
+    private async Task ReadAndCacheData()
+    {
+        try
+        {
+            await using FileStream stream = new FileStream(_source, FileMode.Open);
+            var sr = new StreamReader(stream);
+
+            var headerLine = await sr.ReadLineAsync();
+            if (headerLine is null) return;
+
+            string[] splitHeader = headerLine.Split(_delimiter);
+            foreach (var head in splitHeader) _cachedData[head] = new List<string>();
+
+            if (DataSourceType == DataSourceType.EnergyModel)
+            {
+                while (await sr.ReadLineAsync() is { } line)
+                {
+                    string[] splitLine = line.Split(_delimiter);
+
+                    for (int i = 0; i < Math.Min(splitLine.Length, splitHeader.Length); i++)
+                    {
+                        _cachedData[splitHeader[i]].Add(splitLine[i]);
+                    }
+                }
+
+                DateTime startDateTime = new DateTime(DateTime.Now.Year, 1, 1);
+                for (int i = 0; i < 8760; i++) _cachedParsedDateTimes.Add(startDateTime.AddHours(i));
+            }
+            else
+            {
+                DateTime prevDateTime = DateTime.MinValue;
+                while (await sr.ReadLineAsync() is { } line)
+                {
+                    string[] splitLine = line.Split(_delimiter);
+
+                    if (!DateTime.TryParse(splitLine[0], out var parsedDateTime)) continue;
+                    {
+                        if (parsedDateTime < prevDateTime) _needsSort = true;
+                        _cachedParsedDateTimes.Add(parsedDateTime);
+                    }
+
+                    for (int i = 1; i < Math.Min(splitLine.Length, splitHeader.Length); i++)
+                    {
+                        _cachedData[splitHeader[i]].Add(splitLine[i]);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Clear cache on failure
+            _cachedData.Clear();
+            _cachedParsedDateTimes.Clear();
+        }
+    }
+
     public async Task<List<double>> GetData(string trend)
     {
-        await using FileStream stream = new FileStream(_source, FileMode.Open);
-        var sr = new StreamReader(stream);
-        var headerLine = await sr.ReadLineAsync();
-
-        if (headerLine is null) return new List<double>();
-
-        string[] splitHeader = headerLine.Split(_delimiter);
-        int col = -1;
-
-        for (int i = 0; i < splitHeader.Length; i++)
+        if (!_cachedData.Any()) await ReadAndCacheData();
+        List<double> doubleData = new();
+        if (!_cachedData.TryGetValue(trend, out var data)) return doubleData;
+        foreach (var d in data)
         {
-            if (trend == splitHeader[i]) col = i;
-        }
-
-        List<double> values = new();
-        while (await sr.ReadLineAsync() is { } line)
-        {
-            string[] splitLine = line.Split(_delimiter);
-            if (double.TryParse(splitLine[col], out var val))
+            if (double.TryParse(d, out var parsed))
             {
-                values.Add(val);
+                doubleData.Add(parsed);
             }
         }
 
-        return values;
+        return doubleData;
     }
 
     public async Task<TimestampData> GetTimestampData(string trend)
     {
         if (DataSourceType == DataSourceType.NonTimeSeries) return new TimestampData(new(), new());
 
-        try
+        if (!_cachedData.Any()) await ReadAndCacheData();
+        if (!_cachedData.TryGetValue(trend, out var strData)) return new TimestampData(new(), new());
+
+
+        List<double> values = strData.Select(strD => double.TryParse(strD, out var parsed) ? parsed : double.NaN).ToList();
+
+        if (_needsSort)
         {
-            await using FileStream stream = new FileStream(_source, FileMode.Open, FileAccess.Read);
-            var sr = new StreamReader(stream);
-            var headerLine = await sr.ReadLineAsync();
+            // This should be very rare. Will need to copy over the datetimes to new List for sorting.
+            List<DateTime> newDates = _cachedParsedDateTimes.Select(time => time).ToList();
 
-            if (headerLine is null) return new TimestampData(new(), new());
-
-            string[] splitHeader = headerLine.Split(_delimiter);
-            int col = -1;
-
-            for (int i = 0; i < splitHeader.Length; i++)
-            {
-                if (trend == splitHeader[i]) col = i;
-            }
-
-            List<DateTime> dateTimes = new();
-            List<double> values = new();
-
-            if (DataSourceType == DataSourceType.EnergyModel)
-            {
-                DateTime date = new DateTime(DateTime.Now.Year, 1, 1);
-                while (await sr.ReadLineAsync() is { } line)
-                {
-                    string[] splitLine = line.Split(_delimiter);
-                    if (col >= splitLine.Length) continue;
-                    if (!double.TryParse(splitLine[col], out var d)) continue;
-
-                    dateTimes.Add(date);
-                    date = date.AddHours(1);
-                    values.Add(d);
-                }
-            }
-            else if (DataSourceType == DataSourceType.TimeSeries)
-            {
-                while (await sr.ReadLineAsync() is { } line)
-                {
-                    string[] splitLine = line.Split(_delimiter);
-                    if (!DateTime.TryParse(splitLine[0], out var dt)) continue;
-                    if (col >= splitLine.Length) continue;
-
-                    if (!double.TryParse(splitLine[col], out var d)) continue;
-
-                    dateTimes.Add(dt);
-                    values.Add(d);
-                }
-            }
-
-            var data = new TimestampData(dateTimes, values);
-            data.Sort();
-            return data;
+            var tsData = new TimestampData(newDates, values);
+            tsData.Sort();
+            return tsData;
         }
-        catch
-        {
-            return new TimestampData(new(), new());
-        }
+
+        var timestampData = new TimestampData(_cachedParsedDateTimes, values);
+        return timestampData;
     }
 
     public async Task<List<TimestampData>> GetTimestampData(List<string> trends)
