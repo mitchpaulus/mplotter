@@ -188,19 +188,18 @@ public class MainViewModel : INotifyPropertyChanged
                  }
                  else if (_window.Mode == PlotMode.Histogram)
                  {
-                     List<List<double>> datas = new();
-                     if (source.DataSourceType == DataSourceType.NonTimeSeries)
+                     List<TimestampData> datas = new();
+                     var tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
+                     datas.AddRange(tsDatas);
+
+                     if (_window.DateMode == DateMode.Specified)
                      {
-                         foreach (var t in trends)
+                         foreach (var d in datas)
                          {
-                             var d = await source.GetData(t);
-                             datas.Add(d);
+                             DateTime startDate = _window.StartDate;
+                             DateTime endDate = _window.EndDate;
+                             d.TrimDates(startDate, endDate);
                          }
-                     }
-                     else
-                     {
-                         var tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
-                         datas.AddRange(tsDatas.Select(tsData => tsData.Values));
                      }
 
                      // var data = source.DataSourceType == DataSourceType.NonTimeSeries
@@ -209,7 +208,7 @@ public class MainViewModel : INotifyPropertyChanged
                      for (var index = 0; index < datas.Count; index++)
                      {
                          var t = trends[index];
-                         var data = datas[index];
+                         var data = datas[index].Values;
                          (double min, double max) = data.SafeMinMax();
 
                          var hist = new Histogram(min, max, 50);
