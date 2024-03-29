@@ -446,6 +446,14 @@ public partial class MainWindow : Window
                 button.Content = Path.GetFileName(mru).EscapeUiText();
                 button.Tag = source;
 
+                ContextMenu contextMenu = new ContextMenu();
+                MenuItem removeItem = new MenuItem()
+                {
+                    Header = "Remove"
+                };
+                contextMenu.Items.Add(removeItem);
+                button.ContextMenu = contextMenu;
+
                 var tooltip = new TextBlock { Text = mru };
                 ToolTip.SetTip(button, tooltip);
                 return button;

@@ -95,6 +95,9 @@
                         <Button Command="{Binding MakeNov}">Nov</Button>
                         <Button Command="{Binding MakeDec}">Dec</Button>
                     </WrapPanel>
+
+                    <CheckBox>Single Day</CheckBox>
+
                 </StackPanel>
             </TabItem>
             <TabItem Header="Plot Type">
