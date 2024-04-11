@@ -58,8 +58,8 @@ public class SimpleDelimitedFile : IDataSource
             }
             else if (source.ToLowerInvariant().EndsWith(".csv"))
             {
-                string[] splitHeader = headerLine.Split(',');
-                _trends = splitHeader.Skip(1).ToList();
+                var (splitHeader, success) = headerLine.TryParseCsvLine();
+                _trends = success ? splitHeader.Skip(1).ToList() : Array.Empty<string>().ToList();
                 _delimiter = ',';
             }
             else
@@ -108,16 +108,19 @@ public class SimpleDelimitedFile : IDataSource
             var headerLine = await sr.ReadLineAsync();
             if (headerLine is null) return;
 
-            string[] splitHeader = headerLine.Split(_delimiter);
+            Func<string, (List<string>, bool)> splitFunc = _delimiter == ',' ? Extensions.TryParseCsvLine : s => (s.Split(_delimiter).ToList(), true);
+
+            var (splitHeader, headSuccess) = splitFunc(headerLine);
+            if (!headSuccess) return;
+
             foreach (var head in splitHeader) _cachedData[head] = new List<string>();
 
             if (DataSourceType == DataSourceType.EnergyModel)
             {
                 while (await sr.ReadLineAsync() is { } line)
                 {
-                    string[] splitLine = line.Split(_delimiter);
-
-                    for (int i = 0; i < Math.Min(splitLine.Length, splitHeader.Length); i++)
+                    var (splitLine, _) = splitFunc(line);
+                    for (int i = 0; i < Math.Min(splitLine.Count, splitHeader.Count); i++)
                     {
                         _cachedData[splitHeader[i]].Add(splitLine[i]);
                     }
@@ -131,7 +134,10 @@ public class SimpleDelimitedFile : IDataSource
                 DateTime prevDateTime = DateTime.MinValue;
                 while (await sr.ReadLineAsync() is { } line)
                 {
-                    string[] splitLine = line.Split(_delimiter);
+                    var (splitLine, success) = splitFunc(line);
+                    if (!success) continue;
+
+                    // string[] splitLine = line.Split(_delimiter);
 
                     if (!DateTime.TryParse(splitLine[0], out var parsedDateTime)) continue;
                     {
@@ -139,7 +145,7 @@ public class SimpleDelimitedFile : IDataSource
                         _cachedParsedDateTimes.Add(parsedDateTime);
                     }
 
-                    for (int i = 1; i < Math.Min(splitLine.Length, splitHeader.Length); i++)
+                    for (int i = 1; i < Math.Min(splitLine.Count, splitHeader.Count); i++)
                     {
                         _cachedData[splitHeader[i]].Add(splitLine[i]);
                     }

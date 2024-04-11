@@ -171,6 +171,115 @@ public static class Extensions
         return sb.ToString();
     }
 
+    public static (List<string>, bool) TryParseCsvLine(this string csvLine)
+    {
+        List<string> output = new();
+        int index = 0;
+
+        CsvState state = CsvState.StartLine;
+
+        StringBuilder currentField = new StringBuilder();
+
+        while (state != CsvState.EndLine)
+        {
+            switch (state)
+            {
+                case CsvState.StartLine:
+                    state = index >= csvLine.Length ? CsvState.EndLine : CsvState.StartField;
+                    break;
+                case CsvState.StartField:
+                    if (index >= csvLine.Length)
+                    {
+                        output.Add(currentField.ToString()); // Should be blank, this is case where line ends with ','.
+                        state = CsvState.EndLine;
+                        break;
+                    }
+
+                    if (csvLine[index] == '"')
+                    {
+                        state = CsvState.QuotedField;
+                        index++;
+                    }
+                    else
+                    {
+                        state = CsvState.RegularField;
+                    }
+                    break;
+                case CsvState.QuotedField:
+                    if (index >= csvLine.Length)
+                    {
+                        return (output, false);
+                    }
+
+                    if (csvLine[index] != '"') currentField.Append(csvLine[index]);
+                    else state = CsvState.DoubleQuote;
+                    index++;
+                    break;
+                case CsvState.DoubleQuote:
+                    if (index >= csvLine.Length)
+                    {
+                        output.Add(currentField.ToString());
+                        state = CsvState.EndLine;
+                        break;
+                    }
+
+                    if (csvLine[index] == '"')
+                    {
+                        currentField.Append('"');
+                        index++;
+                        state = CsvState.QuotedField;
+                    }
+                    else if (csvLine[index] == ',')
+                    {
+                        output.Add(currentField.ToString());
+                        index++;
+                        state = CsvState.StartField;
+                        currentField.Clear();
+                    }
+                    else
+                    {
+                        return (output, false);
+                    }
+
+                    break;
+                case CsvState.RegularField:
+                    if (index >= csvLine.Length)
+                    {
+                        output.Add(currentField.ToString());
+                        state = CsvState.EndLine;
+                        break;
+                    }
+
+                    if (csvLine[index] == ',')
+                    {
+                        output.Add(currentField.ToString());
+                        currentField.Clear();
+                        state = CsvState.StartField;
+                        index++;
+                    }
+                    else
+                    {
+                        currentField.Append(csvLine[index]);
+                        index++;
+                    }
+
+                    break;
+            }
+        }
+
+        return (output, true);
+    }
+
+    private enum CsvState
+    {
+        StartLine,
+        StartField,
+        QuotedField,
+        RegularField,
+        DoubleQuote,
+        EndLine,
+    }
+
     public static string ParseString(this string inputString)
     {
         // TODO: Handle escapes

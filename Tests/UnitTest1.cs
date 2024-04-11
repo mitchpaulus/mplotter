@@ -100,6 +100,40 @@ public class Tests
         var s = await NoaaWeatherDataSource.TryGetStreamFromCache(usaf, wban, year);
         s = await NoaaWeatherDataSource.TryGetStreamFromCache(usaf, wban, year);
     }
+
+
+    [Test]
+    public void CsvLineParseTests()
+    {
+        string line = "abc,def";
+
+        var (output, _) = line.TryParseCsvLine();
+
+        Assert.That(output.Count, Is.EqualTo(2));
+        Assert.That(output[0], Is.EqualTo("abc"));
+        Assert.That(output[1], Is.EqualTo("def"));
+
+        line = "abc,\"def,\"";
+        (output, _) = line.TryParseCsvLine();
+        Assert.That(output.Count, Is.EqualTo(2));
+        Assert.That(output[0], Is.EqualTo("abc"));
+        Assert.That(output[1], Is.EqualTo("def,"));
+
+        line = ",,";
+        (output, _) = line.TryParseCsvLine();
+
+        Assert.That(output.Count, Is.EqualTo(3));
+        Assert.That(output[0], Is.EqualTo(""));
+        Assert.That(output[1], Is.EqualTo(""));
+        Assert.That(output[2], Is.EqualTo(""));
+
+        line = "\"\"\"\"";
+        (output, _) = line.TryParseCsvLine();
+
+        Assert.That(output.Count, Is.EqualTo(1));
+        Assert.That(output[0], Is.EqualTo("\""));
+
+    }
 }
 
 public class TestClass
