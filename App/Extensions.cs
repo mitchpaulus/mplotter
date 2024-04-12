@@ -180,6 +180,8 @@ public static class Extensions
 
         StringBuilder currentField = new StringBuilder();
 
+        char c;
+
         while (state != CsvState.EndLine)
         {
             switch (state)
@@ -206,14 +208,20 @@ public static class Extensions
                     }
                     break;
                 case CsvState.QuotedField:
-                    if (index >= csvLine.Length)
+                    while (true)
                     {
-                        return (output, false);
-                    }
+                        if (index >= csvLine.Length) return (output, false);
+                        c = csvLine[index];
+                        if (c == '"')
+                        {
+                            state = CsvState.DoubleQuote;
+                            index++;
+                            break;
+                        }
 
-                    if (csvLine[index] != '"') currentField.Append(csvLine[index]);
-                    else state = CsvState.DoubleQuote;
-                    index++;
+                        currentField.Append(c);
+                        index++;
+                    }
                     break;
                 case CsvState.DoubleQuote:
                     if (index >= csvLine.Length)

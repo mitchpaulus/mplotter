@@ -36,10 +36,11 @@
                         <Button Grid.Row="0" Content="Browse"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Top"
-                                Click="BrowseButtonOnClick" />
+                                Click="BrowseButtonOnClick"
+                                Name="BrowseButton"/>
 
-                        <Button Click="InfluxButtonClick">Influx</Button>
-                        <Button Click="NoaaButtonClick">NOAA</Button>
+                        <Button Click="InfluxButtonClick" Name="InfluxButton">Influx</Button>
+                        <Button Click="NoaaButtonClick" Name="NoaaButton">NOAA</Button>
 
                     </StackPanel>
 

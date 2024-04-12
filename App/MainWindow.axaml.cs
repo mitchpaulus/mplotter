@@ -344,10 +344,20 @@ public partial class MainWindow : Window
             if (s.Header == source.Header) return;
         }
 
+        foreach (var c in MruPanel.Children) if (c is Button b) b.IsEnabled = false;
+        BrowseButton.IsEnabled = false;
+        InfluxButton.IsEnabled = false;
+        NoaaButton.IsEnabled = false;
+
         _loadedDataSources.Add(source);
         _selectedDataSources.Add(source);
         RenderDataSources();
         await UpdateAvailableTimeSeriesTrendList();
+
+        foreach (var c in MruPanel.Children) if (c is Button b) b.IsEnabled = true;
+        BrowseButton.IsEnabled = true;
+        InfluxButton.IsEnabled = true;
+        NoaaButton.IsEnabled = true;
     }
 
     private async Task UpdateAvailableTimeSeriesTrendList()

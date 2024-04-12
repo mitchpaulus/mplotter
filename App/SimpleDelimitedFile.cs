@@ -96,7 +96,41 @@ public class SimpleDelimitedFile : IDataSource
         {
             DataSourceType = DataSourceType.NonTimeSeries;
         }
+
+        try
+        {
+            // Fully resolve the directory path
+            // var dir = Path.GetDirectoryName(_source);
+            // if (dir is not null)
+            // {
+            //     var filename = Path.GetFileName(_source);
+            //     FileSystemWatcher watcher = new FileSystemWatcher(dir, "");
+            //     watcher.NotifyFilter = NotifyFilters.Attributes
+            //                            | NotifyFilters.CreationTime
+            //                            | NotifyFilters.DirectoryName
+            //                            | NotifyFilters.FileName
+            //                            | NotifyFilters.LastAccess
+            //                            | NotifyFilters.LastWrite
+            //                            | NotifyFilters.Security
+            //                            | NotifyFilters.Size;
+            //     watcher.Changed += WatcherOnChanged;
+            //     watcher.Renamed += WatcherOnChanged;
+            //     watcher.EnableRaisingEvents = true;
+            // }
+        }
+        catch
+        {
+            // Ignored
+        }
+
     }
+
+    // private async void WatcherOnChanged(object sender, FileSystemEventArgs e)
+    // {
+    //     _cachedData.Clear();
+    //     _cachedParsedDateTimes.Clear();
+    //     _ = ReadAndCacheData();
+    // }
 
     private async Task ReadAndCacheData()
     {
