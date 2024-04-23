@@ -180,4 +180,9 @@ public class EnergyPlusEsoDataSource : IDataSource
 
         return data;
     }
+
+    public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        throw new NotImplementedException();
+    }
 }

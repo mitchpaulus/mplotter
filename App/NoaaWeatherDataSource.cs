@@ -350,6 +350,10 @@ public class NoaaWeatherDataSource : IDataSource
     }
 
     public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc) => await GetTimestampData(trends);
+    public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        throw new NotImplementedException();
+    }
 
     public static List<NoaaWeatherRecord> GetRecordsFromStream(Stream stream)
     {

@@ -190,4 +190,11 @@ public class InfluxDataSource : IDataSource
 
         return data;
     }
+
+    public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        string measFilter = string.Join(" or ", trends.Select(s => $"r._measurement == \"{s}\""));
+        string query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> yield()";
+        return $"influx query -r \"{query}\"";
+    }
 }

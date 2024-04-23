@@ -28,6 +28,8 @@ public interface IDataSource
     Task<List<TimestampData>> GetTimestampData(List<string> trends);
 
     Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc);
+
+    string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc);
 }
 
 public class TimestampData

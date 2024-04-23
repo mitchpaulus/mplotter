@@ -103,4 +103,9 @@ public class Bac0DataSource : IDataSource
 
         return data;
     }
+
+    public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        throw new NotImplementedException();
+    }
 }
