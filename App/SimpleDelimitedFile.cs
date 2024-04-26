@@ -75,21 +75,28 @@ public class SimpleDelimitedFile : IDataSource
         var nextLine = sr.ReadLine();
         if (nextLine is not null)
         {
-            var splitLine = nextLine.Split(_delimiter);
-            // Try to read first column as a DateTime
-            if (DateTime.TryParse(splitLine[0], out _))
+            (var splitLine, bool success) = Split(nextLine);
+            if (!success)
             {
-                DataSourceType = DataSourceType.TimeSeries;
+                DataSourceType = DataSourceType.NonTimeSeries;
             }
             else
             {
-                int rows = 1;
-                while (sr.ReadLine() is not null)
+                // Try to read first column as a DateTime
+                if (DateTime.TryParse(splitLine[0], out _))
                 {
-                    rows++;
+                    DataSourceType = DataSourceType.TimeSeries;
                 }
+                else
+                {
+                    int rows = 1;
+                    while (sr.ReadLine() is not null)
+                    {
+                        rows++;
+                    }
 
-                DataSourceType = rows == 8760 ? DataSourceType.EnergyModel : DataSourceType.NonTimeSeries;
+                    DataSourceType = rows == 8760 ? DataSourceType.EnergyModel : DataSourceType.NonTimeSeries;
+                }
             }
         }
         else
@@ -122,7 +129,6 @@ public class SimpleDelimitedFile : IDataSource
         {
             // Ignored
         }
-
     }
 
     // private async void WatcherOnChanged(object sender, FileSystemEventArgs e)
@@ -131,6 +137,8 @@ public class SimpleDelimitedFile : IDataSource
     //     _cachedParsedDateTimes.Clear();
     //     _ = ReadAndCacheData();
     // }
+
+    private (List<string>, bool) Split(string inputLine) => _delimiter == ',' ? inputLine.TryParseCsvLine() : (inputLine.Split(_delimiter).ToList(), true);
 
     private async Task ReadAndCacheData()
     {
