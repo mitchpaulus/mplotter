@@ -16,6 +16,7 @@ using Avalonia.Layout;
 using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Domain;
@@ -376,7 +377,7 @@ public partial class MainWindow : Window
 
         timeSeriesTextBlocks.Clear();
 
-        string loweredSearchText = SearchBox.Text ?? "".ToLowerInvariant();
+        string loweredSearchText = SearchBox.Text ?? "".ToLowerInvariant().Trim();
 
         foreach (var key in sortedKeys)
         {

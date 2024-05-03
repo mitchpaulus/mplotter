@@ -94,6 +94,7 @@ public partial class TrendDialog : Window
 
     private async Task PopulateListBox()
     {
+         _filterUpdate = true;
          var selectedItems = SourceListBox.SelectedItems;
 
          List<TextBlock> blockList = _currentList == 1 ? _trendsList2 : _trendsList1;
@@ -118,7 +119,6 @@ public partial class TrendDialog : Window
              }
          }
 
-         _filterUpdate = true;
          TrendsListBox.ItemsSource = blockList;
 
          // Add back the selected Items

@@ -152,13 +152,25 @@ public class MainViewModel : INotifyPropertyChanged
                  {
                      plot.Plot.Axes.DateTimeTicksBottom();
                      watch.Restart();
-                     var tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
+
+                     List<TimestampData> tsDatas;
+                     if (_window.DateMode == DateMode.Specified)
+                     {
+                         tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList(), _window.StartDate, _window.EndDate);
+                     }
+                     else
+                     {
+                         tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
+                     }
+
                      watch.Stop();
 
                      Console.Write($"{watch.ElapsedMilliseconds}\n");
 
                      foreach ((TimestampData tsData, string t) in tsDatas.Zip(trends))
                      {
+                         tsData.AddGaps();
+
                          // Bail if we messed up.
                          if (!tsData.LengthsEqual) continue;
 
@@ -295,31 +307,30 @@ public class MainViewModel : INotifyPropertyChanged
         if (month is < 1 or > 12) throw new ArgumentException("Month should be passed as 1-12");
         DateTime now = DateTime.Now;
         int currentMonth = now.Month;
+        int startYear = month <= currentMonth ? now.Year : now.Year - 1;
+        int startMonthId = startYear * 12 + (month - 1);
+        int endMonthId = startMonthId + 1;
+        var endYear = endMonthId / 12;
+        var endMonth = (endMonthId % 12) + 1;
+
+        _window.SetDateMode(DateMode.Specified);
+        _window.StartDate = new DateTime(startYear, month, 1);
+        _window.EndDate = new DateTime(endYear, endMonth, 1);
+
+        if (_window.SelectedTimeSeriesTrends.Any(config => config.DataSource.DataSourceType == DataSourceType.Database))
+        {
+            await UpdatePlots();
+        }
 
         foreach (var p in AllPlots())
         {
-            int startYear = month <= currentMonth ? now.Year : now.Year - 1;
-            int startMonthId = startYear * 12 + (month - 1);
-            int endMonthId = startMonthId + 1;
-
-            var endYear = endMonthId / 12;
-            var endMonth = (endMonthId % 12) + 1;
-
-            _window.SetDateMode(DateMode.Specified);
-            _window.StartDate = new DateTime(startYear, month, 1);
-            _window.EndDate = new DateTime(endYear, endMonth, 1);
-
             if (_window.Mode == PlotMode.Ts)
             {
                 p.Plot.Axes.Bottom.Min = _window.StartDate.ToOADate();
                 p.Plot.Axes.Bottom.Max = _window.EndDate.ToOADate();
-            }
-            else
-            {
-                await UpdatePlots();
+                p.Plot.Axes.Bottom.Label.Text = MonthNames.Names[month - 1];
             }
 
-            p.Plot.Axes.Bottom.Label.Text = MonthNames.Names[month - 1];
             p.Refresh();
         }
     }

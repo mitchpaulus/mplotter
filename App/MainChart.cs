@@ -43,6 +43,23 @@ public class TimestampData
         Values = values;
     }
 
+    private bool _gapped = false;
+
+    public void AddGaps()
+    {
+        if (_gapped) return;
+
+        for (int i = 1; i < DateTimes.Count; i++)
+        {
+            if ((DateTimes[i] - DateTimes[i - 1]).Ticks > TimeSpan.TicksPerHour)
+            {
+                DateTimes.Insert(i, new DateTime( (DateTimes[i].Ticks + DateTimes[i - 1].Ticks) / 2));
+                Values.Insert(i, double.NaN);
+                i++;
+            }
+        }
+    }
+
     public bool LengthsEqual => DateTimes.Count == Values.Count;
 
     public void Sort()
