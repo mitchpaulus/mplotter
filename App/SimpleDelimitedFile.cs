@@ -124,7 +124,7 @@ public class SimpleDelimitedFile : IDataSource
 
                 break;
             }
-            catch (Exception e)
+            catch
             {
                 tries++;
                 await Task.Delay(50);
@@ -137,13 +137,6 @@ public class SimpleDelimitedFile : IDataSource
             }
         }
     }
-
-    // private async void WatcherOnChanged(object sender, FileSystemEventArgs e)
-    // {
-    //     _cachedData.Clear();
-    //     _cachedParsedDateTimes.Clear();
-    //     _ = ReadAndCacheData();
-    // }
 
     private (List<string>, bool) Split(string inputLine) => _delimiter == ',' ? inputLine.TryParseCsvLine() : (inputLine.Split(_delimiter).ToList(), true);
 

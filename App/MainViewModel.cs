@@ -185,7 +185,7 @@ public class MainViewModel : INotifyPropertyChanged
                          if (await source.DataSourceType() == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
                          {
                              var signalPlot = plot.Plot.Add.Signal(yData, (double)1 / 24);
-                             signalPlot.Label = label;
+                             signalPlot.LegendText = label;
                              signalPlot.Data.XOffset = tsData.DateTimes.First().ToOADate();
                          }
                          else
@@ -194,7 +194,7 @@ public class MainViewModel : INotifyPropertyChanged
                              // TODO: add safety here
                              // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
                              var scatter = plot.Plot.Add.Scatter(xData, yData);
-                             scatter.Label = label;
+                             scatter.LegendText = label;
                          }
                      }
                  }
@@ -247,9 +247,9 @@ public class MainViewModel : INotifyPropertyChanged
                          plot.Plot.Add.Bars(allBars);
                          plot.Plot.Legend.ManualItems.Add(new LegendItem
                          {
-                             Label = t,
-                             Line = LineStyle.None,
-                             Marker = new MarkerStyle { Shape = MarkerShape.FilledSquare },
+                             LabelText = t,
+                             LineStyle = LineStyle.None,
+                             MarkerStyle = new MarkerStyle { Shape = MarkerShape.FilledSquare },
                              FillColor = colors[trendIndex % colors.Count]
                          });
 
@@ -271,7 +271,7 @@ public class MainViewModel : INotifyPropertyChanged
 
             plot.Plot.Axes.AutoScale();
             plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
-            plot.Plot.Legend.Location = Alignment.UpperRight;
+            plot.Plot.Legend.Alignment = Alignment.UpperRight;
 
             plots.Add(plot);
         }

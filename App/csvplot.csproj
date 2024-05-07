@@ -20,7 +20,7 @@
     <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.0.10" />
     <PackageReference Include="EPPlus" Version="7.0.9" />
     <PackageReference Include="InfluxDB.Client" Version="4.14.0" />
-    <PackageReference Include="ScottPlot.Avalonia" Version="5.0.31" />
+    <PackageReference Include="ScottPlot.Avalonia" Version="5.0.34" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
   </ItemGroup>
 </Project>
