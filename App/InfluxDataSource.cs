@@ -51,7 +51,6 @@ public class InfluxDataSource : IDataSource
 
         Header = $"Influx: {bucket}";
         ShortName = $"Influx: {bucket}";
-        DataSourceType = DataSourceType.Database;
     }
 
     public static InfluxEnv GetEnv()
@@ -106,7 +105,8 @@ public class InfluxDataSource : IDataSource
 
     public string Header { get; }
     public string ShortName { get; }
-    public DataSourceType DataSourceType { get; }
+
+    public Task<DataSourceType> DataSourceType() => Task.FromResult(csvplot.DataSourceType.Database);
 
     public async Task<TimestampData> GetTimestampData(string trend)
     {
@@ -196,5 +196,10 @@ public class InfluxDataSource : IDataSource
         string measFilter = string.Join(" or ", trends.Select(s => $"r._measurement == \"{s}\""));
         string query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> yield()";
         return $"influx query -r \"{query}\"";
+    }
+
+    public Task UpdateCache()
+    {
+        return Task.CompletedTask;
     }
 }

@@ -44,6 +44,7 @@ public class DataSourceFactory
             }
         }
 
-        return new SimpleDelimitedFile(localPath);
+        var simpleDelimitedFile = new SimpleDelimitedFile(localPath);
+        return simpleDelimitedFile;
     }
 }

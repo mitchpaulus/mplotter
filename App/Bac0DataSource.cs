@@ -10,19 +10,21 @@ namespace csvplot;
 public class Bac0DataSource : IDataSource
 {
     private readonly string _sqliteFilePath;
-    private readonly List<string> _trends;
+    private readonly List<string> _trends = new();
 
     public Bac0DataSource(string sqliteFilePath)
     {
         _sqliteFilePath = sqliteFilePath;
+        RefreshTrends();
+    }
 
+    private void RefreshTrends()
+    {
         using SQLiteConnection conn = new SQLiteConnection(_sqliteFilePath.ToSqliteConnString());
-
         conn.Open();
-
         var historyCols = conn.GetSchema("COLUMNS", new[] { null, null, "history" });
 
-        _trends = new List<string>();
+        _trends.Clear();
         for (int i = 1; i < historyCols.Rows.Count; i++)
         {
             _trends.Add((string)historyCols.Rows[i]["COLUMN_NAME"]);
@@ -38,7 +40,7 @@ public class Bac0DataSource : IDataSource
 
     public string Header => _sqliteFilePath;
     public string ShortName => Path.GetFileName(_sqliteFilePath);
-    public DataSourceType DataSourceType => DataSourceType.TimeSeries;
+    public Task<DataSourceType> DataSourceType() => Task.FromResult(csvplot.DataSourceType.TimeSeries);
     public async Task<TimestampData> GetTimestampData(string trend)
     {
         // Check that trend is in possible trends
@@ -107,5 +109,11 @@ public class Bac0DataSource : IDataSource
     public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
         throw new NotImplementedException();
+    }
+
+    public Task UpdateCache()
+    {
+        RefreshTrends();
+        return Task.CompletedTask;
     }
 }

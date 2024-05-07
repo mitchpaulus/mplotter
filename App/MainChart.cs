@@ -21,7 +21,7 @@ public interface IDataSource
 
     string ShortName { get; }
 
-    DataSourceType DataSourceType { get; }
+    Task<DataSourceType> DataSourceType();
 
     Task<TimestampData> GetTimestampData(string trend);
 
@@ -30,6 +30,8 @@ public interface IDataSource
     Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc);
 
     string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc);
+
+    public Task UpdateCache();
 }
 
 public class TimestampData

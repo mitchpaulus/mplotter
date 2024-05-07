@@ -174,7 +174,6 @@ public class NoaaWeatherDataSource : IDataSource
         _station = station;
         Header = _station.StationName;
         ShortName = _station.StationName;
-        DataSourceType = DataSourceType.TimeSeries;
     }
 
     public Task<List<string>> Trends() => Task.FromResult(_trends);
@@ -183,7 +182,9 @@ public class NoaaWeatherDataSource : IDataSource
 
     public string Header { get; }
     public string ShortName { get; }
-    public DataSourceType DataSourceType { get; }
+
+    public Task<DataSourceType> DataSourceType() => Task.FromResult(csvplot.DataSourceType.TimeSeries);
+
     public async Task<TimestampData> GetTimestampData(string trend)
     {
         // Pull last 2 years of data by default.
@@ -353,6 +354,11 @@ public class NoaaWeatherDataSource : IDataSource
     public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
         throw new NotImplementedException();
+    }
+
+    public Task UpdateCache()
+    {
+        return Task.CompletedTask;
     }
 
     public static List<NoaaWeatherRecord> GetRecordsFromStream(Stream stream)

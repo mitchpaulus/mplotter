@@ -35,6 +35,7 @@ public partial class MainWindow : Window
     public readonly List<XySerie> XySeries = new();
 
     private readonly List<IDataSource> _loadedDataSources = new();
+    private readonly List<FileSystemWatcher> _watchers = new();
 
     private readonly List<IDataSource> _selectedDataSources = new();
 
@@ -351,6 +352,27 @@ public partial class MainWindow : Window
         NoaaButton.IsEnabled = false;
 
         _loadedDataSources.Add(source);
+
+        if (source is SimpleDelimitedFile file)
+        {
+            if (!_watchers.Any(watcher => watcher.Path == file.FileInfo.DirectoryName! && watcher.Filter == file.FileInfo.Name))
+            {
+                FileSystemWatcher watcher = new FileSystemWatcher(file.FileInfo.DirectoryName!, file.FileInfo.Name);
+                watcher.NotifyFilter = watcher.NotifyFilter = NotifyFilters.Attributes
+                                                              | NotifyFilters.CreationTime
+                                                              | NotifyFilters.DirectoryName
+                                                              | NotifyFilters.FileName
+                                                              | NotifyFilters.LastWrite
+                                                              | NotifyFilters.Security
+                                                              | NotifyFilters.Size;
+                watcher.Changed += WatcherOnChanged;
+                watcher.Deleted += WatcherOnDeleted;
+                watcher.Created += WatcherOnCreated;
+                watcher.EnableRaisingEvents = true;
+                _watchers.Add(watcher);
+            }
+        }
+
         _selectedDataSources.Add(source);
         RenderDataSources();
         await UpdateAvailableTimeSeriesTrendList();
@@ -359,6 +381,36 @@ public partial class MainWindow : Window
         BrowseButton.IsEnabled = true;
         InfluxButton.IsEnabled = true;
         NoaaButton.IsEnabled = true;
+    }
+
+    private void WatcherOnCreated(object sender, FileSystemEventArgs e)
+    {
+         FileSystemWatcher w = (FileSystemWatcher)sender;
+         Console.Error.WriteLine($"Dir: {w.Path}, Filter: {w.Filter}");
+    }
+
+    private void WatcherOnDeleted(object sender, FileSystemEventArgs e)
+    {
+        FileSystemWatcher w = (FileSystemWatcher)sender;
+        Console.Error.WriteLine($"Dir: {w.Path}, Filter: {w.Filter}");
+    }
+
+    private async void WatcherOnChanged(object sender, FileSystemEventArgs e)
+    {
+        FileSystemWatcher w = (FileSystemWatcher)sender;
+
+        // Find matching sources
+        foreach (var s in _loadedDataSources)
+        {
+            if (s is not SimpleDelimitedFile file) continue;
+            if (file.FileInfo.DirectoryName != w.Path || file.FileInfo.Name != w.Filter) continue;
+
+            // Reload the source
+            await file.UpdateCache();
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(_vm.UpdatePlots);
+        await Console.Error.WriteLineAsync($"{DateTime.Now:HH:mm:ss.fff} Updated plots for Dir: {w.Path}, Filter: {w.Filter}");
     }
 
     private async Task UpdateAvailableTimeSeriesTrendList()
@@ -427,6 +479,20 @@ public partial class MainWindow : Window
         if (sender is not Button b) return;
 
         var source = (IDataSource)b.Tag!;
+
+        if (source is SimpleDelimitedFile simpleFile)
+        {
+            for (int i = _watchers.Count - 1; i >= 0; i--)
+            {
+                var w = _watchers[i];
+                if (w.Path == simpleFile.FileInfo.DirectoryName &&
+                    w.Filter == simpleFile.FileInfo.Name)
+                {
+                    _watchers.RemoveAt(i);
+                }
+            }
+        }
+
         _loadedDataSources.Remove(source);
         _selectedDataSources.Remove(source);
 

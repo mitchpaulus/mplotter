@@ -8,5 +8,5 @@
 - [ ] Improving ignoring
 - [ ] Custom expressions
 - [ ] Labeling integration
-- [ ] Live file watching
+- [x] Live file watching
 - [ ] Quick NMBE/CV-RMSE between series

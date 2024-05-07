@@ -186,6 +186,12 @@ public class EnergyPlusSqliteDataSource : IDataSource
         throw new NotImplementedException();
     }
 
+    public Task UpdateCache()
+    {
+        if (_trends != null) _trends.Clear();
+        return Task.CompletedTask;
+    }
+
     public string Header { get; }
     public string ShortName
     {
@@ -206,5 +212,5 @@ public class EnergyPlusSqliteDataSource : IDataSource
         }
     }
 
-    public DataSourceType DataSourceType => DataSourceType.EnergyModel;
+    public Task<DataSourceType> DataSourceType() => Task.FromResult(csvplot.DataSourceType.EnergyModel);
 }

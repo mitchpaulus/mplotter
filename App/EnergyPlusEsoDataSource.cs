@@ -14,8 +14,10 @@ public class EnergyPlusEsoDataSource : IDataSource
     private readonly TrendMatcher _matcher;
 
     private readonly Dictionary<string, int> _dataDictionary = new();
+    // Note here that we have left everything as a string.
     private readonly Dictionary<int, List<string>> _dataValues = new();
 
+    // Cached data is here to cache all the parsing of strings to doubles.
     private readonly Dictionary<int, List<double>> _cachedData = new();
     private bool _loaded = false;
 
@@ -136,7 +138,7 @@ public class EnergyPlusEsoDataSource : IDataSource
         }
     }
 
-    public DataSourceType DataSourceType => DataSourceType.EnergyModel;
+    public Task<DataSourceType> DataSourceType() => Task.FromResult(csvplot.DataSourceType.EnergyModel);
 
     public async Task<TimestampData> GetTimestampData(string trend)
     {
@@ -184,5 +186,13 @@ public class EnergyPlusEsoDataSource : IDataSource
     public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
         throw new NotImplementedException();
+    }
+
+    public async Task UpdateCache()
+    {
+        _cachedData.Clear();
+        _dataDictionary.Clear();
+        _dataValues.Clear();
+        await ParseData();
     }
 }

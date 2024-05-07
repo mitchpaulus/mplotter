@@ -182,7 +182,7 @@ public class MainViewModel : INotifyPropertyChanged
                              : $"{source.ShortName}: {t}";
                          // if (didConvert) label = $"{label} in {unitToConvertTo}";
 
-                         if (source.DataSourceType == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
+                         if (await source.DataSourceType() == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
                          {
                              var signalPlot = plot.Plot.Add.Signal(yData, (double)1 / 24);
                              signalPlot.Label = label;
@@ -317,9 +317,13 @@ public class MainViewModel : INotifyPropertyChanged
         _window.StartDate = new DateTime(startYear, month, 1);
         _window.EndDate = new DateTime(endYear, endMonth, 1);
 
-        if (_window.SelectedTimeSeriesTrends.Any(config => config.DataSource.DataSourceType == DataSourceType.Database))
+        foreach (var config in _window.SelectedTimeSeriesTrends)
         {
+            var dataType = await config.DataSource.DataSourceType();
+            if (dataType != DataSourceType.Database) continue;
+
             await UpdatePlots();
+            break;
         }
 
         foreach (var p in AllPlots())
