@@ -41,7 +41,7 @@ public class MainViewModel : INotifyPropertyChanged
         _unitReader.Read();
     }
 
-    public async Task UpdatePlots()
+    public async Task UpdatePlots(bool autoScaleX = true)
     {
         _window.PlotStackPanel.Children.Clear();
 
@@ -49,7 +49,8 @@ public class MainViewModel : INotifyPropertyChanged
 
         if (_window.Mode == PlotMode.Xy)
         {
-            AvaPlot plot = new AvaPlot();
+            var plot = _window.XyPlot;
+            plot.Plot.Clear();
 
             var validSeries = _window.XySeries
                 .Where(serie => serie.XTrend is not null && serie.YTrend is not null)
@@ -269,7 +270,8 @@ public class MainViewModel : INotifyPropertyChanged
                 plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().TrendName : unitGroup.Key ?? "";
             }
 
-            plot.Plot.Axes.AutoScale();
+            plot.Plot.Axes.AutoScaleY();
+            if (autoScaleX) plot.Plot.Axes.AutoScaleX();
             plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
             plot.Plot.Legend.Alignment = Alignment.UpperRight;
 

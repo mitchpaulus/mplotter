@@ -61,7 +61,15 @@ public partial class MainWindow : Window
     public DateTime StartDate = DateTime.Today.AddDays(-28);
     public DateTime EndDate = DateTime.Today;
 
+    public int StartMonthInt => StartDate.Year * 12 + (StartDate.Month - 1);
+    public int EndMonthInt => EndDate.Year * 12 + (EndDate.Month - 1);
+
+    public DateTime DateTimeMonthFromInt(int monthInt) => new(monthInt / 12, monthInt % 12 + 1, 1);
+
+
     public readonly TrendConfigListener Listener = new();
+
+    public AvaPlot XyPlot = new();
 
     public MainWindow()
     {
@@ -409,7 +417,7 @@ public partial class MainWindow : Window
             await file.UpdateCache();
         }
 
-        await Dispatcher.UIThread.InvokeAsync(_vm.UpdatePlots);
+        await Dispatcher.UIThread.InvokeAsync(() => _vm.UpdatePlots(true));
         await Console.Error.WriteLineAsync($"{DateTime.Now:HH:mm:ss.fff} Updated plots for Dir: {w.Path}, Filter: {w.Filter}");
     }
 
@@ -564,8 +572,52 @@ public partial class MainWindow : Window
         Patterns = new[] { "*.csv", "*.tsv", "*.txt", "*.sql", "*.db" , "*.eso" }
     };
 
+    private async Task<bool> AnyDbSourcesSelected()
+    {
+        foreach (var t in SelectedTimeSeriesTrends)
+        {
+            if (await t.DataSource.DataSourceType() == DataSourceType.Database) return true;
+        }
 
-    private void InputElement_OnKeyDown(object? sender, KeyEventArgs e)
+        return false;
+    }
+
+    private bool OnMonth()
+    {
+        return DateMode == DateMode.Specified && StartDate.Day == 1 && EndDate.Day == 1;
+    }
+
+    private async Task TryShiftMonth(int monthShift)
+    {
+        if (OnMonth())
+        {
+            StartDate = DateTimeMonthFromInt(StartMonthInt + monthShift);
+            EndDate = DateTimeMonthFromInt(EndMonthInt + monthShift);
+            DateMode = DateMode.Specified;
+
+            if (await AnyDbSourcesSelected() || Mode != PlotMode.Ts)
+            {
+                await _vm.UpdatePlots(false);
+            }
+
+            if (Mode == PlotMode.Ts)
+            {
+                foreach (var child in PlotStackPanel.Children)
+                {
+                    if (child is not AvaPlot avaPlot) continue;
+                    avaPlot.Plot.Axes.SetLimitsX(StartDate.ToOADate(), EndDate.ToOADate());
+                    if (EndMonthInt - StartMonthInt == 1)
+                    {
+                        avaPlot.Plot.Axes.Bottom.Label.Text = MonthNames.Names[StartDate.Month - 1];
+                    }
+
+                    avaPlot.Refresh();
+                }
+            }
+        }
+    }
+
+    private async void InputElement_OnKeyDown(object? sender, KeyEventArgs e)
     {
         // On '/', move focus to 'SearchBox'
         if (e.Key == Key.Oem2) // Oem2 is often used for '/'
@@ -587,73 +639,13 @@ public partial class MainWindow : Window
         {
             // Check that a text box is currently not focused
             if (FocusManager == null || FocusManager.GetFocusedElement() is TextBox) return;
-
-            foreach (var child in PlotStackPanel.Children)
-            {
-                if (child is not AvaPlot avaPlot) continue;
-
-                // Not a date
-                if (avaPlot.Plot.Axes.Bottom.Min < new DateTime(1960, 1, 1).ToOADate()) return;
-
-                var minOaDate = DateTime.FromOADate(avaPlot.Plot.Axes.Bottom.Min);
-                var maxOaDate = DateTime.FromOADate(avaPlot.Plot.Axes.Bottom.Max);
-
-                if (minOaDate.Day == 1 && maxOaDate.Day == 1)
-                {
-                    var monthDiff = (maxOaDate.Year * 12 + maxOaDate.Month) - (minOaDate.Year * 12 + minOaDate.Month);
-
-                    if (monthDiff > 0)
-                    {
-                        var newMinDate = minOaDate.AddMonths(-monthDiff);
-                        var newMaxDate = maxOaDate.AddMonths(-monthDiff);
-
-                        avaPlot.Plot.Axes.SetLimitsX(newMinDate.ToOADate(), newMaxDate.ToOADate());
-
-                        if (monthDiff == 1)
-                        {
-                            avaPlot.Plot.Axes.Bottom.Label.Text = MonthNames.Names[newMinDate.Month - 1];
-                        }
-
-                        avaPlot.Refresh();
-                    }
-                }
-            }
+            await TryShiftMonth(-1);
         }
         else if (e.Key == Key.Right)
         {
             // Check that a text box is currently not focused
             if (FocusManager == null || FocusManager.GetFocusedElement() is TextBox) return;
-
-            foreach (var child in PlotStackPanel.Children)
-            {
-                if (child is not AvaPlot avaPlot) continue;
-
-                // Not a date
-                if (avaPlot.Plot.Axes.Bottom.Min < new DateTime(1960, 1, 1).ToOADate()) return;
-
-                var minOaDate = DateTime.FromOADate(avaPlot.Plot.Axes.Bottom.Min);
-                var maxOaDate = DateTime.FromOADate(avaPlot.Plot.Axes.Bottom.Max);
-
-                if (minOaDate.Day == 1 && maxOaDate.Day == 1)
-                {
-                    var monthDiff = (maxOaDate.Year * 12 + maxOaDate.Month) - (minOaDate.Year * 12 + minOaDate.Month);
-
-                    if (monthDiff > 0)
-                    {
-                        var newMinDate = minOaDate.AddMonths(monthDiff);
-                        var newMaxDate = maxOaDate.AddMonths(monthDiff);
-
-                        avaPlot.Plot.Axes.SetLimitsX(newMinDate.ToOADate(), newMaxDate.ToOADate());
-
-                        if (monthDiff == 1)
-                        {
-                            avaPlot.Plot.Axes.Bottom.Label.Text = MonthNames.Names[newMinDate.Month - 1];
-                        }
-
-                        avaPlot.Refresh();
-                    }
-                }
-            }
+            await TryShiftMonth(1);
         }
     }
 
