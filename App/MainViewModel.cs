@@ -201,23 +201,17 @@ public class MainViewModel : INotifyPropertyChanged
                  }
                  else if (_window.Mode == PlotMode.Histogram)
                  {
-                     List<TimestampData> datas = new();
-                     var tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
-                     datas.AddRange(tsDatas);
 
+                     List<TimestampData> datas;
                      if (_window.DateMode == DateMode.Specified)
                      {
-                         foreach (var d in datas)
-                         {
-                             DateTime startDate = _window.StartDate;
-                             DateTime endDate = _window.EndDate;
-                             d.TrimDates(startDate, endDate);
-                         }
+                         datas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList(), _window.StartDate, _window.EndDate);
+                     }
+                     else
+                     {
+                         datas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
                      }
 
-                     // var data = source.DataSourceType == DataSourceType.NonTimeSeries
-                     //     ? source.GetData(t)
-                     //     : source.GetTimestampData(t).Values;
                      for (var index = 0; index < datas.Count; index++)
                      {
                          var t = trends[index];
@@ -318,6 +312,7 @@ public class MainViewModel : INotifyPropertyChanged
         _window.SetDateMode(DateMode.Specified);
         _window.StartDate = new DateTime(startYear, month, 1);
         _window.EndDate = new DateTime(endYear, endMonth, 1);
+        _window.UpdateDateModeString();
 
         foreach (var config in _window.SelectedTimeSeriesTrends)
         {

@@ -595,6 +595,8 @@ public partial class MainWindow : Window
             EndDate = DateTimeMonthFromInt(EndMonthInt + monthShift);
             DateMode = DateMode.Specified;
 
+            UpdateDateModeString();
+
             if (await AnyDbSourcesSelected() || Mode != PlotMode.Ts)
             {
                 await _vm.UpdatePlots(false);
@@ -970,9 +972,20 @@ public partial class MainWindow : Window
     public void SetDateMode(DateMode mode)
     {
         DateMode = mode;
-        DateModeTextBlock.Text = $"Date mode: {DateMode}";
+        UpdateDateModeString();
     }
 
+    public void UpdateDateModeString()
+    {
+        DateModeTextBlock.Text = DateModeString();
+    }
+
+    public string DateModeString()
+    {
+        return DateMode == DateMode.Specified
+            ? $"Date mode: {DateMode}, Start: {StartDate:yyyy-MM-dd}, End: {EndDate:yyyy-MM-dd}"
+            : $"Date mode: {DateMode}";
+    }
 }
 
 public class PlotTrendConfig : IEquatable<PlotTrendConfig>
