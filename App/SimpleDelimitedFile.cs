@@ -243,18 +243,17 @@ public class SimpleDelimitedFile : IDataSource
 
 
         List<double> values = strData.Select(strD => double.TryParse(strD, out var parsed) ? parsed : double.NaN).ToList();
+        List<DateTime> newDates = _cachedParsedDateTimes.Select(time => time).ToList();
 
         if (_needsSort)
         {
             // This should be very rare. Will need to copy over the datetimes to new List for sorting.
-            List<DateTime> newDates = _cachedParsedDateTimes.Select(time => time).ToList();
-
             var tsData = new TimestampData(newDates, values);
             tsData.Sort();
             return tsData;
         }
 
-        var timestampData = new TimestampData(_cachedParsedDateTimes, values);
+        var timestampData = new TimestampData(newDates, values);
         return timestampData;
     }
 
