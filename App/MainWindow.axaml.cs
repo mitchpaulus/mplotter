@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -67,6 +68,8 @@ public partial class MainWindow : Window
     public DateTime DateTimeMonthFromInt(int monthInt) => new(monthInt / 12, monthInt % 12 + 1, 1);
 
 
+    private Timer _searchTimer;
+
     public readonly TrendConfigListener Listener = new();
 
     public AvaPlot XyPlot = new();
@@ -74,6 +77,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        _searchTimer = new Timer(200);
+        _searchTimer.AutoReset = false;
+        _searchTimer.Elapsed += SearchTimerOnElapsed;
+        _searchTimer.Stop();
 
         Listener.Load();
         AvaPlot? plot = this.Find<AvaPlot>("AvaPlot");
@@ -104,6 +112,11 @@ public partial class MainWindow : Window
         Grid.SetColumn(addXySerieButton, 0);
         Grid.SetRow(addXySerieButton, 0);
         _xyTrendSelectionGrid.Children.Add(addXySerieButton);
+    }
+
+    private async void SearchTimerOnElapsed(object? sender, ElapsedEventArgs e)
+    {
+        await Dispatcher.UIThread.InvokeAsync(UpdateAvailableTimeSeriesTrendList);
     }
 
     private void AddXySerieButtonOnClick(object? sender, RoutedEventArgs e)
@@ -707,7 +720,8 @@ public partial class MainWindow : Window
 
     private async void SearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
     {
-        await UpdateAvailableTimeSeriesTrendList();
+        _searchTimer.Stop();
+        _searchTimer.Start();
     }
 
     private async void ExportButtonOnClick(object? sender, RoutedEventArgs e)
