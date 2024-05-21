@@ -91,6 +91,7 @@ public partial class MainWindow : Window
 
         UpdateMrus();
         _timeSeriesTrendsListBox.SelectionChanged += TimeSeriesTrendList_OnSelectionChanged;
+        ScrollViewer.SetAllowAutoHide(_timeSeriesTrendsListBox, false);
         Grid.SetRow(_timeSeriesTrendsListBox, 5);
 
         Mode = PlotMode.Ts;
