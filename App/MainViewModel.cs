@@ -457,7 +457,8 @@ public class MainViewModel : INotifyPropertyChanged
 
     public static async Task SaveToMru(string localPath)
     {
-        // Save to MRU file list (up to 20)
+        int maxNum = 10;
+        // Save to MRU file list (up to maxNum)
         if (OperatingSystem.IsWindows())
         {
             string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
@@ -484,10 +485,13 @@ public class MainViewModel : INotifyPropertyChanged
                         var newLines = new List<string>();
                         newLines.Add(localPath);
 
+                        int count = 1;
                         foreach (var line in lines)
                         {
                             if (newLines.Contains(line)) continue;
                             newLines.Add(line);
+                            count++;
+                            if (count > maxNum) break;
                         }
 
                         await File.WriteAllLinesAsync(path, newLines, new UTF8Encoding(false));

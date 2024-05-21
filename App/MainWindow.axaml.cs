@@ -577,7 +577,7 @@ public partial class MainWindow : Window
             return new List<string>();
         }
 
-        return lines.Where(File.Exists).Order().ToList();
+        return lines.Where(File.Exists).ToList();
     }
 
     public static readonly FilePickerFileType DateFileTypes = new("Data Files")
@@ -718,7 +718,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void SearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
+    private void SearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
     {
         _searchTimer.Stop();
         _searchTimer.Start();
