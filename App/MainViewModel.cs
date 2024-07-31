@@ -183,11 +183,12 @@ public class MainViewModel : INotifyPropertyChanged
                              : $"{source.ShortName}: {t}";
                          // if (didConvert) label = $"{label} in {unitToConvertTo}";
 
-                         if (await source.DataSourceType() == DataSourceType.EnergyModel || tsData.Values.Count == 8760)
+                         // Note that Signal plots cannot have NaNs or gaps. This is for performance.
+                         if ((await source.DataSourceType() == DataSourceType.EnergyModel || tsData.Values.Count == 8760) && tsData.HasGaps != GapState.HasGaps)
                          {
                              var signalPlot = plot.Plot.Add.Signal(yData, (double)1 / 24);
                              signalPlot.LegendText = label;
-                             signalPlot.Data.XOffset = tsData.DateTimes.First().ToOADate();
+                             signalPlot.Data.XOffset = tsData.DateTimes.Count > 0 ? tsData.DateTimes.First().ToOADate() : DateTime.Today.ToOADate();
                          }
                          else
                          {

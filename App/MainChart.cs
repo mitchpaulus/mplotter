@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ScottPlot.Avalonia;
@@ -34,6 +35,13 @@ public interface IDataSource
     public Task UpdateCache();
 }
 
+public enum GapState
+{
+    HasGaps,
+    NoGaps,
+    Unknown,
+}
+
 public class TimestampData
 {
     public readonly List<DateTime> DateTimes;
@@ -45,12 +53,13 @@ public class TimestampData
         Values = values;
     }
 
-    private bool _gapped = false;
+    public bool Gapped { get; private set; } = false;
+
+    public GapState HasGaps = GapState.Unknown;
 
     public void AddGaps()
     {
-        if (_gapped) return;
-
+        if (Gapped) return;
         for (int i = 1; i < DateTimes.Count; i++)
         {
             if ((DateTimes[i] - DateTimes[i - 1]).Ticks > TimeSpan.TicksPerHour)
@@ -58,8 +67,12 @@ public class TimestampData
                 DateTimes.Insert(i, new DateTime( (DateTimes[i].Ticks + DateTimes[i - 1].Ticks) / 2));
                 Values.Insert(i, double.NaN);
                 i++;
+                HasGaps = GapState.HasGaps;
             }
         }
+
+        if (HasGaps == GapState.Unknown) HasGaps = GapState.NoGaps;
+        Gapped = true;
     }
 
     public bool LengthsEqual => DateTimes.Count == Values.Count;
@@ -130,5 +143,9 @@ public class TimestampData
         DateTimes.AddRange(interpolatedDateTimes);
         Values.Clear();
         Values.AddRange(newValues);
+        if (interpolatedDateTimes.Count != newValues.Count)
+        {
+            throw new InvalidDataException();
+        }
     }
 }

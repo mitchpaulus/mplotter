@@ -293,4 +293,9 @@ public static class Extensions
         // TODO: Handle escapes
         return inputString.Substring(1, inputString.Length - 2);
     }
+
+    public static bool IsLeapYear(this int year)
+    {
+        return (year % 4 == 0) && ((year % 100 != 0) || year % 400 == 0);
+    }
 }

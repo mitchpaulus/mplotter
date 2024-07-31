@@ -13,9 +13,12 @@ public class EnergyPlusEsoDataSource : IDataSource
     private readonly string _filePath;
     private readonly TrendMatcher _matcher;
 
+    // This is a mapping from an integer Id, to the point/trend name.
     private readonly Dictionary<string, int> _dataDictionary = new();
+
     // Note here that we have left everything as a string.
-    private readonly Dictionary<int, List<string>> _dataValues = new();
+    // Note that we have a list because you get a different output for each 'Run'
+    private readonly List<Dictionary<int, List<string>>> _dataValues = new();
 
     // Cached data is here to cache all the parsing of strings to doubles.
     private readonly Dictionary<int, List<double>> _cachedData = new();
@@ -62,19 +65,27 @@ public class EnergyPlusEsoDataSource : IDataSource
                 _dataDictionary[trendName] = int.Parse(split[0]);
             }
 
+            int dataValueIndex = -1;
             while (await r.ReadLineAsync() is { } line)
             {
                 var firstCommaIndex = line.IndexOf(',');
                 if (firstCommaIndex < 0) break; // We've reached the 'End of Data' line.
+
                 var key = int.Parse(line[..firstCommaIndex]);
 
-                if (_dataValues.TryGetValue(key, out var list))
+                if (key == 1)
+                {
+                    dataValueIndex++;
+                    _dataValues.Add(new Dictionary<int, List<string>>());
+                }
+
+                if (_dataValues[dataValueIndex].TryGetValue(key, out var list))
                 {
                     list.Add(line);
                 }
                 else
                 {
-                    _dataValues[key] = new List<string> { line };
+                    _dataValues[dataValueIndex][key] = new List<string>(8760) { line };
                 }
             }
 
@@ -101,7 +112,9 @@ public class EnergyPlusEsoDataSource : IDataSource
 
         List<double> toReturn = new List<double>(8760);
 
-        if (_dataValues.TryGetValue(id, out var values))
+        // Make the assumption that the last EnergyPlus "run" is the one of interest.
+        // Mostly, the sizing runs should all come first.
+        if (_dataValues[^1].TryGetValue(id, out var values))
         {
             foreach (var line in values)
             {
@@ -142,17 +155,37 @@ public class EnergyPlusEsoDataSource : IDataSource
 
     public async Task<TimestampData> GetTimestampData(string trend)
     {
-        int year = DateTime.Now.Year;
         List<double> data = await GetData(trend);
 
+        int year = DateTime.Now.Year;
         List<DateTime> dateTimes = new(8760);
-
         DateTime time = new DateTime(year, 1, 1);
 
-        foreach (var t in data)
+        // EnergyPlus simulations are many times not tied to a year, but we tie them to today's year by default.
+        // So in order to not have things shifted by a day, while maintaining the ability to align to any real data,
+        // I'm putting in a Gap.
+        if (!year.IsLeapYear() || data.Count == 8784)
         {
-            dateTimes.Add(time);
-            time = time.AddHours(1);
+            foreach (var _ in data)
+            {
+                dateTimes.Add(time);
+                time = time.AddHours(1);
+            }
+        }
+        else
+        {
+            int janAndFebHours = Math.Min((31 + 28) * 24, data.Count);
+            for (int i = 0; i < janAndFebHours; i++)
+            {
+                dateTimes.Add(time);
+                time = time.AddHours(1);
+            }
+            time = new DateTime(year, 3, 1);
+            while (dateTimes.Count < data.Count)
+            {
+                dateTimes.Add(time);
+                time = time.AddHours(1);
+            }
         }
 
         return new TimestampData(dateTimes, data);
