@@ -41,7 +41,7 @@ public class MainViewModel : INotifyPropertyChanged
         _unitReader.Read();
     }
 
-    public async Task UpdatePlots(bool autoScaleX = true)
+    public async Task UpdatePlots()
     {
         _window.PlotStackPanel.Children.Clear();
 
@@ -199,6 +199,16 @@ public class MainViewModel : INotifyPropertyChanged
                              scatter.LegendText = label;
                          }
                      }
+
+                     if (_window.DateMode == DateMode.Unspecified)
+                     {
+                         plot.Plot.Axes.AutoScaleX();
+                     }
+                     else
+                     {
+                         plot.Plot.Axes.Bottom.Min = _window.StartDate.ToOADate();
+                         plot.Plot.Axes.Bottom.Max = _window.EndDate.ToOADate();
+                     }
                  }
                  else if (_window.Mode == PlotMode.Histogram)
                  {
@@ -266,7 +276,6 @@ public class MainViewModel : INotifyPropertyChanged
             }
 
             plot.Plot.Axes.AutoScaleY();
-            if (autoScaleX) plot.Plot.Axes.AutoScaleX();
             plot.Plot.Legend.IsVisible = unitGroup.Count() > 1;
             plot.Plot.Legend.Alignment = Alignment.UpperRight;
 

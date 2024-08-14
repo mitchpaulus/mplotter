@@ -24,9 +24,12 @@ public class EnergyPlusEsoDataSource : IDataSource
     private readonly Dictionary<int, List<double>> _cachedData = new();
     private bool _loaded = false;
 
+    public FileInfo FileInfo { get; }
+
     public EnergyPlusEsoDataSource(string filePath, TrendMatcher matcher)
     {
         _filePath = filePath;
+        FileInfo = new(_filePath);
         _matcher = matcher;
         Header = filePath;
     }
@@ -108,7 +111,11 @@ public class EnergyPlusEsoDataSource : IDataSource
         if (!_loaded) await ParseData();
         if (!_dataDictionary.TryGetValue(trend, out int id)) return new List<double>();
 
-        if (_cachedData.TryGetValue(id, out var cached)) return cached;
+        if (_cachedData.TryGetValue(id, out var cached))
+        {
+            // Return a clone. I've had too many issues tracking out other places in which that list is then modified.
+            return cached.Select(d => d).ToList();
+        }
 
         List<double> toReturn = new List<double>(8760);
 
@@ -127,7 +134,7 @@ public class EnergyPlusEsoDataSource : IDataSource
         }
 
         _cachedData[id] = toReturn;
-        return toReturn;
+        return toReturn.Select(d => d).ToList();
     }
 
     public string Header { get; }
@@ -205,15 +212,17 @@ public class EnergyPlusEsoDataSource : IDataSource
 
     public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
-        List<TimestampData> data = new();
-        foreach (var trend in trends)
-        {
-            TimestampData tsData = await GetTimestampData(trend);
-            tsData.TrimDates(startDateInc, endDateExc);
-            data.Add(tsData);
-        }
-
-        return data;
+        // Always give back full thing.
+        return await GetTimestampData(trends);
+        // List<TimestampData> data = new();
+        // foreach (var trend in trends)
+        // {
+        //     TimestampData tsData = await GetTimestampData(trend);
+        //     tsData.TrimDates(startDateInc, endDateExc);
+        //     data.Add(tsData);
+        // }
+        //
+        // return data;
     }
 
     public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)

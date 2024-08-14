@@ -380,7 +380,7 @@ public partial class MainWindow : Window
             if (!_watchers.Any(watcher => watcher.Path == file.FileInfo.DirectoryName! && watcher.Filter == file.FileInfo.Name))
             {
                 FileSystemWatcher watcher = new FileSystemWatcher(file.FileInfo.DirectoryName!, file.FileInfo.Name);
-                watcher.NotifyFilter = watcher.NotifyFilter = NotifyFilters.Attributes
+                watcher.NotifyFilter = NotifyFilters.Attributes
                                                               | NotifyFilters.CreationTime
                                                               | NotifyFilters.DirectoryName
                                                               | NotifyFilters.FileName
@@ -389,10 +389,29 @@ public partial class MainWindow : Window
                                                               | NotifyFilters.Size;
                 watcher.Changed += WatcherOnChanged;
                 watcher.Deleted += WatcherOnDeleted;
-                watcher.Created += WatcherOnCreated;
+                watcher.Created += WatcherOnChanged;
                 watcher.EnableRaisingEvents = true;
                 _watchers.Add(watcher);
             }
+        }
+        else if (source is EnergyPlusEsoDataSource esoFile)
+        {
+             if (!_watchers.Any(watcher => watcher.Path == esoFile.FileInfo.DirectoryName! && watcher.Filter == esoFile.FileInfo.Name))
+             {
+                 FileSystemWatcher watcher = new FileSystemWatcher(esoFile.FileInfo.DirectoryName!, esoFile.FileInfo.Name);
+                 watcher.NotifyFilter = NotifyFilters.Attributes
+                                                               | NotifyFilters.CreationTime
+                                                               | NotifyFilters.DirectoryName
+                                                               | NotifyFilters.FileName
+                                                               | NotifyFilters.LastWrite
+                                                               | NotifyFilters.Security
+                                                               | NotifyFilters.Size;
+                 watcher.Changed += WatcherOnChanged;
+                 watcher.Deleted += WatcherOnDeleted;
+                 watcher.Created += WatcherOnCreated;
+                 watcher.EnableRaisingEvents = true;
+                 _watchers.Add(watcher);
+             }
         }
 
         _selectedDataSources.Add(source);
@@ -424,14 +443,20 @@ public partial class MainWindow : Window
         // Find matching sources
         foreach (var s in _loadedDataSources)
         {
-            if (s is not SimpleDelimitedFile file) continue;
-            if (file.FileInfo.DirectoryName != w.Path || file.FileInfo.Name != w.Filter) continue;
+            if (s is SimpleDelimitedFile file)
+            {
+                if (file.FileInfo.DirectoryName != w.Path || file.FileInfo.Name != w.Filter) continue;
 
-            // Reload the source
-            await file.UpdateCache();
+                // Reload the source
+                await file.UpdateCache();
+            }
+            else if (s is EnergyPlusEsoDataSource esoFile)
+            {
+                await esoFile.UpdateCache();
+            }
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() => _vm.UpdatePlots(true));
+        await Dispatcher.UIThread.InvokeAsync(() => _vm.UpdatePlots());
         await Console.Error.WriteLineAsync($"{DateTime.Now:HH:mm:ss.fff} Updated plots for Dir: {w.Path}, Filter: {w.Filter}");
     }
 
@@ -451,7 +476,7 @@ public partial class MainWindow : Window
 
         timeSeriesTextBlocks.Clear();
 
-        string loweredSearchText = SearchBox.Text ?? "".ToLowerInvariant().Trim();
+        string loweredSearchText = SearchBox.Text?.ToLowerInvariant().Trim() ?? "";
 
         foreach (var key in sortedKeys)
         {
@@ -613,7 +638,7 @@ public partial class MainWindow : Window
 
             if (await AnyDbSourcesSelected() || Mode != PlotMode.Ts)
             {
-                await _vm.UpdatePlots(false);
+                await _vm.UpdatePlots();
             }
 
             if (Mode == PlotMode.Ts)
