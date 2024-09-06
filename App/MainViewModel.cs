@@ -303,7 +303,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    private List<AvaPlot> AllPlots()
+    public List<AvaPlot> AllPlots()
     {
         return _window.PlotStackPanel.Children.Where(control => control is AvaPlot).Cast<AvaPlot>().ToList();
     }

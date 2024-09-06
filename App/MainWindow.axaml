@@ -98,6 +98,60 @@
                         <Button Command="{Binding MakeNov}">Nov</Button>
                         <Button Command="{Binding MakeDec}">Dec</Button>
                     </WrapPanel>
+                    <WrapPanel>
+                        <Button Click="MakeWeekOne" Tag="1">Jan 1 - 7</Button>
+                        <Button Click="MakeWeekOne" Tag="2">Jan 8 - 14</Button>
+                        <Button Click="MakeWeekOne" Tag="3">Jan 15 - 21</Button>
+                        <Button Click="MakeWeekOne" Tag="4">Jan 22 - 28</Button>
+                        <Button Click="MakeWeekOne" Tag="5">Jan 29 - Feb 4</Button>
+                        <Button Click="MakeWeekOne" Tag="6">Feb 5 - 11</Button>
+                        <Button Click="MakeWeekOne" Tag="7">Feb 12 - 18</Button>
+                        <Button Click="MakeWeekOne" Tag="8">Feb 19 - 25</Button>
+                        <Button Click="MakeWeekOne" Tag="9">Feb 26 - Mar 4</Button>
+                        <Button Click="MakeWeekOne" Tag="10">Mar 5 - 11</Button>
+                        <Button Click="MakeWeekOne" Tag="11">Mar 12 - 18</Button>
+                        <Button Click="MakeWeekOne" Tag="12">Mar 19 - 25</Button>
+                        <Button Click="MakeWeekOne" Tag="13">Mar 26 - Apr 1</Button>
+                        <Button Click="MakeWeekOne" Tag="14">Apr 2 - 8</Button>
+                        <Button Click="MakeWeekOne" Tag="15">Apr 9 - 15</Button>
+                        <Button Click="MakeWeekOne" Tag="16">Apr 16 - 22</Button>
+                        <Button Click="MakeWeekOne" Tag="17">Apr 23 - 29</Button>
+                        <Button Click="MakeWeekOne" Tag="18">Apr 30 - May 6</Button>
+                        <Button Click="MakeWeekOne" Tag="19">May 7 - 13</Button>
+                        <Button Click="MakeWeekOne" Tag="20">May 14 - 20</Button>
+                        <Button Click="MakeWeekOne" Tag="21">May 21 - 27</Button>
+                        <Button Click="MakeWeekOne" Tag="22">May 28 - Jun 3</Button>
+                        <Button Click="MakeWeekOne" Tag="23">Jun 4 - 10</Button>
+                        <Button Click="MakeWeekOne" Tag="24">Jun 11 - 17</Button>
+                        <Button Click="MakeWeekOne" Tag="25">Jun 18 - 24</Button>
+                        <Button Click="MakeWeekOne" Tag="26">Jun 25 - Jul 1</Button>
+                        <Button Click="MakeWeekOne" Tag="27">Jul 2 - 8</Button>
+                        <Button Click="MakeWeekOne" Tag="28">Jul 9 - 15</Button>
+                        <Button Click="MakeWeekOne" Tag="29">Jul 16 - 22</Button>
+                        <Button Click="MakeWeekOne" Tag="30">Jul 23 - 29</Button>
+                        <Button Click="MakeWeekOne" Tag="31">Jul 30 - Aug 5</Button>
+                        <Button Click="MakeWeekOne" Tag="32">Aug 6 - 12</Button>
+                        <Button Click="MakeWeekOne" Tag="33">Aug 13 - 19</Button>
+                        <Button Click="MakeWeekOne" Tag="34">Aug 20 - 26</Button>
+                        <Button Click="MakeWeekOne" Tag="35">Aug 27 - Sep 2</Button>
+                        <Button Click="MakeWeekOne" Tag="36">Sep 3 - 9</Button>
+                        <Button Click="MakeWeekOne" Tag="37">Sep 10 - 16</Button>
+                        <Button Click="MakeWeekOne" Tag="38">Sep 17 - 23</Button>
+                        <Button Click="MakeWeekOne" Tag="39">Sep 24 - 30</Button>
+                        <Button Click="MakeWeekOne" Tag="40">Oct 1 - 7</Button>
+                        <Button Click="MakeWeekOne" Tag="41">Oct 8 - 14</Button>
+                        <Button Click="MakeWeekOne" Tag="42">Oct 15 - 21</Button>
+                        <Button Click="MakeWeekOne" Tag="43">Oct 22 - 28</Button>
+                        <Button Click="MakeWeekOne" Tag="44">Oct 29 - Nov 4</Button>
+                        <Button Click="MakeWeekOne" Tag="45">Nov 5 - 11</Button>
+                        <Button Click="MakeWeekOne" Tag="46">Nov 12 - 18</Button>
+                        <Button Click="MakeWeekOne" Tag="47">Nov 19 - 25</Button>
+                        <Button Click="MakeWeekOne" Tag="48">Nov 26 - Dec 2</Button>
+                        <Button Click="MakeWeekOne" Tag="49">Dec 3 - 9</Button>
+                        <Button Click="MakeWeekOne" Tag="50">Dec 10 - 16</Button>
+                        <Button Click="MakeWeekOne" Tag="51">Dec 17 - 23</Button>
+                        <Button Click="MakeWeekOne" Tag="52">Dec 24 - 30</Button>
+                    </WrapPanel>
 
                     <CheckBox>Single Day</CheckBox>
 

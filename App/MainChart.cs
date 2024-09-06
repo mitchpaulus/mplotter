@@ -112,28 +112,31 @@ public class TimestampData
 
         while (currentDate < endDateExc)
         {
-            interpolatedDateTimes.Add(currentDate);
-            while (true)
+            if (!(TimeZoneInfo.Local.IsAmbiguousTime(currentDate) || TimeZoneInfo.Local.IsInvalidTime(currentDate)))
             {
-                if (currentIndex >= Values.Count) break;
-                if (DateTimes[currentIndex] >= currentDate) break;
-                currentIndex++;
-            }
+                interpolatedDateTimes.Add(currentDate);
+                while (true)
+                {
+                    if (currentIndex >= Values.Count) break;
+                    if (DateTimes[currentIndex] >= currentDate) break;
+                    currentIndex++;
+                }
 
-            if (currentIndex == 0)
-            {
-                // Check if right on border.
-                newValues.Add(currentDate == DateTimes[currentIndex] ? Values[currentIndex] : double.NaN);
-            }
-            else if (currentIndex >= Values.Count)
-            {
-                newValues.Add(double.NaN);
-            }
-            else
-            {
-                var slope = (Values[currentIndex] - Values[currentIndex - 1]) / ((double)DateTimes[currentIndex].Ticks - DateTimes[currentIndex - 1].Ticks);
-                var value = Values[currentIndex - 1] + (currentDate.Ticks -  DateTimes[currentIndex - 1].Ticks) * slope;
-                newValues.Add(value);
+                if (currentIndex == 0)
+                {
+                    // Check if right on border.
+                    newValues.Add(currentDate == DateTimes[currentIndex] ? Values[currentIndex] : double.NaN);
+                }
+                else if (currentIndex >= Values.Count)
+                {
+                    newValues.Add(double.NaN);
+                }
+                else
+                {
+                    var slope = (Values[currentIndex] - Values[currentIndex - 1]) / ((double)DateTimes[currentIndex].Ticks - DateTimes[currentIndex - 1].Ticks);
+                    var value = Values[currentIndex - 1] + (currentDate.Ticks -  DateTimes[currentIndex - 1].Ticks) * slope;
+                    newValues.Add(value);
+                }
             }
 
             currentDate = currentDate.AddTicks(minuteInterval * TimeSpan.TicksPerMinute);

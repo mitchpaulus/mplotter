@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using CCLLCDataSync;
 
 namespace csvplot;
 
@@ -209,6 +210,8 @@ public class NoaaWeatherDataSource : IDataSource
             return new TimestampData(new(), new());
         }
 
+        // TimeZones tzs = new();
+
         var tz = TimeZoneInfo.Local;
 
         DateTime lastDate = DateTime.MinValue;
@@ -225,7 +228,11 @@ public class NoaaWeatherDataSource : IDataSource
                 var recValue = trendSelector(rec);
                 if (recValue is { } d and < 200)
                 {
-                    var local = TimeZoneInfo.ConvertTimeFromUtc(rec.DateTime, tz);
+                    var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(rec.DateTime, DateTimeKind.Utc), tz);
+                    if (local.Year == 2024 && local.Month == 3 && local.Day == 10 && local.Hour == 2)
+                    {
+                        throw new Exception("This should not happen");
+                    }
                     if (local < lastDate) needsSort = true;
                     lastDate = local;
                     localDateTimes.Add(local);

@@ -24,6 +24,7 @@ using InfluxDB.Client.Domain;
 using OfficeOpenXml;
 using ScottPlot;
 using ScottPlot.Avalonia;
+using ScottPlot.TickGenerators.TimeUnits;
 using Brushes = Avalonia.Media.Brushes;
 using File = System.IO.File;
 
@@ -408,7 +409,7 @@ public partial class MainWindow : Window
                                                                | NotifyFilters.Size;
                  watcher.Changed += WatcherOnChanged;
                  watcher.Deleted += WatcherOnDeleted;
-                 watcher.Created += WatcherOnCreated;
+                 watcher.Created += WatcherOnChanged;
                  watcher.EnableRaisingEvents = true;
                  _watchers.Add(watcher);
              }
@@ -422,12 +423,6 @@ public partial class MainWindow : Window
         BrowseButton.IsEnabled = true;
         InfluxButton.IsEnabled = true;
         NoaaButton.IsEnabled = true;
-    }
-
-    private void WatcherOnCreated(object sender, FileSystemEventArgs e)
-    {
-         FileSystemWatcher w = (FileSystemWatcher)sender;
-         Console.Error.WriteLine($"Dir: {w.Path}, Filter: {w.Filter}");
     }
 
     private void WatcherOnDeleted(object sender, FileSystemEventArgs e)
@@ -628,6 +623,7 @@ public partial class MainWindow : Window
 
     private async Task TryShiftMonth(int monthShift)
     {
+        if (DateMode != DateMode.Specified) return;
         if (OnMonth())
         {
             StartDate = DateTimeMonthFromInt(StartMonthInt + monthShift);
@@ -650,6 +646,44 @@ public partial class MainWindow : Window
                     if (EndMonthInt - StartMonthInt == 1)
                     {
                         avaPlot.Plot.Axes.Bottom.Label.Text = MonthNames.Names[StartDate.Month - 1];
+                    }
+
+                    avaPlot.Refresh();
+                }
+            }
+        }
+        else
+        {
+            int currentDayRange = (int)(EndDate - StartDate).TotalDays;
+            StartDate = StartDate.AddDays(currentDayRange * monthShift);
+            EndDate = EndDate.AddDays(currentDayRange * monthShift);
+            DateMode = DateMode.Specified;
+
+            UpdateDateModeString();
+
+            if (await AnyDbSourcesSelected() || Mode != PlotMode.Ts)
+            {
+                await _vm.UpdatePlots();
+            }
+
+            if (Mode == PlotMode.Ts)
+            {
+                foreach (var child in PlotStackPanel.Children)
+                {
+                    if (child is not AvaPlot avaPlot) continue;
+                    avaPlot.Plot.Axes.SetLimitsX(StartDate.ToOADate(), EndDate.ToOADate());
+
+                    if (StartDate.Year == EndDate.Year && StartDate.Month == EndDate.Month)
+                    {
+                        avaPlot.Plot.Axes.Bottom.Label.Text = $"{MonthNames.ShortNames[StartDate.Month - 1]} {StartDate.Day}-{EndDate.Day}";
+                    }
+                    else if (StartDate.Year == EndDate.Year)
+                    {
+                        avaPlot.Plot.Axes.Bottom.Label.Text = $"{MonthNames.ShortNames[StartDate.Month - 1]} {StartDate.Day} - {MonthNames.ShortNames[StartDate.Month - 1]} {EndDate.Day}";
+                    }
+                    else
+                    {
+                        avaPlot.Plot.Axes.Bottom.Label.Text = $"{MonthNames.ShortNames[StartDate.Month - 1]} {StartDate.Day}, {StartDate.Year} - {MonthNames.ShortNames[StartDate.Month - 1]} {EndDate.Day}, {EndDate.Year}";
                     }
 
                     avaPlot.Refresh();
@@ -1025,6 +1059,40 @@ public partial class MainWindow : Window
         return DateMode == DateMode.Specified
             ? $"Date mode: {DateMode}, Start: {StartDate:yyyy-MM-dd}, End: {EndDate:yyyy-MM-dd}"
             : $"Date mode: {DateMode}";
+    }
+
+    private async void MakeWeekOne(object? sender, RoutedEventArgs e)
+    {
+        int weekNum = int.Parse((sender as Button).Tag as string);
+        DateTime now = DateTime.Now;
+        int currentYear = now.Year;
+
+        SetDateMode(DateMode.Specified);
+        StartDate = new DateTime(currentYear, 1, 1).AddDays((weekNum - 1)*7 );
+        EndDate = new DateTime(currentYear, 1, 8).AddDays((weekNum - 1)*7 );
+        UpdateDateModeString();
+
+        foreach (var config in SelectedTimeSeriesTrends)
+        {
+            var dataType = await config.DataSource.DataSourceType();
+            if (dataType != DataSourceType.Database) continue;
+
+            await _vm.UpdatePlots();
+            break;
+        }
+
+        foreach (var p in _vm.AllPlots())
+        {
+            if (Mode == PlotMode.Ts)
+            {
+                p.Plot.Axes.Bottom.Min = StartDate.ToOADate();
+                p.Plot.Axes.Bottom.Max = EndDate.ToOADate();
+                p.Plot.Axes.Bottom.Label.Text = $"{StartDate:MMM d} - {EndDate:MMM d}";
+            }
+
+            p.Refresh();
+        }
+
     }
 }
 
