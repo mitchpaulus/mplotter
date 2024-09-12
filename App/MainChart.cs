@@ -122,14 +122,14 @@ public class TimestampData
                     currentIndex++;
                 }
 
-                if (currentIndex == 0)
+                if (currentIndex >= Values.Count)
+                {
+                    newValues.Add(double.NaN);
+                }
+                else if (currentIndex == 0)
                 {
                     // Check if right on border.
                     newValues.Add(currentDate == DateTimes[currentIndex] ? Values[currentIndex] : double.NaN);
-                }
-                else if (currentIndex >= Values.Count)
-                {
-                    newValues.Add(double.NaN);
                 }
                 else
                 {
