@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using InfluxDB.Client;
 using InfluxDB.Client.Core.Flux.Domain;
@@ -110,52 +111,80 @@ public class InfluxDataSource : IDataSource
 
     public async Task<TimestampData> GetTimestampData(string trend)
     {
-        // Get the last year of data from InfluxDb.
-        if (!_isValid) return new TimestampData(new List<DateTime>(), new List<double>());
-
-        using var client = new InfluxDBClient(_influxHost, _influxToken);
-
-        var query = $"from(bucket: \"{_bucket}\") |> range(start: -1y) |> filter(fn: (r) => r._measurement == \"{trend}\") |> yield()";
-
-        var queryApi = client.GetQueryApi();
-        List<FluxTable>? tables;
-        try
-        {
-            tables = await queryApi.QueryAsync(query, _influxOrg);
-        }
-        catch
-        {
-            return new TimestampData(new(), new());
-        }
-
-        var timestamps = new List<DateTime>();
-        var values = new List<double>();
-
-        foreach (var record in tables.SelectMany(table => table.Records))
-        {
-            // Try to get value as double, else skip
-            if (record.GetValue() is not double doubleValue || record.GetTimeInDateTime() is not { } d) continue;
-            values.Add(doubleValue);
-            timestamps.Add(d);
-        }
-
-        return new TimestampData(timestamps, values);
+        return (await GetTimestampData(new List<string>() { trend }, DateTime.Now.Date.AddDays(-7), DateTime.Now.Date.AddDays(1))).First();
     }
 
-    public async Task<List<TimestampData>> GetTimestampData(List<string> trends) => await GetTimestampData(trends, DateTime.Now.Date.AddDays(-365), DateTime.Now.Date.AddDays(1));
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends) => await GetTimestampData(trends, DateTime.Now.Date.AddDays(-7), DateTime.Now.Date.AddDays(1));
 
     public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        return await GetTimestampData(trends, startDateInc, endDateExc, 7500);
+    }
+
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc, int countLimit)
     {
         // Get the last year of data from InfluxDb.
         if (!_isValid) return trends.Select(s => new TimestampData(new(), new())).ToList();
 
-        using var client = new InfluxDBClient(_influxHost, _influxToken);
 
+        // var httpClientHandler = new HttpClientHandler();
+        // var httpClient = new HttpClient(httpClientHandler)
+        // {
+        //     Timeout = TimeSpan.FromMinutes(5)
+        // };
+
+
+        var options = InfluxDBClientOptions.Builder.CreateNew().Url(_influxHost).AuthenticateToken(_influxToken).TimeOut(TimeSpan.FromMinutes(1));
+        using var client = new InfluxDBClient(options.Build());
+
+        // using var client = new InfluxDBClient(_influxHost, _influxToken);
         string measFilter = string.Join(" or ", trends.Select(s => $"r._measurement == \"{s}\""));
 
-        var query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> yield()";
-
         var queryApi = client.GetQueryApi();
+        var countQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> count() |> yield() ";
+        List<FluxTable>? countTables;
+        try
+        {
+            countTables = await queryApi.QueryAsync(countQuery, _influxOrg);
+        }
+        catch
+        {
+            return trends.Select(s => new TimestampData(new(), new())).ToList();
+        }
+
+        long totalCount = 0;
+        foreach (var t in countTables)
+        {
+            foreach (var r in t.Records)
+            {
+                if (r.GetValue() is long l) totalCount += l;
+            }
+        }
+
+        string query;
+        if (totalCount < countLimit)
+        {
+            query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> yield()";
+        }
+        else
+        {
+            List<int> possibleMinuteIntervals = new List<int>() { 1, 5, 10, 15, 30, 60, 120, 240, 480, 1440 };
+
+            long minuteInterval = trends.Count * (int)(endDateExc - startDateInc).TotalMinutes / countLimit;
+            foreach (var interval in possibleMinuteIntervals)
+            {
+                if (interval >= minuteInterval)
+                {
+                    minuteInterval = interval;
+                    break;
+                }
+            }
+            query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> aggregateWindow(every: {minuteInterval}m, fn: mean, createEmpty: false) |> yield()";
+        }
+
+
+        //var query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> aggregateWindow(every: 1m, fn: mean, createEmpty: false) |> yield()";
+
         List<FluxTable>? tables;
         try
         {

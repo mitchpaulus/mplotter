@@ -837,7 +837,17 @@ public partial class MainWindow : Window
         foreach (var sourcePair in SelectedTimeSeriesTrends.GroupBy(pair => pair.DataSource))
         {
             var trends = sourcePair.Select(pair => pair.TrendName).ToList();
-            List<TimestampData> output = await sourcePair.Key.GetTimestampData(trends, start.AddDays(-1), end.AddDays(1));
+
+            List<TimestampData> output;
+            if (sourcePair.Key is InfluxDataSource influxDataSource)
+            {
+                // Need to specify a higher count than default, as we don't have to be as worried about plotting performance.
+                output = await influxDataSource.GetTimestampData(trends, start.AddDays(-1), end.AddDays(1), 500000);
+            }
+            else
+            {
+                output = await sourcePair.Key.GetTimestampData(trends, start.AddDays(-1), end.AddDays(1));
+            }
 
             headers.AddRange(trends);
 
