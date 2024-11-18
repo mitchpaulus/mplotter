@@ -242,8 +242,15 @@ public class SimpleDelimitedFile : IDataSource
         if (!_cachedData.TryGetValue(trend, out var strData)) return new TimestampData(new(), new());
 
 
-        List<double> values = strData.Select(strD => double.TryParse(strD, out var parsed) ? parsed : double.NaN).ToList();
-        List<DateTime> newDates = _cachedParsedDateTimes.Select(time => time).ToList();
+        List<double> values = new();
+        List<DateTime> newDates = new();
+        for (int i = 0; i < strData.Count; i++)
+        {
+            // Don't add null data. Gaps can be added later.
+            if (!double.TryParse(strData[i], out var d)) continue;
+            values.Add(d);
+            newDates.Add(_cachedParsedDateTimes[i]);
+        }
 
         if (_needsSort)
         {
