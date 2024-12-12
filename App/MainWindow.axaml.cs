@@ -74,6 +74,31 @@ public partial class MainWindow : Window
     public readonly TrendConfigListener Listener = new();
 
     public AvaPlot XyPlot = new();
+    private SingleDayState _singleDayState;
+
+    private int _lastSingleDayYear;
+    private int _lastSingleDayMonth = 1;
+    private int _lastSingleDayDay = 1;
+
+    private Button _singleDayNotStartedButton = new Button() { Content = "Single Day" };
+
+    private List<Button> _singleDayYearButtons = new(5);
+    private List<Button> _singleDayMonthButtons = new(12)
+    {
+        new Button() { Content = "Jan", Tag = 1 },
+        new Button() { Content = "Feb", Tag = 2 },
+        new Button() { Content = "Mar", Tag = 3 },
+        new Button() { Content = "Apr", Tag = 4 },
+        new Button() { Content = "May", Tag = 5 },
+        new Button() { Content = "Jun", Tag = 6 },
+        new Button() { Content = "Jul", Tag = 7 },
+        new Button() { Content = "Aug", Tag = 8 },
+        new Button() { Content = "Sep", Tag = 9 },
+        new Button() { Content = "Oct", Tag = 10 },
+        new Button() { Content = "Nov", Tag = 11 },
+        new Button() { Content = "Dec", Tag = 12 },
+    };
+    private List<Button> _singleDayDayButtons = new(31);
 
     public MainWindow()
     {
@@ -114,6 +139,34 @@ public partial class MainWindow : Window
         Grid.SetColumn(addXySerieButton, 0);
         Grid.SetRow(addXySerieButton, 0);
         _xyTrendSelectionGrid.Children.Add(addXySerieButton);
+
+        int currentYear = DateTime.Today.Year;
+        _lastSingleDayYear = currentYear;
+
+        _singleDayNotStartedButton.Click += SingleDayClick;
+        SingleDayStackPanel.Children.Add(_singleDayNotStartedButton);
+        for (int i = currentYear - 5 ; i <= currentYear; i++)
+        {
+            _singleDayYearButtons.Add(new Button()
+            {
+                Content = i.ToString(),
+                IsVisible = true,
+                Tag = i,
+            });
+        }
+        foreach (var b in _singleDayYearButtons) b.Click += SingleDayClick;
+        foreach (var b in _singleDayMonthButtons) b.Click += SingleDayClick;
+
+        for (int i = 0; i < 31; i++)
+        {
+            _singleDayDayButtons.Add(new Button()
+            {
+                Content = (i + 1).ToString(),
+                IsVisible = true,
+                Tag = (i + 1),
+            });
+        }
+        foreach (var b in _singleDayDayButtons) b.Click += SingleDayClick;
     }
 
     private async void SearchTimerOnElapsed(object? sender, ElapsedEventArgs e)
@@ -1073,7 +1126,7 @@ public partial class MainWindow : Window
 
     private async void MakeWeekOne(object? sender, RoutedEventArgs e)
     {
-        int weekNum = int.Parse((sender as Button).Tag as string);
+        int weekNum = int.Parse(((sender as Button)!.Tag as string)!);
         DateTime now = DateTime.Now;
         int currentYear = now.Year;
 
@@ -1102,7 +1155,70 @@ public partial class MainWindow : Window
 
             p.Refresh();
         }
+    }
 
+    private async void MakeSingleDay()
+    {
+        SetDateMode(DateMode.Specified);
+        StartDate = new DateTime(_lastSingleDayYear, _lastSingleDayMonth, _lastSingleDayDay);
+        EndDate = StartDate.AddDays(1);
+        UpdateDateModeString();
+
+        foreach (var config in SelectedTimeSeriesTrends)
+        {
+            var dataType = await config.DataSource.DataSourceType();
+            if (dataType != DataSourceType.Database) continue;
+
+            await _vm.UpdatePlots();
+            break;
+        }
+
+        foreach (var p in _vm.AllPlots())
+        {
+            if (Mode == PlotMode.Ts)
+            {
+                p.Plot.Axes.Bottom.Min = StartDate.ToOADate();
+                p.Plot.Axes.Bottom.Max = EndDate.ToOADate();
+                p.Plot.Axes.Bottom.Label.Text = $"{StartDate:MMM d}";
+            }
+
+            p.Refresh();
+        }
+    }
+
+
+    private void SingleDayClick(object? sender, RoutedEventArgs e)
+    {
+        Button button = (Button)sender!;
+        if (_singleDayState == SingleDayState.NotStarted)
+        {
+            SingleDayStackPanel.Children.Clear();
+            foreach (var b in _singleDayYearButtons) SingleDayStackPanel.Children.Add(b);
+            _singleDayState = SingleDayState.Year;
+        }
+        else if (_singleDayState == SingleDayState.Year)
+        {
+            SingleDayStackPanel.Children.Clear();
+            foreach (var b in _singleDayMonthButtons) SingleDayStackPanel.Children.Add(b);
+            _singleDayState = SingleDayState.Month;
+            _lastSingleDayYear = (int)button.Tag!;
+        }
+        else if (_singleDayState == SingleDayState.Month)
+        {
+            SingleDayStackPanel.Children.Clear();
+            foreach (var b in _singleDayDayButtons) SingleDayStackPanel.Children.Add(b);
+            _singleDayState = SingleDayState.Day;
+            _lastSingleDayMonth = (int)button.Tag!;
+
+        }
+        else if (_singleDayState == SingleDayState.Day)
+        {
+            SingleDayStackPanel.Children.Clear();
+            SingleDayStackPanel.Children.Add(_singleDayNotStartedButton);
+            _singleDayState = SingleDayState.NotStarted;
+            _lastSingleDayDay = (int)button.Tag!;
+            MakeSingleDay();
+        }
     }
 }
 
@@ -1191,4 +1307,12 @@ public enum ExportIncludeOption
 {
     IncludeAllRows,
     IncludeOnlyFull,
+}
+
+public enum SingleDayState
+{
+    NotStarted,
+    Year,
+    Month,
+    Day,
 }

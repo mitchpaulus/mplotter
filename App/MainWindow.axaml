@@ -153,7 +153,7 @@
                         <Button Click="MakeWeekOne" Tag="52">Dec 24 - 30</Button>
                     </WrapPanel>
 
-                    <CheckBox>Single Day</CheckBox>
+                    <WrapPanel Name="SingleDayStackPanel"> </WrapPanel>
 
                 </StackPanel>
             </TabItem>
