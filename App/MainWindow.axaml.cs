@@ -145,7 +145,7 @@ public partial class MainWindow : Window
 
         _singleDayNotStartedButton.Click += SingleDayClick;
         SingleDayStackPanel.Children.Add(_singleDayNotStartedButton);
-        for (int i = currentYear - 5 ; i <= currentYear; i++)
+        for (int i = currentYear; i >= currentYear - 4; i--)
         {
             _singleDayYearButtons.Add(new Button()
             {
