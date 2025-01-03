@@ -11,9 +11,9 @@ public class SimpleDelimitedFile : IDataSource
 {
     public async Task<List<Trend>> Trends()
     {
-        if (_trends.Any()) return _trends.Select(s => new Trend(s, "")).ToList();
+        if (_trends.Any()) return _trends.Select(s => new Trend(s, "", s)).ToList();
         await ReadTrendsAndDelimiter();
-        return _trends.Select(s => new Trend(s, "")).ToList();
+        return _trends.Select(s => new Trend(s, "", s)).ToList();
     }
 
     private char _delimiter = '\t';

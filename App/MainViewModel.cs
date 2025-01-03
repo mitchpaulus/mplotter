@@ -119,8 +119,8 @@ public class MainViewModel : INotifyPropertyChanged
 
             if (validSeries.Count == 1)
             {
-                plot.Plot.Axes.Bottom.Label.Text = validSeries[0].XTrend!.Trend.Name;
-                plot.Plot.Axes.Left.Label.Text = validSeries[0].YTrend!.Trend.Name;
+                plot.Plot.Axes.Bottom.Label.Text = validSeries[0].XTrend!.Trend.DisplayName;
+                plot.Plot.Axes.Left.Label.Text = validSeries[0].YTrend!.Trend.DisplayName;
             }
 
             _window.PlotStackPanel.Children.Add(plot);
@@ -268,11 +268,11 @@ public class MainViewModel : INotifyPropertyChanged
             if (_window.Mode == PlotMode.Histogram)
             {
                 plot.Plot.Axes.Left.Label.Text = "Count";
-                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Trend.Name : unitGroup.Key ?? "";
+                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Trend.DisplayName : unitGroup.Key ?? "";
             }
             else
             {
-                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Trend.Name : unitGroup.Key ?? "";
+                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Trend.DisplayName : unitGroup.Key ?? "";
             }
 
             plot.Plot.Axes.AutoScaleY();

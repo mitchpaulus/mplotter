@@ -61,6 +61,7 @@ public class ConfigurationParser
                         HashSet<string> tags = new HashSet<string>();
                         string equipRef = "";
                         string unit = "";
+                        string displayName = "";
 
                         if (pointElement.TryGetProperty("name", out var nameElement))
                         {
@@ -88,7 +89,18 @@ public class ConfigurationParser
                             unit = unitElement.GetString() ?? "";
                         }
 
-                        cfg.Points.Add(new PointConfig(name, tags, equipRef, unit));
+                        if (pointElement.TryGetProperty("displayName", out var displayNameElement))
+                        {
+                            displayName = displayNameElement.GetString() ?? "";
+                        }
+
+                        // Don't use empty display name
+                        if (string.IsNullOrEmpty(displayName))
+                        {
+                            displayName = name;
+                        }
+
+                        cfg.Points.Add(new PointConfig(name, tags, equipRef, unit, displayName));
                     }
                 }
             }
@@ -124,11 +136,14 @@ public class PointConfig
     public string EquipRef { get; set; }
     public string Unit { get; set; }
 
-    public PointConfig(string name, HashSet<string> tags, string equipRef, string unit)
+    public string DisplayName { get; set; }
+
+    public PointConfig(string name, HashSet<string> tags, string equipRef, string unit, string displayName)
     {
         Name = name;
         Tags = tags;
         EquipRef = equipRef;
         Unit = unit;
+        DisplayName = displayName;
     }
 }

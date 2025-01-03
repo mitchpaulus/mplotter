@@ -166,8 +166,8 @@ public class NoaaWeatherDataSource : IDataSource
 
     private readonly List<Trend> _trends = new()
     {
-        new Trend("NOAA Dry Bulb Air Temperature (°F)", "°F"),
-        new Trend("NOAA Dew Point Temperature (°F)", "°F"),
+        new Trend("NOAA Dry Bulb Air Temperature (°F)", "°F", "NOAA Dry Bulb Air Temperature (°F)"),
+        new Trend("NOAA Dew Point Temperature (°F)", "°F", "NOAA Dew Point Temperature (°F)"),
     };
 
     public NoaaWeatherDataSource(NoaaStation station)

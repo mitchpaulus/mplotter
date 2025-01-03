@@ -55,7 +55,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
                 if (reportingFrequency == "Hourly")
                 {
                     string fullName = $"{keyValue}: {name} [{units}]";
-                    _trends.Add(new Trend(fullName, units));
+                    _trends.Add(new Trend(fullName, units, fullName));
                 }
             }
         }

@@ -211,7 +211,7 @@ public partial class MainWindow : Window
             if (serie.XTrend is { } xTrend)
             {
                 TextBlock b = new();
-                b.Text = xTrend.Trend.Name;
+                b.Text = xTrend.Trend.DisplayName;
                 b.TextWrapping = TextWrapping.Wrap;
                 b.Tag = serie.XTrend;
                 Grid.SetRow(b, row);
@@ -232,7 +232,7 @@ public partial class MainWindow : Window
             if (serie.YTrend is { } yTrend)
             {
                 TextBlock b = new();
-                b.Text = yTrend.Trend.Name;
+                b.Text = yTrend.Trend.DisplayName;
                 b.TextWrapping = TextWrapping.Wrap;
                 b.Tag = serie.YTrend;
                 Grid.SetRow(b, row);
@@ -526,7 +526,6 @@ public partial class MainWindow : Window
         var sortedKeys = grouped.Keys.OrderBy(s => s.ToLowerInvariant());
 
         List<TextBlock> timeSeriesTextBlocks = _currentTimeSeriesTextBlocks == 1 ? _timeSeriesTextBlocks2 : _timeSeriesTextBlocks1;
-
         timeSeriesTextBlocks.Clear();
 
         string loweredSearchText = SearchBox.Text?.ToLowerInvariant().Trim() ?? "";
@@ -541,7 +540,7 @@ public partial class MainWindow : Window
                 foreach (var t in trends)
                 {
                     TextBlock b = new TextBlock();
-                    b.Text = $"{t.DataSource.ShortName}: {t.Trend.Name}";
+                    b.Text = $"{t.DataSource.ShortName}: {t.Trend.DisplayName}";
                     b.Tag = t;
                     timeSeriesTextBlocks.Add(b);
                 }
@@ -550,7 +549,7 @@ public partial class MainWindow : Window
             {
                 var t = trends[0];
                 TextBlock b = new TextBlock();
-                b.Text = $"{t.Trend.Name}";
+                b.Text = $"{t.Trend.DisplayName}";
                 b.Tag = t;
                 timeSeriesTextBlocks.Add(b);
             }

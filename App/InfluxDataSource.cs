@@ -92,6 +92,7 @@ public class InfluxDataSource : IDataSource
 
             // Try to read configuration from %APPDATA%/mplotter/influx/{_bucket}.json
             Dictionary<string, string> unitMap = new();
+            Dictionary<string, string> displayNameMap = new();
             try
             {
                 FileStream stream = new FileStream(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "mplotter", "influx", $"{_bucket}.json"), FileMode.Open);
@@ -100,6 +101,7 @@ public class InfluxDataSource : IDataSource
                 foreach (var point in config.Points)
                 {
                     unitMap[point.Name] = point.Unit;
+                    displayNameMap[point.Name] = point.DisplayName;
                 }
             }
             catch
@@ -111,8 +113,9 @@ public class InfluxDataSource : IDataSource
 
             foreach (var measurement in measurementStrings)
             {
-                string unit = unitMap.TryGetValue(measurement, out var u) ? u : "";
-                trends.Add(new Trend(measurement, unit));
+                string unit = unitMap.GetValueOrDefault(measurement, "");
+                string displayName = displayNameMap.GetValueOrDefault(measurement, measurement);
+                trends.Add(new Trend(measurement, unit, displayName));
             }
 
             return trends;
