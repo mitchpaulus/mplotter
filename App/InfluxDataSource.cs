@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -70,9 +71,9 @@ public class InfluxDataSource : IDataSource
     }
 
 
-    public async Task<List<string>> Trends()
+    public async Task<List<Trend>> Trends()
     {
-        if (!_isValid) return new List<string>();
+        if (!_isValid) return new List<Trend>();
 
         try
         {
@@ -89,12 +90,36 @@ public class InfluxDataSource : IDataSource
                 .SelectMany(table => table.Records)
                 .Select(record => record.GetValue() as string ?? string.Empty).ToList();
 
-            // Print out the list of measurements
-            return measurementStrings;
+            // Try to read configuration from %APPDATA%/mplotter/influx/{_bucket}.json
+            Dictionary<string, string> unitMap = new();
+            try
+            {
+                FileStream stream = new FileStream(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "mplotter", "influx", $"{_bucket}.json"), FileMode.Open);
+                var config = ConfigurationParser.LoadConfiguration(stream);
+
+                foreach (var point in config.Points)
+                {
+                    unitMap[point.Name] = point.Unit;
+                }
+            }
+            catch
+            {
+                // Do nothing
+            }
+
+            List<Trend> trends = new(measurementStrings.Count);
+
+            foreach (var measurement in measurementStrings)
+            {
+                string unit = unitMap.TryGetValue(measurement, out var u) ? u : "";
+                trends.Add(new Trend(measurement, unit));
+            }
+
+            return trends;
         }
         catch
         {
-            return new List<string>();
+            return new ();
         }
     }
 

@@ -42,7 +42,7 @@ public class TrendDialogVm : INotifyPropertyChanged
             var trends = await i.Trends();
             foreach (var t in trends)
             {
-                _availableTrends.Add(new(i, t));
+                _availableTrends.Add(new(i, t.Name));
             }
         }
 

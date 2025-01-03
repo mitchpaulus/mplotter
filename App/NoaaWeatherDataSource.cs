@@ -164,10 +164,10 @@ public class NoaaWeatherDataSource : IDataSource
 {
     private readonly NoaaStation _station;
 
-    private readonly List<string> _trends = new()
+    private readonly List<Trend> _trends = new()
     {
-        "NOAA Dry Bulb Air Temperature (°F)",
-        "NOAA Dew Point Temperature (°F)",
+        new Trend("NOAA Dry Bulb Air Temperature (°F)", "°F"),
+        new Trend("NOAA Dew Point Temperature (°F)", "°F"),
     };
 
     public NoaaWeatherDataSource(NoaaStation station)
@@ -177,7 +177,7 @@ public class NoaaWeatherDataSource : IDataSource
         ShortName = _station.StationName;
     }
 
-    public Task<List<string>> Trends() => Task.FromResult(_trends);
+    public Task<List<Trend>> Trends() => Task.FromResult(_trends);
 
     public async Task<List<double>> GetData(string trend) => (await GetTimestampData(trend)).Values;
 

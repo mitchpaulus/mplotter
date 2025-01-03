@@ -100,10 +100,10 @@ public class EnergyPlusEsoDataSource : IDataSource
         }
     }
 
-    public async Task<List<string>> Trends()
+    public async Task<List<Trend>> Trends()
     {
         if (!_loaded) await ParseData();
-        return _dataDictionary.Keys.ToList();
+        return _dataDictionary.Keys.Select(name => new Trend(name, "")).ToList();
     }
 
     public async Task<List<double>> GetData(string trend)

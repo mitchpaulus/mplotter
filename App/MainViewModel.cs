@@ -58,8 +58,8 @@ public class MainViewModel : INotifyPropertyChanged
 
             foreach (var serie in validSeries)
             {
-                var xData = await serie.XTrend!.DataSource.GetTimestampData(serie.XTrend.TrendName);
-                var yData = await serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.TrendName);
+                var xData = await serie.XTrend!.DataSource.GetTimestampData(serie.XTrend.Trend.Name);
+                var yData = await serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.Trend.Name);
                 if (!xData.DateTimes.Any() && yData.DateTimes.Any()) continue;
 
                 DateTime startDate;
@@ -119,8 +119,8 @@ public class MainViewModel : INotifyPropertyChanged
 
             if (validSeries.Count == 1)
             {
-                plot.Plot.Axes.Bottom.Label.Text = validSeries[0].XTrend!.TrendName;
-                plot.Plot.Axes.Left.Label.Text = validSeries[0].YTrend!.TrendName;
+                plot.Plot.Axes.Bottom.Label.Text = validSeries[0].XTrend!.Trend.Name;
+                plot.Plot.Axes.Left.Label.Text = validSeries[0].YTrend!.Trend.Name;
             }
 
             _window.PlotStackPanel.Children.Add(plot);
@@ -128,7 +128,7 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        IEnumerable<IGrouping<string?,PlotTrendConfig>> unitGrouped = _window.SelectedTimeSeriesTrends.GroupBy(config => config.TrendName.GetUnit());
+        IEnumerable<IGrouping<string?,PlotTrendConfig>> unitGrouped = _window.SelectedTimeSeriesTrends.GroupBy(config => config.Trend.GetUnit());
 
         List<AvaPlot> plots = new();
 
@@ -147,7 +147,7 @@ public class MainViewModel : INotifyPropertyChanged
                  // var t = sourcePair.TrendName;
                  var source = sourceGroup.Key;
 
-                 List<string> trends = sourceGroup.Select(config => config.TrendName).ToList();
+                 List<string> trends = sourceGroup.Select(config => config.Trend.Name).ToList();
 
                  if (_window.Mode == PlotMode.Ts)
                  {
@@ -157,11 +157,11 @@ public class MainViewModel : INotifyPropertyChanged
                      List<TimestampData> tsDatas;
                      if (_window.DateMode == DateMode.Specified)
                      {
-                         tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList(), _window.StartDate, _window.EndDate);
+                         tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.Trend.Name).ToList(), _window.StartDate, _window.EndDate);
                      }
                      else
                      {
-                         tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
+                         tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.Trend.Name).ToList());
                      }
 
                      watch.Stop();
@@ -178,7 +178,7 @@ public class MainViewModel : INotifyPropertyChanged
                          // double[] yData = tsData.Values.ToArray();
                          List<double> yData = tsData.Values;
 
-                         string label = unitGroup.Count(tuple => tuple.TrendName == t) < 2
+                         string label = unitGroup.Count(tuple => tuple.Trend.Name == t) < 2
                              ? t
                              : $"{source.ShortName}: {t}";
                          // if (didConvert) label = $"{label} in {unitToConvertTo}";
@@ -216,11 +216,11 @@ public class MainViewModel : INotifyPropertyChanged
                      List<TimestampData> datas;
                      if (_window.DateMode == DateMode.Specified)
                      {
-                         datas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList(), _window.StartDate, _window.EndDate);
+                         datas = await source.GetTimestampData(sourceGroup.Select(config => config.Trend.Name).ToList(), _window.StartDate, _window.EndDate);
                      }
                      else
                      {
-                         datas = await source.GetTimestampData(sourceGroup.Select(config => config.TrendName).ToList());
+                         datas = await source.GetTimestampData(sourceGroup.Select(config => config.Trend.Name).ToList());
                      }
 
                      for (var index = 0; index < datas.Count; index++)
@@ -268,11 +268,11 @@ public class MainViewModel : INotifyPropertyChanged
             if (_window.Mode == PlotMode.Histogram)
             {
                 plot.Plot.Axes.Left.Label.Text = "Count";
-                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().TrendName : unitGroup.Key ?? "";
+                plot.Plot.Axes.Bottom.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Trend.Name : unitGroup.Key ?? "";
             }
             else
             {
-                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().TrendName : unitGroup.Key ?? "";
+                plot.Plot.Axes.Left.Label.Text = unitGroup.Count() == 1 ? unitGroup.First().Trend.Name : unitGroup.Key ?? "";
             }
 
             plot.Plot.Axes.AutoScaleY();

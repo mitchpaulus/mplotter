@@ -9,11 +9,11 @@ namespace csvplot;
 
 public class SimpleDelimitedFile : IDataSource
 {
-    public async Task<List<string>> Trends()
+    public async Task<List<Trend>> Trends()
     {
-        if (_trends.Any()) return _trends;
+        if (_trends.Any()) return _trends.Select(s => new Trend(s, "")).ToList();
         await ReadTrendsAndDelimiter();
-        return _trends;
+        return _trends.Select(s => new Trend(s, "")).ToList();
     }
 
     private char _delimiter = '\t';

@@ -13,7 +13,7 @@ namespace csvplot;
 
 public class EnergyPlusSqliteDataSource : IDataSource
 {
-    private List<string>? _trends;
+    private List<Trend>? _trends;
     private readonly string _connectionString;
 
     public EnergyPlusSqliteDataSource(string sourceFile)
@@ -22,7 +22,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
         _connectionString = $"Data Source={sourceFile};";
     }
 
-    public async Task<List<string>> Trends()
+    public async Task<List<Trend>> Trends()
     {
         if (_trends is not null && _trends.Any()) return _trends;
 
@@ -33,7 +33,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
             string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
             await using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
             await using var reader = await cmd.ExecuteReaderAsync();
-            _trends = new List<string>();
+            _trends = new List<Trend>();
 
             while (await reader.ReadAsync())
             {
@@ -54,13 +54,14 @@ public class EnergyPlusSqliteDataSource : IDataSource
 
                 if (reportingFrequency == "Hourly")
                 {
-                    _trends.Add($"{keyValue}: {name} [{units}]");
+                    string fullName = $"{keyValue}: {name} [{units}]";
+                    _trends.Add(new Trend(fullName, units));
                 }
             }
         }
         catch
         {
-            return new List<string>();
+            return new();
         }
 
         return _trends;

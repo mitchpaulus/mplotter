@@ -171,7 +171,7 @@ public partial class MainWindow : Window
 
     private async void SearchTimerOnElapsed(object? sender, ElapsedEventArgs e)
     {
-        await Dispatcher.UIThread.InvokeAsync(UpdateAvailableTimeSeriesTrendList);
+        await Dispatcher.UIThread.InvokeAsync(UpdateVisibleTimeSeriesTrendList);
     }
 
     private void AddXySerieButtonOnClick(object? sender, RoutedEventArgs e)
@@ -211,7 +211,7 @@ public partial class MainWindow : Window
             if (serie.XTrend is { } xTrend)
             {
                 TextBlock b = new();
-                b.Text = xTrend.TrendName;
+                b.Text = xTrend.Trend.Name;
                 b.TextWrapping = TextWrapping.Wrap;
                 b.Tag = serie.XTrend;
                 Grid.SetRow(b, row);
@@ -232,7 +232,7 @@ public partial class MainWindow : Window
             if (serie.YTrend is { } yTrend)
             {
                 TextBlock b = new();
-                b.Text = yTrend.TrendName;
+                b.Text = yTrend.Trend.Name;
                 b.TextWrapping = TextWrapping.Wrap;
                 b.Tag = serie.YTrend;
                 Grid.SetRow(b, row);
@@ -402,7 +402,8 @@ public partial class MainWindow : Window
         }
 
         RenderDataSources();
-        await UpdateAvailableTimeSeriesTrendList();
+        await UpdateBackingAvailableTimeSeriesTrendList();
+        UpdateVisibleTimeSeriesTrendList();
         await _vm.UpdatePlots();
     }
 
@@ -470,7 +471,8 @@ public partial class MainWindow : Window
 
         _selectedDataSources.Add(source);
         RenderDataSources();
-        await UpdateAvailableTimeSeriesTrendList();
+        await UpdateBackingAvailableTimeSeriesTrendList();
+        UpdateVisibleTimeSeriesTrendList();
 
         foreach (var c in MruPanel.Children) if (c is Button b) b.IsEnabled = true;
         BrowseButton.IsEnabled = true;
@@ -508,7 +510,7 @@ public partial class MainWindow : Window
         await Console.Error.WriteLineAsync($"{DateTime.Now:HH:mm:ss.fff} Updated plots for Dir: {w.Path}, Filter: {w.Filter}");
     }
 
-    private async Task UpdateAvailableTimeSeriesTrendList()
+    private async Task UpdateBackingAvailableTimeSeriesTrendList()
     {
         _availableTimeSeriesTrends.Clear();
         foreach (var s in _selectedDataSources)
@@ -516,8 +518,11 @@ public partial class MainWindow : Window
             var trends = await s.Trends();
             _availableTimeSeriesTrends.AddRange(trends.Select(trend => new PlotTrendConfig(s, trend)));
         }
+    }
 
-        Dictionary<string, List<PlotTrendConfig>> grouped = _availableTimeSeriesTrends.GroupBy(config => config.TrendName).ToDictionary(configs => configs.Key, configs => configs.ToList());
+    private void UpdateVisibleTimeSeriesTrendList()
+    {
+        Dictionary<string, List<PlotTrendConfig>> grouped = _availableTimeSeriesTrends.GroupBy(config => config.Trend.Name).ToDictionary(configs => configs.Key, configs => configs.ToList());
         var sortedKeys = grouped.Keys.OrderBy(s => s.ToLowerInvariant());
 
         List<TextBlock> timeSeriesTextBlocks = _currentTimeSeriesTextBlocks == 1 ? _timeSeriesTextBlocks2 : _timeSeriesTextBlocks1;
@@ -536,7 +541,7 @@ public partial class MainWindow : Window
                 foreach (var t in trends)
                 {
                     TextBlock b = new TextBlock();
-                    b.Text = $"{t.DataSource.ShortName}: {t.TrendName}";
+                    b.Text = $"{t.DataSource.ShortName}: {t.Trend.Name}";
                     b.Tag = t;
                     timeSeriesTextBlocks.Add(b);
                 }
@@ -545,7 +550,7 @@ public partial class MainWindow : Window
             {
                 var t = trends[0];
                 TextBlock b = new TextBlock();
-                b.Text = $"{t.TrendName}";
+                b.Text = $"{t.Trend.Name}";
                 b.Tag = t;
                 timeSeriesTextBlocks.Add(b);
             }
@@ -600,7 +605,8 @@ public partial class MainWindow : Window
             break;
         }
 
-        await UpdateAvailableTimeSeriesTrendList();
+        await UpdateBackingAvailableTimeSeriesTrendList();
+        UpdateVisibleTimeSeriesTrendList();
     }
 
 
@@ -889,20 +895,20 @@ public partial class MainWindow : Window
 
         foreach (var sourcePair in SelectedTimeSeriesTrends.GroupBy(pair => pair.DataSource))
         {
-            var trends = sourcePair.Select(pair => pair.TrendName).ToList();
+            var trends = sourcePair.Select(pair => pair.Trend).ToList();
 
             List<TimestampData> output;
             if (sourcePair.Key is InfluxDataSource influxDataSource)
             {
                 // Need to specify a higher count than default, as we don't have to be as worried about plotting performance.
-                output = await influxDataSource.GetTimestampData(trends, start.AddDays(-1), end.AddDays(1), 500000);
+                output = await influxDataSource.GetTimestampData(trends.Select(trend => trend.Name).ToList(), start.AddDays(-1), end.AddDays(1), 500000);
             }
             else
             {
-                output = await sourcePair.Key.GetTimestampData(trends, start.AddDays(-1), end.AddDays(1));
+                output = await sourcePair.Key.GetTimestampData(trends.Select(trend => trend.Name).ToList(), start.AddDays(-1), end.AddDays(1));
             }
 
-            headers.AddRange(trends);
+            headers.AddRange(trends.Select(trend => trend.Name));
 
             foreach (var tsData in output)
             {
@@ -1225,19 +1231,19 @@ public partial class MainWindow : Window
 public class PlotTrendConfig : IEquatable<PlotTrendConfig>
 {
     public readonly IDataSource DataSource;
-    public readonly string TrendName;
+    public readonly Trend Trend;
 
-    public PlotTrendConfig(IDataSource dataSource, string trendName)
+    public PlotTrendConfig(IDataSource dataSource, Trend trend)
     {
         DataSource = dataSource;
-        TrendName = trendName;
+        Trend = trend;
     }
 
     public bool Equals(PlotTrendConfig? other)
     {
         if (ReferenceEquals(null, other)) return false;
         if (ReferenceEquals(this, other)) return true;
-        return DataSource.Equals(other.DataSource) && TrendName == other.TrendName;
+        return DataSource.Equals(other.DataSource) && Trend == other.Trend;
     }
 
     public override bool Equals(object? obj)
@@ -1250,7 +1256,7 @@ public class PlotTrendConfig : IEquatable<PlotTrendConfig>
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(DataSource, TrendName);
+        return HashCode.Combine(DataSource, Trend);
     }
 
     public static bool operator ==(PlotTrendConfig? left, PlotTrendConfig? right)

@@ -25,7 +25,7 @@ public static class Extensions
     /// The algorithm is simple - it looks for text within parenthesis, square brackets, or curly brackets,
     /// and if more than one, the last one is taken.
     /// </summary>
-    /// <returns>string of unit, no surrounding bracket.</returns>
+    /// <returns>string of unit, no surrounding bracket, or null if not found.</returns>
     public static string? GetUnit(this string input)
     {
         Stack<int> leftBracketStack = new();

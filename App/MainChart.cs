@@ -14,7 +14,7 @@ public static class MainChart
 
 public interface IDataSource
 {
-    Task<List<string>> Trends();
+    Task<List<Trend>> Trends();
 
     Task<List<double>> GetData(string trend);
 

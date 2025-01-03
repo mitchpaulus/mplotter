@@ -31,7 +31,7 @@ public class Bac0DataSource : IDataSource
         }
     }
 
-    public Task<List<string>> Trends() => Task.FromResult(_trends);
+    public Task<List<Trend>> Trends() => Task.FromResult(_trends.Select(s => new Trend(s, "")).ToList());
 
     public Task<List<double>> GetData(string trend)
     {

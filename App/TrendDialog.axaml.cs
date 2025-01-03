@@ -80,7 +80,7 @@ public partial class TrendDialog : Window
             {
                 TextBlock b = new TextBlock()
                 {
-                    Text = trend,
+                    Text = trend.Name,
                     Tag = new PlotTrendConfig(source, trend)
                 };
 
@@ -107,11 +107,11 @@ public partial class TrendDialog : Window
 
              foreach (var trend in trends)
              {
-                 if (!trend.ToLowerInvariant().Contains(TrendSearchBox.Text ?? "".ToLowerInvariant())) continue;
+                 if (!trend.Name.ToLowerInvariant().Contains(TrendSearchBox.Text ?? "".ToLowerInvariant())) continue;
 
                  TextBlock b = new TextBlock()
                  {
-                     Text = trend,
+                     Text = trend.Name,
                      Tag = new PlotTrendConfig(source, trend)
                  };
 
