@@ -147,7 +147,7 @@ public class MainViewModel : INotifyPropertyChanged
                  // var t = sourcePair.TrendName;
                  var source = sourceGroup.Key;
 
-                 List<string> trends = sourceGroup.Select(config => config.Trend.Name).ToList();
+                 List<PlotTrendConfig> trends = sourceGroup.ToList();
 
                  if (_window.Mode == PlotMode.Ts)
                  {
@@ -168,7 +168,7 @@ public class MainViewModel : INotifyPropertyChanged
 
                      Console.Write($"{watch.ElapsedMilliseconds}\n");
 
-                     foreach ((TimestampData tsData, string t) in tsDatas.Zip(trends))
+                     foreach ((TimestampData tsData, PlotTrendConfig plotTrendConfig) in tsDatas.Zip(trends))
                      {
                          tsData.AddGaps();
 
@@ -178,9 +178,9 @@ public class MainViewModel : INotifyPropertyChanged
                          // double[] yData = tsData.Values.ToArray();
                          List<double> yData = tsData.Values;
 
-                         string label = unitGroup.Count(tuple => tuple.Trend.Name == t) < 2
-                             ? t
-                             : $"{source.ShortName}: {t}";
+                         string label = unitGroup.Count(tuple => tuple.Trend.Name == plotTrendConfig.Trend.Name) < 2
+                             ? plotTrendConfig.Trend.DisplayName
+                             : $"{source.ShortName}: {plotTrendConfig.Trend.DisplayName}";
                          // if (didConvert) label = $"{label} in {unitToConvertTo}";
 
                          // Note that Signal plots cannot have NaNs or gaps. This is for performance.
@@ -253,7 +253,7 @@ public class MainViewModel : INotifyPropertyChanged
                          plot.Plot.Add.Bars(allBars);
                          plot.Plot.Legend.ManualItems.Add(new LegendItem
                          {
-                             LabelText = t,
+                             LabelText = t.Trend.DisplayName,
                              LineStyle = LineStyle.None,
                              MarkerStyle = new MarkerStyle { Shape = MarkerShape.FilledSquare },
                              FillColor = colors[trendIndex % colors.Count]
