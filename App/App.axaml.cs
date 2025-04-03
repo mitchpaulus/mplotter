@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -11,11 +12,26 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
-    public override void OnFrameworkInitializationCompleted()
+    public override async void OnFrameworkInitializationCompleted()
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow();
+            var mainWin = new MainWindow();
+            desktop.MainWindow = mainWin;
+
+            if ((desktop.Args?.Length ?? 0) > 0)
+            {
+                var filepath = desktop.Args![0];
+                try
+                {
+                    var source = DataSourceFactory.SourceFromLocalPath(filepath, mainWin.Listener);
+                    await mainWin.AddDataSource(source);
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e);
+                }
+            }
         }
 
         base.OnFrameworkInitializationCompleted();
