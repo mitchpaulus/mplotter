@@ -595,6 +595,8 @@ public partial class MainWindow : Window
         _loadedDataSources.Remove(source);
         _selectedDataSources.Remove(source);
 
+        SelectedTimeSeriesTrends.RemoveAll(config => config.DataSource == source);
+
         foreach (var c in DataSourcesList.Children)
         {
             if (c is not Grid g) continue;
@@ -606,6 +608,7 @@ public partial class MainWindow : Window
 
         await UpdateBackingAvailableTimeSeriesTrendList();
         UpdateVisibleTimeSeriesTrendList();
+        await _vm.UpdatePlots();
     }
 
 

@@ -43,6 +43,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     public async Task UpdatePlots()
     {
+        // This method is driven by _window.SelectedTimeSeriesTrends or _window.XySeries
         _window.PlotStackPanel.Children.Clear();
 
         // var unitGrouped = SourceTrendPairs.GroupBy(pair => pair.Name.GetUnit());
