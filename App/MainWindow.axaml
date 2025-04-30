@@ -200,6 +200,7 @@
 
                     <TextBlock Grid.Row="2" Grid.Column="0" Margin="0 0 10 10">Start Year</TextBlock>
                     <ComboBox Name="ExportStartYearComboBox" Grid.Row="2" Grid.Column="1" SelectedIndex="0" Width="100">
+                        <ComboBoxItem Content="2025" />
                         <ComboBoxItem Content="2024" />
                         <ComboBoxItem Content="2023" />
                         <ComboBoxItem Content="2022" />
@@ -219,6 +220,7 @@
 
                     <TextBlock Grid.Row="5" Grid.Column="0" Margin="0 0 10 10">End Year</TextBlock>
                     <ComboBox Name="ExportEndYearComboBox" Grid.Row="5" Grid.Column="1" SelectedIndex="0" Width="100">
+                        <ComboBoxItem Content="2025" />
                         <ComboBoxItem Content="2024" />
                         <ComboBoxItem Content="2023" />
                         <ComboBoxItem Content="2022" />
