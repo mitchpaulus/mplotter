@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Timers;
 using Avalonia;
@@ -530,30 +531,65 @@ public partial class MainWindow : Window
 
         string loweredSearchText = SearchBox.Text?.ToLowerInvariant().Trim() ?? "";
 
-        foreach (var key in sortedKeys)
+        if (!loweredSearchText.Contains("*"))
         {
-            if (!key.ToLowerInvariant().Contains(loweredSearchText)) continue;
-
-            List<PlotTrendConfig> trends = grouped[key];
-            if (trends.Count > 1)
+            foreach (var key in sortedKeys)
             {
-                foreach (var t in trends)
+                if (!key.ToLowerInvariant().Contains(loweredSearchText)) continue;
+
+                List<PlotTrendConfig> trends = grouped[key];
+                if (trends.Count > 1)
                 {
+                    foreach (var t in trends)
+                    {
+                        TextBlock b = new TextBlock();
+                        b.Text = $"{t.DataSource.ShortName}: {t.Trend.DisplayName}";
+                        b.Tag = t;
+                        timeSeriesTextBlocks.Add(b);
+                    }
+                }
+                else
+                {
+                    var t = trends[0];
                     TextBlock b = new TextBlock();
-                    b.Text = $"{t.DataSource.ShortName}: {t.Trend.DisplayName}";
+                    b.Text = $"{t.Trend.DisplayName}";
                     b.Tag = t;
                     timeSeriesTextBlocks.Add(b);
                 }
             }
-            else
-            {
-                var t = trends[0];
-                TextBlock b = new TextBlock();
-                b.Text = $"{t.Trend.DisplayName}";
-                b.Tag = t;
-                timeSeriesTextBlocks.Add(b);
-            }
         }
+        else
+        {
+
+            Regex r = new Regex('^' + loweredSearchText.Replace("*", ".*") + '$');
+
+            foreach (var key in sortedKeys)
+            {
+                if (!r.Match(key.ToLowerInvariant()).Success) continue;
+
+                List<PlotTrendConfig> trends = grouped[key];
+                if (trends.Count > 1)
+                {
+                    foreach (var t in trends)
+                    {
+                        TextBlock b = new TextBlock();
+                        b.Text = $"{t.DataSource.ShortName}: {t.Trend.DisplayName}";
+                        b.Tag = t;
+                        timeSeriesTextBlocks.Add(b);
+                    }
+                }
+                else
+                {
+                    var t = trends[0];
+                    TextBlock b = new TextBlock();
+                    b.Text = $"{t.Trend.DisplayName}";
+                    b.Tag = t;
+                    timeSeriesTextBlocks.Add(b);
+                }
+            }
+
+        }
+
         _currentlyFiltering = true;
 
         _timeSeriesTrendsListBox.ItemsSource = timeSeriesTextBlocks;
@@ -1323,4 +1359,49 @@ public enum SingleDayState
     Year,
     Month,
     Day,
+}
+
+public static class GlobMatcher
+{
+    public static bool Match(string text, string pattern)
+    {
+        int ti = 0, pi = 0;
+        int starIdx = -1, match = 0;
+
+        while (ti < text.Length)
+        {
+            if (pi < pattern.Length && (pattern[pi] == text[ti]))
+            {
+                // Characters match
+                ti++;
+                pi++;
+            }
+            else if (pi < pattern.Length && pattern[pi] == '*')
+            {
+                // Star found, remember position
+                starIdx = pi;
+                match = ti;
+                pi++;
+            }
+            else if (starIdx != -1)
+            {
+                // Backtrack to last *
+                pi = starIdx + 1;
+                match++;
+                ti = match;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        // Consume trailing stars
+        while (pi < pattern.Length && pattern[pi] == '*')
+        {
+            pi++;
+        }
+
+        return pi == pattern.Length;
+    }
 }
