@@ -28,6 +28,7 @@ using ScottPlot.Avalonia;
 using ScottPlot.TickGenerators.TimeUnits;
 using Brushes = Avalonia.Media.Brushes;
 using File = System.IO.File;
+using HorizontalAlignment = Avalonia.Layout.HorizontalAlignment;
 
 namespace csvplot;
 
@@ -1019,7 +1020,7 @@ public partial class MainWindow : Window
             }
             else if (exportType == ExportType.Xlsx)
             {
-                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                ExcelPackage.License.SetNonCommercialPersonal("Mitchell T Paulus");
 
                 await using Stream stream = await pickerResult.OpenWriteAsync();
                 using ExcelPackage package = new ExcelPackage(stream);

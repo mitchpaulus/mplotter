@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
 using Avalonia.Platform.Storage;
@@ -230,11 +231,13 @@ public class MainViewModel : INotifyPropertyChanged
                          var data = datas[index].Values;
                          (double min, double max) = data.SafeMinMax();
 
-                         var hist = new Histogram(min, max, 50);
+                         var hist = ScottPlot.Statistics.Histogram.WithBinCount(50, min, max);
+
+                         // var hist = new Histogram(min, max, 50);
                          hist.AddRange(data);
 
                          var values = hist.Counts;
-                         var binCenters = hist.BinCenters;
+                         var binCenters = hist.Bins;
 
                          List<Bar> allBars = new(binCenters.Length);
 
@@ -246,12 +249,14 @@ public class MainViewModel : INotifyPropertyChanged
                              {
                                  Value = values[i],
                                  Position = binCenters[i],
-                                 Size = hist.BinSize,
+                                 Size = hist.FirstBinSize,
                                  FillColor = colors[trendIndex % colors.Count]
                              });
                          }
 
                          plot.Plot.Add.Bars(allBars);
+                         // plot.Plot.Add.Bars(hist.Bins, hist.Counts);
+
                          plot.Plot.Legend.ManualItems.Add(new LegendItem
                          {
                              LabelText = t.Trend.DisplayName,
