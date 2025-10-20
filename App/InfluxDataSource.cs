@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using InfluxDB.Client;
 using InfluxDB.Client.Core.Flux.Domain;
@@ -86,9 +87,12 @@ public class InfluxDataSource : IDataSource
             var queryApi = client.GetQueryApi();
             var measurements = await queryApi.QueryAsync(query, _influxOrg);
 
-            var measurementStrings = measurements
+            var allMeasurementStrings = measurements
                 .SelectMany(table => table.Records)
                 .Select(record => record.GetValue() as string ?? string.Empty).ToList();
+
+            var measurementStrings = allMeasurementStrings
+                .Where(s => s != "sensor-node").ToList();
 
             // Try to read configuration from %APPDATA%/mplotter/influx/{_bucket}.json
             Dictionary<string, string> unitMap = new();
@@ -116,6 +120,40 @@ public class InfluxDataSource : IDataSource
                 string unit = unitMap.GetValueOrDefault(measurement, "");
                 string displayName = displayNameMap.GetValueOrDefault(measurement, measurement);
                 trends.Add(new Trend(measurement, unit, displayName));
+            }
+
+            if (measurementStrings.Count != allMeasurementStrings.Count)
+            {
+                StringBuilder queryBuiler = new();
+                queryBuiler.Append($"from(bucket: \"{_bucket}\")\n");
+                queryBuiler.Append(" |> range(start: -3y)\n");
+                queryBuiler.Append(" |> filter(fn: (r) =>\n");
+                queryBuiler.Append("  exists r._measurement and");
+                queryBuiler.Append("  exists r._field and");
+                queryBuiler.Append("  exists r.name and");
+                queryBuiler.Append("  exists r.uuid)\n");
+                queryBuiler.Append(" |> group(columns: [\"_measurement\", \"_field\", \"name\", \"uuid\"])\n");
+                queryBuiler.Append(" |> first()\n");
+                queryBuiler.Append(" |> yield()");
+                // string query = "from(bucket: \"Siemens Grand Prairie RTUs\")\n  |> range(start: -90d)            // widen as needed\n  |> keep(columns: [\"_measurement\", \"_field\"])\n  |> group(columns: [\"_measurement\", \"_field\"])\n  |> unique(column: \"_field\")      // emits one row per unique pair\n  |> sort(columns: [\"_measurement\", \"_field\"])\n  |> yield()"
+
+
+                var sensorMeasurements = await queryApi.QueryAsync(queryBuiler.ToString(), _influxOrg);
+
+                foreach (var table in sensorMeasurements)
+                {
+                    var field = table.Records[0].GetField();
+                    var name = (string)table.Records[0].GetValueByKey("name");
+                    var uuid = (string)table.Records[0].GetValueByKey("uuid");
+
+                    string unit = "";
+                    if (field == "temp") unit = "°F";
+                    else if (field == "humidity") unit = "%";
+                    else if (field.StartsWith("temperature")) unit = "°F";
+                    else if (field == "pressure") unit = "inH2O";
+
+                    trends.Add(new Trend($"sensor\t{name}\t{uuid}\t{field}", unit,  $"sensor\t{name}\t{uuid}\t{field}"));
+                }
             }
 
             return trends;
@@ -149,25 +187,8 @@ public class InfluxDataSource : IDataSource
         return await GetTimestampData(trends, startDateInc, endDateExc, 7500);
     }
 
-    public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc, int countLimit)
+    public async Task<string?> QueryFromFilter(InfluxDBClient client, DateTime startDateInc, DateTime endDateExc, string measFilter, int trendCount, int countLimit)
     {
-        // Get the last year of data from InfluxDb.
-        if (!_isValid) return trends.Select(s => new TimestampData(new(), new())).ToList();
-
-
-        // var httpClientHandler = new HttpClientHandler();
-        // var httpClient = new HttpClient(httpClientHandler)
-        // {
-        //     Timeout = TimeSpan.FromMinutes(5)
-        // };
-
-
-        var options = InfluxDBClientOptions.Builder.CreateNew().Url(_influxHost).AuthenticateToken(_influxToken).TimeOut(TimeSpan.FromMinutes(1));
-        using var client = new InfluxDBClient(options.Build());
-
-        // using var client = new InfluxDBClient(_influxHost, _influxToken);
-        string measFilter = string.Join(" or ", trends.Select(s => $"r._measurement == \"{s}\""));
-
         var queryApi = client.GetQueryApi();
         var countQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> count() |> yield() ";
         List<FluxTable>? countTables;
@@ -177,7 +198,8 @@ public class InfluxDataSource : IDataSource
         }
         catch
         {
-            return trends.Select(s => new TimestampData(new(), new())).ToList();
+            return null;
+            // return measurementTrends.Select(s => new TimestampData(new(), new())).ToList();
         }
 
         long totalCount = 0;
@@ -189,16 +211,15 @@ public class InfluxDataSource : IDataSource
             }
         }
 
-        string query;
         if (totalCount < countLimit)
         {
-            query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> yield()";
+            return $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> yield()";
         }
         else
         {
             List<int> possibleMinuteIntervals = new List<int>() { 1, 5, 10, 15, 30, 60, 120, 240, 480, 1440 };
 
-            long minuteInterval = trends.Count * (int)(endDateExc - startDateInc).TotalMinutes / countLimit;
+            long minuteInterval = trendCount * (int)(endDateExc - startDateInc).TotalMinutes / countLimit;
             foreach (var interval in possibleMinuteIntervals)
             {
                 if (interval >= minuteInterval)
@@ -207,12 +228,142 @@ public class InfluxDataSource : IDataSource
                     break;
                 }
             }
-            query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> aggregateWindow(every: {minuteInterval}m, fn: mean, createEmpty: false) |> yield()";
+            return $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> aggregateWindow(every: {minuteInterval}m, fn: mean, createEmpty: false) |> yield()";
+        }
+    }
+
+    public async Task<List<TimestampData>> GetTimestampDataClaraxioSensors(List<string> trends, DateTime startDateInc, DateTime endDateExc, int countLimit)
+    {
+        // Get the last year of data from InfluxDb.
+        if (!_isValid) return trends.Select(s => new TimestampData(new(), new())).ToList();
+
+
+        // var httpClientHandler = new HttpClientHandler();
+        // var httpClient = new HttpClient(httpClientHandler)
+        // {
+        //     Timeout = TimeSpan.FromMinutes(5)
+        // };
+
+        var options = InfluxDBClientOptions.Builder.CreateNew().Url(_influxHost).AuthenticateToken(_influxToken).TimeOut(TimeSpan.FromMinutes(1));
+        using var client = new InfluxDBClient(options.Build());
+
+        var sensorTrends = trends.Where(s => s.StartsWith("sensor\t")).ToList();
+
+        int batchSize = 50;
+        int i = 0;
+
+        long totalCount = 0;
+        var queryApi = client.GetQueryApi();
+        while (i < sensorTrends.Count)
+        {
+            var batchTrends = sensorTrends.Skip(i).Take(batchSize).ToList();
+            i += batchSize;
+
+            var filter = batchTrends.Select(fullName =>
+            {
+                var splitName = fullName.Split("\t").Select(s => s.Trim()).ToList();
+                var name = splitName[1];
+                var uuid = splitName[2];
+                var field = splitName[3];
+                return $"(r._measurement == \"sensor-node\" and r.name == \"{name}\" and r.uuid == \"{uuid}\" and r._field == \"{field}\")";
+
+            });
+
+            var joinedFilter = string.Join(" or \n", filter);
+            var batchCountQuery= $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) =>  {joinedFilter}) |> count() |> yield() ";
+            List<FluxTable>? countTables;
+            try
+            {
+                countTables = await queryApi.QueryAsync(batchCountQuery, _influxOrg);
+            }
+            catch
+            {
+                return sensorTrends.Select(s => new TimestampData(new(), new())).ToList();
+            }
+
+            foreach (var t in countTables)
+            {
+                foreach (var r in t.Records)
+                {
+                    if (r.GetValue() is long l) totalCount += l;
+                }
+            }
         }
 
+        // var countQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> map(fn: (r) => {{ r with _k:  strings.joinStr(arr: [\"sensor\", r.name, r.uuid, r._field], v: \":\") }} ) |> filter(fn: (r) => contains(set: allow, value: r._k)) |> count() |> yield() ";
+        // b.Append(countQuery);
 
-        //var query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => {measFilter}) |> aggregateWindow(every: 1m, fn: mean, createEmpty: false) |> yield()";
+        List<TimestampData> data = new();
 
+        if (totalCount < countLimit)
+        {
+            // query = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) => contains(set: allow, value: r._k)) |> yield()";
+            i = 0;
+            while (i < sensorTrends.Count)
+            {
+                var batchTrends = sensorTrends.Skip(i).Take(batchSize).ToList();
+                i += batchSize;
+
+                var filter = batchTrends.Select(fullName =>
+                {
+                    var splitName = fullName.Split("\t").Select(s => s.Trim()).ToList();
+                    var name = splitName[1];
+                    var uuid = splitName[2];
+                    var field = splitName[3];
+                    return $"(r._measurement == \"sensor-node\" and r.name == \"{name}\" and r.uuid == \"{uuid}\" and r._field == \"{field}\")";
+
+                });
+
+                var joinedFilter = string.Join(" or \n", filter);
+                var batchQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) =>  {joinedFilter}) |> yield() ";
+
+                data.AddRange(await GetDataFromQuery(queryApi, batchQuery, batchTrends));
+            }
+        }
+        else
+        {
+            List<int> possibleMinuteIntervals = new List<int>() { 1, 5, 10, 15, 30, 60, 120, 240, 480, 1440 };
+
+            long minuteInterval = sensorTrends.Count * (int)(endDateExc - startDateInc).TotalMinutes / countLimit;
+            foreach (var interval in possibleMinuteIntervals)
+            {
+                if (interval >= minuteInterval)
+                {
+                    minuteInterval = interval;
+                    break;
+                }
+            }
+
+            i = 0;
+            while (i < sensorTrends.Count)
+            {
+                var batchTrends = sensorTrends.Skip(i).Take(batchSize).ToList();
+                i += batchSize;
+
+                var filter = batchTrends.Select(fullName =>
+                {
+                    var splitName = fullName.Split("\t").Select(s => s.Trim()).ToList();
+                    var name = splitName[1];
+                    var uuid = splitName[2];
+                    var field = splitName[3];
+                    return $"(r._measurement == \"sensor-node\" and r.name == \"{name}\" and r.uuid == \"{uuid}\" and r._field == \"{field}\")";
+
+                });
+
+                var joinedFilter = string.Join(" or \n", filter);
+                var batchQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startDateInc:yyyy-MM-dd}, stop: {endDateExc:yyyy-MM-dd}) |> filter(fn: (r) =>  {joinedFilter}) |> aggregateWindow(every: {minuteInterval}m, fn: mean, createEmpty: false ) |> yield() ";
+
+                data.AddRange(await GetDataFromQuery(queryApi, batchQuery, batchTrends));
+            }
+        }
+
+        // var queryApi = client.GetQueryApi();
+
+        return data;
+    }
+
+    private async Task<List<TimestampData>> GetDataFromQuery(QueryApi queryApi, string query, List<string> sensorTrends)
+    {
         List<FluxTable>? tables;
         try
         {
@@ -220,15 +371,15 @@ public class InfluxDataSource : IDataSource
         }
         catch
         {
-            return trends.Select(s => new TimestampData(new(), new())).ToList();
+            return new List<TimestampData>();
         }
 
         Dictionary<string, List<FluxRecord>> trendData = tables.SelectMany(table => table.Records)
-            .GroupBy(record => record.GetMeasurement())
+            .GroupBy(record =>  $"sensor\t{record.GetValueByKey("name")}\t{record.GetValueByKey("uuid")}\t{record.GetField()}")
             .ToDictionary(records => records.Key, records => records.ToList());
 
         List<TimestampData> data = new();
-        foreach (var trend in trends)
+        foreach (var trend in sensorTrends)
         {
             List<DateTime> timestamps = new();
             List<double> values = new();
@@ -245,6 +396,83 @@ public class InfluxDataSource : IDataSource
             data.Add(new TimestampData(timestamps, values));
         }
 
+        return data;
+    }
+
+
+    public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc, int countLimit)
+    {
+        // Get the last year of data from InfluxDb.
+        if (!_isValid) return trends.Select(s => new TimestampData(new(), new())).ToList();
+
+
+        // var httpClientHandler = new HttpClientHandler();
+        // var httpClient = new HttpClient(httpClientHandler)
+        // {
+        //     Timeout = TimeSpan.FromMinutes(5)
+        // };
+
+        var options = InfluxDBClientOptions.Builder.CreateNew().Url(_influxHost).AuthenticateToken(_influxToken).TimeOut(TimeSpan.FromMinutes(1));
+        using var client = new InfluxDBClient(options.Build());
+
+        List<string> measurementTrends = new List<string>();
+        List<string> claraxioSensorTrends = new List<string>();
+
+        foreach (var t in trends)
+        {
+            if (t.StartsWith("sensor\t"))
+            {
+                claraxioSensorTrends.Add(t);
+            }
+            else
+            {
+                measurementTrends.Add(t);
+            }
+        }
+
+        List<TimestampData> data = new();
+        if (measurementTrends.Any())
+        {
+            // using var client = new InfluxDBClient(_influxHost, _influxToken);
+            string measFilter = string.Join(" or ", measurementTrends.Select(s => $"r._measurement == \"{s}\""));
+            var measurementTrendQuery = await QueryFromFilter(client, startDateInc, endDateExc, measFilter, measurementTrends.Count, countLimit);
+
+            var queryApi = client.GetQueryApi();
+
+            List<FluxTable>? tables;
+            try
+            {
+                tables = await queryApi.QueryAsync(measurementTrendQuery, _influxOrg);
+            }
+            catch
+            {
+                return measurementTrends.Select(s => new TimestampData(new(), new())).ToList();
+            }
+
+            Dictionary<string, List<FluxRecord>> trendData = tables.SelectMany(table => table.Records)
+                .GroupBy(record => record.GetMeasurement())
+                .ToDictionary(records => records.Key, records => records.ToList());
+
+            foreach (var trend in measurementTrends)
+            {
+                List<DateTime> timestamps = new();
+                List<double> values = new();
+                if (trendData.TryGetValue(trend, out var dataRecords))
+                {
+                    foreach (var record in dataRecords)
+                    {
+                        if (record.GetValue() is not double doubleValue || record.GetTimeInDateTime() is not { } d)
+                            continue;
+                        values.Add(doubleValue);
+                        timestamps.Add(d);
+                    }
+                }
+                data.Add(new TimestampData(timestamps, values));
+            }
+        }
+
+        List<TimestampData> claraxioData = await GetTimestampDataClaraxioSensors(claraxioSensorTrends, startDateInc, endDateExc, countLimit);
+        data.AddRange(claraxioData);
         return data;
     }
 
