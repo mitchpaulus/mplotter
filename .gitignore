@@ -1,5 +1,6 @@
 .idea/
 App/deploy.sh
+App/publish-win/
 
 # ANTLR related files
 *.tokens
