@@ -22,7 +22,7 @@ using Avalonia.Threading;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Domain;
-using OfficeOpenXml;
+using ClosedXML.Excel;
 using ScottPlot;
 using ScottPlot.Avalonia;
 using ScottPlot.TickGenerators.TimeUnits;
@@ -1020,43 +1020,41 @@ public partial class MainWindow : Window
             }
             else if (exportType == ExportType.Xlsx)
             {
-                ExcelPackage.License.SetNonCommercialPersonal("Mitchell T Paulus");
-
                 await using Stream stream = await pickerResult.OpenWriteAsync();
-                using ExcelPackage package = new ExcelPackage(stream);
+                using var workbook = new XLWorkbook();
 
-                var sheet = package.Workbook.Worksheets.Add($"{DateTime.Now:yyyy-MM-dd HHmm} Export");
+                var sheet = workbook.Worksheets.Add($"{DateTime.Now:yyyy-MM-dd HHmm} Export");
 
-                sheet.Cells[1, 1].Value = "Timestamp";
+                sheet.Cell(1, 1).Value = "Timestamp";
                 foreach ((string header, int col) in headers.WithIndex(2))
                 {
-                    sheet.Cells[1, col].Value = header;
+                    sheet.Cell(1, col).Value = header;
                 }
 
                 List<DateTime> dateTimes = allData[0].DateTimes;
                 for (int i = 0; i < dateTimes.Count; i++)
                 {
                     var row = i + 2;
-                    sheet.Cells[row, 1].Value = dateTimes[i];
+                    sheet.Cell(row, 1).Value = dateTimes[i];
 
                     for (int index = 0; index < allData.Count; index++)
                     {
                         var t = allData[index];
                         double value = t.Values[i];
                         if (double.IsNaN(value)) continue;
-                        sheet.Cells[row, index + 2].Value = value;
+                        sheet.Cell(row, index + 2).Value = value;
                     }
                 }
 
-                sheet.Column(1).Style.Numberformat.Format = "yyyy-MM-dd HH:mm";
+                sheet.Column(1).Style.NumberFormat.Format = "yyyy-MM-dd HH:mm";
 
-                sheet.Column(1).AutoFit();
+                sheet.Column(1).AdjustToContents();
                 for (int i = 0; i < allData.Count; i++)
                 {
-                    sheet.Column(i + 2).AutoFit();
+                    sheet.Column(i + 2).AdjustToContents();
                 }
 
-                await package.SaveAsync();
+                workbook.SaveAs(stream);
             }
         }
         catch

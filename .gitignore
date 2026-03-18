@@ -1,4 +1,5 @@
 .idea/
+.claude/
 App/deploy.sh
 App/publish-win/
 
