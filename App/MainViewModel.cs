@@ -307,6 +307,18 @@ public class MainViewModel : INotifyPropertyChanged
         {
             p.Refresh();
         }
+
+        if (_window.Mode == PlotMode.Ts && plots.Count > 1)
+        {
+            for (int i = 0; i < plots.Count; i++)
+            {
+                for (int j = 0; j < plots.Count; j++)
+                {
+                    if (i == j) continue;
+                    plots[i].Plot.Axes.Link(plots[j], x: true, y: false);
+                }
+            }
+        }
     }
 
     public List<AvaPlot> AllPlots()
