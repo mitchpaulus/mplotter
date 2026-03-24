@@ -818,6 +818,14 @@ public partial class MainWindow : Window
             SearchBox.Clear();
             SearchBox.Focus();
         }
+        else if (e.Key == Key.I)
+        {
+            if (FocusManager == null || FocusManager.GetFocusedElement() is TextBox) return;
+            if (MainTabControl.SelectedItem != SourceTabItem) return;
+
+            e.Handled = true;
+            await OpenInfluxDialog();
+        }
         else if (e.Key == Key.Left)
         {
             // Check that a text box is currently not focused
@@ -840,6 +848,11 @@ public partial class MainWindow : Window
     }
 
     private async void InfluxButtonClick(object? sender, RoutedEventArgs e)
+    {
+        await OpenInfluxDialog();
+    }
+
+    private async Task OpenInfluxDialog()
     {
         // await _vm.AddDataSource(new InfluxDataSource("511 John Carpenter"));
 
