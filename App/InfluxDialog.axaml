@@ -10,11 +10,17 @@
         <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"></RowDefinition>
+                    <RowDefinition Height="Auto"></RowDefinition>
                     <RowDefinition Height="*"></RowDefinition>
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0">Choose a bucket:</TextBlock>
-                <ListBox Grid.Row="1" x:Name="InfluxBucketListBox" SelectionChanged="InfluxBucketListBox_OnSelectionChanged">
+                <TextBox Grid.Row="1"
+                         x:Name="BucketSearchTextBox"
+                         Margin="0,8,0,8"
+                         Watermark="Search buckets..."
+                         TextChanged="BucketSearchTextBox_OnTextChanged" />
+                <ListBox Grid.Row="2" x:Name="InfluxBucketListBox" SelectionChanged="InfluxBucketListBox_OnSelectionChanged">
 
                 </ListBox>
         </Grid>

@@ -872,7 +872,7 @@ public partial class MainWindow : Window
                 offset += 100;
             }
 
-            influxDialog.InfluxBucketListBox.ItemsSource = buckets.Order().ToList();
+            influxDialog.SetBuckets(buckets.Order().ToList());
 
             var selected = await influxDialog.ShowDialog<string>(this);
             if (!string.IsNullOrWhiteSpace(selected))
