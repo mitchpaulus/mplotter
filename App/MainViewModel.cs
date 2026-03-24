@@ -60,13 +60,29 @@ public class MainViewModel : INotifyPropertyChanged
 
             foreach (var serie in validSeries)
             {
-                var xData = await serie.XTrend!.DataSource.GetTimestampData(serie.XTrend.Trend.Name);
-                var yData = await serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.Trend.Name);
-                if (!xData.DateTimes.Any() && yData.DateTimes.Any()) continue;
+                TimestampData xData;
+                TimestampData yData;
 
+                if (_window.DateMode == DateMode.Specified)
+                {
+                    xData = (await serie.XTrend!.DataSource.GetTimestampData([serie.XTrend.Trend.Name], _window.StartDate.AddDays(-1), _window.EndDate.AddDays(1)))[0];
+                    yData = (await serie.YTrend!.DataSource.GetTimestampData([serie.YTrend.Trend.Name], _window.StartDate.AddDays(-1), _window.EndDate.AddDays(1)))[0];
+                }
+                else
+                {
+                    xData = await serie.XTrend!.DataSource.GetTimestampData(serie.XTrend.Trend.Name);
+                    yData = await serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.Trend.Name);
+                }
+
+                // var xData = await serie.XTrend!.DataSource.GetTimestampData(serie.XTrend.Trend.Name);
+                // var yData = await serie.YTrend!.DataSource.GetTimestampData(serie.YTrend.Trend.Name);
+
+                if (!xData.DateTimes.Any() && yData.DateTimes.Any()) continue;
                 DateTime startDate;
                 DateTime endDate;
 
+                // We do this part for the unset date part to figure out what are the good date ranges for the
+                // following interpolation call.
                 if (_window.DateMode == DateMode.Specified)
                 {
                     startDate = _window.StartDate;
@@ -123,6 +139,11 @@ public class MainViewModel : INotifyPropertyChanged
             {
                 plot.Plot.Axes.Bottom.Label.Text = validSeries[0].XTrend!.Trend.DisplayName;
                 plot.Plot.Axes.Left.Label.Text = validSeries[0].YTrend!.Trend.DisplayName;
+            }
+            else
+            {
+                plot.Plot.Axes.Bottom.Label.Text = "";
+                plot.Plot.Axes.Left.Label.Text = "";
             }
 
             _window.PlotStackPanel.Children.Add(plot);
@@ -342,13 +363,9 @@ public class MainViewModel : INotifyPropertyChanged
         _window.EndDate = new DateTime(endYear, endMonth, 1);
         _window.UpdateDateModeString();
 
-        foreach (var config in _window.SelectedTimeSeriesTrends)
+        if (await _window.DateRangeChangeRequiresPlotRebuild())
         {
-            var dataType = await config.DataSource.DataSourceType();
-            if (dataType != DataSourceType.Database) continue;
-
             await UpdatePlots();
-            break;
         }
 
         foreach (var p in AllPlots())

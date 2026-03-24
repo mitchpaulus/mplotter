@@ -134,6 +134,17 @@ public class Tests
         Assert.That(output[0], Is.EqualTo("\""));
 
     }
+
+    [TestCase(PlotMode.Ts, false, false)]
+    [TestCase(PlotMode.Ts, true, true)]
+    [TestCase(PlotMode.Xy, false, true)]
+    [TestCase(PlotMode.Xy, true, true)]
+    [TestCase(PlotMode.Histogram, false, true)]
+    public void DateRangeChangeRequiresPlotRebuildTests(PlotMode mode, bool anyDbSourcesSelected, bool expected)
+    {
+        bool result = MainWindow.DateRangeChangeRequiresPlotRebuild(mode, anyDbSourcesSelected);
+        Assert.That(result, Is.EqualTo(expected));
+    }
 }
 
 public class TestClass

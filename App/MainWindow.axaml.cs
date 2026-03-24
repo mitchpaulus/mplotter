@@ -714,6 +714,16 @@ public partial class MainWindow : Window
         return false;
     }
 
+    public static bool DateRangeChangeRequiresPlotRebuild(PlotMode mode, bool anyDbSourcesSelected)
+    {
+        return mode != PlotMode.Ts || anyDbSourcesSelected;
+    }
+
+    public async Task<bool> DateRangeChangeRequiresPlotRebuild()
+    {
+        return DateRangeChangeRequiresPlotRebuild(Mode, await AnyDbSourcesSelected());
+    }
+
     private bool OnMonth()
     {
         return DateMode == DateMode.Specified && StartDate.Day == 1 && EndDate.Day == 1;
@@ -730,7 +740,7 @@ public partial class MainWindow : Window
 
             UpdateDateModeString();
 
-            if (await AnyDbSourcesSelected() || Mode != PlotMode.Ts)
+            if (await DateRangeChangeRequiresPlotRebuild())
             {
                 await _vm.UpdatePlots();
             }
@@ -759,7 +769,7 @@ public partial class MainWindow : Window
 
             UpdateDateModeString();
 
-            if (await AnyDbSourcesSelected() || Mode != PlotMode.Ts)
+            if (await DateRangeChangeRequiresPlotRebuild())
             {
                 await _vm.UpdatePlots();
             }
@@ -1178,13 +1188,9 @@ public partial class MainWindow : Window
         EndDate = new DateTime(currentYear, 1, 8).AddDays((weekNum - 1)*7 );
         UpdateDateModeString();
 
-        foreach (var config in SelectedTimeSeriesTrends)
+        if (await DateRangeChangeRequiresPlotRebuild())
         {
-            var dataType = await config.DataSource.DataSourceType();
-            if (dataType != DataSourceType.Database) continue;
-
             await _vm.UpdatePlots();
-            break;
         }
 
         foreach (var p in _vm.AllPlots())
@@ -1207,13 +1213,9 @@ public partial class MainWindow : Window
         EndDate = StartDate.AddDays(1);
         UpdateDateModeString();
 
-        foreach (var config in SelectedTimeSeriesTrends)
+        if (await DateRangeChangeRequiresPlotRebuild())
         {
-            var dataType = await config.DataSource.DataSourceType();
-            if (dataType != DataSourceType.Database) continue;
-
             await _vm.UpdatePlots();
-            break;
         }
 
         foreach (var p in _vm.AllPlots())
