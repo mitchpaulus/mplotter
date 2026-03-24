@@ -15,6 +15,7 @@ public partial class InfluxDialog : Window
     public InfluxDialog()
     {
         InitializeComponent();
+        Opened += InfluxDialog_OnOpened;
     }
 
     public void SetBuckets(IEnumerable<string> buckets)
@@ -52,5 +53,10 @@ public partial class InfluxDialog : Window
     private void BucketSearchTextBox_OnTextChanged(object? sender, TextChangedEventArgs e)
     {
         UpdateBucketList();
+    }
+
+    private void InfluxDialog_OnOpened(object? sender, EventArgs e)
+    {
+        BucketSearchTextBox.Focus();
     }
 }

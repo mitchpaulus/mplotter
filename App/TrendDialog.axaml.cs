@@ -25,6 +25,7 @@ public partial class TrendDialog : Window
         InitializeComponent();
         InitSources(new ());
         TrendsListBox.SelectionMode = SelectionMode.Toggle | SelectionMode.Multiple;
+        Opened += TrendDialog_OnOpened;
     }
 
     public TrendDialog(List<IDataSource> sources, SelectionMode selectionMode)
@@ -32,6 +33,7 @@ public partial class TrendDialog : Window
         InitializeComponent();
         InitSources(sources);
         TrendsListBox.SelectionMode = selectionMode;
+        Opened += TrendDialog_OnOpened;
     }
 
     private void InitSources(List<IDataSource> sources)
@@ -46,6 +48,11 @@ public partial class TrendDialog : Window
             return b;
         }).ToList();
         SourceListBox.ItemsSource = blocks;
+
+        if (blocks.Count == 1)
+        {
+            SourceListBox.SelectedItems?.Add(blocks[0]);
+        }
     }
 
     private void TrendsListBox_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -144,5 +151,10 @@ public partial class TrendDialog : Window
     private void Button_OnClick(object? sender, RoutedEventArgs e)
     {
         Close(SelectedConfigs);
+    }
+
+    private void TrendDialog_OnOpened(object? sender, EventArgs e)
+    {
+        TrendSearchBox.Focus();
     }
 }
