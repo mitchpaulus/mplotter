@@ -654,10 +654,14 @@ public partial class MainWindow : Window
     {
         List<string> mrus = MostRecentlyUsedFiles();
 
-        var buttons = mrus.Select(mru =>
+        List<Button> buttons = new List<Button>();
+
+        foreach (var mru in mrus)
+        {
+            // Add a button to load that file
+            Button button = new Button();
+            try
             {
-                // Add a button to load that file
-                Button button = new Button();
                 IDataSource source = DataSourceFactory.SourceFromLocalPath(mru, Listener);
                 button.Click += AddDataSourceMruClick;
                 button.Content = Path.GetFileName(mru).EscapeUiText();
@@ -668,17 +672,47 @@ public partial class MainWindow : Window
                 {
                     Header = "Remove"
                 };
+                removeItem.Click += (_, _) =>
+                {
+                    RemoveMru(mru);
+                    UpdateMrus();
+                };
                 contextMenu.Items.Add(removeItem);
                 button.ContextMenu = contextMenu;
 
                 var tooltip = new TextBlock { Text = mru };
                 ToolTip.SetTip(button, tooltip);
-                return button;
+                buttons.Add(button);
             }
-        );
+            catch
+            {
+                RemoveMru(mru);
+            }
+        }
 
         MruPanel.Children.Clear();
         MruPanel.Children.AddRange(buttons);
+    }
+
+    public static void RemoveMru(string localPath)
+    {
+        string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
+        if (localAppData is null) return;
+
+        string path = Path.Combine(localAppData, "mplotter", "mru.txt");
+
+        try
+        {
+            List<string> lines = File.ReadAllLines(path).ToList();
+            List<string> newLines = lines.Where(line => !string.Equals(line, localPath, StringComparison.Ordinal)).ToList();
+            if (newLines.Count == lines.Count) return;
+
+            File.WriteAllLines(path, newLines, new UTF8Encoding(false));
+        }
+        catch
+        {
+            // Ignore MRU persistence issues.
+        }
     }
 
     public static List<string> MostRecentlyUsedFiles()

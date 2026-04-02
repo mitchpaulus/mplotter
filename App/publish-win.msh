@@ -1,2 +1,3 @@
 #!/usr/bin/env mshell
+
 ['dotnet' 'publish' '-r' 'win-x64' '-o' 'publish-win' '-c' 'Release' '--no-self-contained']!
