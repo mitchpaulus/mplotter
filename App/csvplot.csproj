@@ -21,6 +21,7 @@
     <PackageReference Include="ClosedXML" Version="0.104.2" />
     <PackageReference Include="InfluxDB.Client" Version="5.0.0" />
     <PackageReference Include="ScottPlot.Avalonia" Version="5.1.57" />
+    <PackageReference Include="SourceGear.sqlite3" Version="3.50.4.5" />
     <PackageReference Include="System.Data.SQLite" Version="2.0.3" />
   </ItemGroup>
 </Project>
