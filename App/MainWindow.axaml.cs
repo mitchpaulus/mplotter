@@ -1368,7 +1368,10 @@ public class PlotTrendConfig : IEquatable<PlotTrendConfig>
     {
         if (ReferenceEquals(null, other)) return false;
         if (ReferenceEquals(this, other)) return true;
-        return DataSource.Equals(other.DataSource) && Trend == other.Trend;
+        return DataSource.Equals(other.DataSource)
+               && string.Equals(Trend.Name, other.Trend.Name, StringComparison.Ordinal)
+               && string.Equals(Trend.Unit, other.Trend.Unit, StringComparison.Ordinal)
+               && string.Equals(Trend.DisplayName, other.Trend.DisplayName, StringComparison.Ordinal);
     }
 
     public override bool Equals(object? obj)
@@ -1381,7 +1384,7 @@ public class PlotTrendConfig : IEquatable<PlotTrendConfig>
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(DataSource, Trend);
+        return HashCode.Combine(DataSource, Trend.Name, Trend.Unit, Trend.DisplayName);
     }
 
     public static bool operator ==(PlotTrendConfig? left, PlotTrendConfig? right)
