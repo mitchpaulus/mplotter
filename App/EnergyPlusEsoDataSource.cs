@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using SemaphoreSlim = System.Threading.SemaphoreSlim;
 
 namespace csvplot;
 
@@ -14,14 +15,15 @@ public class EnergyPlusEsoDataSource : IDataSource
     private readonly TrendMatcher _matcher;
 
     // This is a mapping from an integer Id, to the point/trend name.
-    private readonly Dictionary<string, int> _dataDictionary = new();
+    private Dictionary<string, int> _dataDictionary = new();
 
     // Note here that we have left everything as a string.
     // Note that we have a list because you get a different output for each 'Run'
-    private readonly List<Dictionary<int, List<string>>> _dataValues = new();
+    private List<Dictionary<int, List<string>>> _dataValues = new();
 
     // Cached data is here to cache all the parsing of strings to doubles.
-    private readonly Dictionary<int, List<double>> _cachedData = new();
+    private Dictionary<int, List<double>> _cachedData = new();
+    private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private bool _loaded = false;
 
     public FileInfo FileInfo { get; }
@@ -34,11 +36,63 @@ public class EnergyPlusEsoDataSource : IDataSource
         Header = filePath;
     }
 
-    private async Task ParseData()
+    private sealed class EsoSnapshot
+    {
+        public EsoSnapshot(
+            Dictionary<string, int> dataDictionary,
+            List<Dictionary<int, List<string>>> dataValues,
+            Dictionary<int, List<double>> cachedData)
+        {
+            DataDictionary = dataDictionary;
+            DataValues = dataValues;
+            CachedData = cachedData;
+        }
+
+        public Dictionary<string, int> DataDictionary { get; }
+        public List<Dictionary<int, List<string>>> DataValues { get; }
+        public Dictionary<int, List<double>> CachedData { get; }
+    }
+
+    private async Task EnsureLoaded()
+    {
+        if (_loaded) return;
+
+        await _cacheLock.WaitAsync();
+        try
+        {
+            if (_loaded) return;
+
+            EsoSnapshot? snapshot = await LoadSnapshot();
+            if (snapshot is not null)
+            {
+                ApplySnapshot(snapshot);
+            }
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
+
+    private void ApplySnapshot(EsoSnapshot snapshot)
+    {
+        _dataDictionary = snapshot.DataDictionary;
+        _dataValues = snapshot.DataValues;
+        _cachedData = snapshot.CachedData;
+        _loaded = true;
+    }
+
+    private async Task<EsoSnapshot?> LoadSnapshot()
     {
         try
         {
-            using StreamReader r = new StreamReader(_filePath);
+            await using FileStream stream = new(_filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using StreamReader r = new(stream);
+
+            Dictionary<string, int> dataDictionary = new();
+            List<Dictionary<int, List<string>>> dataValues = new();
+            Dictionary<int, List<double>> cachedData = new();
+
             // Read title line
             await r.ReadLineAsync();
             while (await r.ReadLineAsync() is { } line)
@@ -65,7 +119,7 @@ public class EnergyPlusEsoDataSource : IDataSource
                 //     }
                 // }
 
-                _dataDictionary[trendName] = int.Parse(split[0]);
+                dataDictionary[trendName] = int.Parse(split[0]);
             }
 
             int dataValueIndex = -1;
@@ -79,62 +133,81 @@ public class EnergyPlusEsoDataSource : IDataSource
                 if (key == 1)
                 {
                     dataValueIndex++;
-                    _dataValues.Add(new Dictionary<int, List<string>>());
+                    dataValues.Add(new Dictionary<int, List<string>>());
                 }
 
-                if (_dataValues[dataValueIndex].TryGetValue(key, out var list))
+                if (dataValueIndex < 0) continue;
+
+                if (dataValues[dataValueIndex].TryGetValue(key, out var list))
                 {
                     list.Add(line);
                 }
                 else
                 {
-                    _dataValues[dataValueIndex][key] = new List<string>(8760) { line };
+                    dataValues[dataValueIndex][key] = new List<string>(8760) { line };
                 }
             }
 
-            _loaded = true;
+            return new EsoSnapshot(dataDictionary, dataValues, cachedData);
         }
         catch (Exception)
         {
-            // Ignore
+            return null;
         }
     }
 
     public async Task<List<Trend>> Trends()
     {
-        if (!_loaded) await ParseData();
-        return _dataDictionary.Keys.Select(name => new Trend(name, "", name)).ToList();
+        await EnsureLoaded();
+        await _cacheLock.WaitAsync();
+        try
+        {
+            return _dataDictionary.Keys.Select(name => new Trend(name, "", name)).ToList();
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
     }
 
     public async Task<List<double>> GetData(string trend)
     {
-        if (!_loaded) await ParseData();
-        if (!_dataDictionary.TryGetValue(trend, out int id)) return new List<double>();
-
-        if (_cachedData.TryGetValue(id, out var cached))
+        await EnsureLoaded();
+        await _cacheLock.WaitAsync();
+        try
         {
-            // Return a clone. I've had too many issues tracking out other places in which that list is then modified.
-            return cached.Select(d => d).ToList();
-        }
+            if (!_dataDictionary.TryGetValue(trend, out int id)) return new List<double>();
 
-        List<double> toReturn = new List<double>(8760);
-
-        // Make the assumption that the last EnergyPlus "run" is the one of interest.
-        // Mostly, the sizing runs should all come first.
-        if (_dataValues[^1].TryGetValue(id, out var values))
-        {
-            foreach (var line in values)
+            if (_cachedData.TryGetValue(id, out var cached))
             {
-                var split = line.Split(",");
-                if (split.Length != 2) return new List<double>();
-                if (!double.TryParse(split[1], out var parsed)) return new List<double>();
-
-                toReturn.Add(parsed);
+                // Return a clone. I've had too many issues tracking out other places in which that list is then modified.
+                return cached.Select(d => d).ToList();
             }
-        }
 
-        _cachedData[id] = toReturn;
-        return toReturn.Select(d => d).ToList();
+            List<double> toReturn = new List<double>(8760);
+
+            // Make the assumption that the last EnergyPlus "run" is the one of interest.
+            // Mostly, the sizing runs should all come first.
+            if (_dataValues.Count == 0) return toReturn;
+            if (_dataValues[^1].TryGetValue(id, out var values))
+            {
+                foreach (var line in values)
+                {
+                    var split = line.Split(",");
+                    if (split.Length != 2) return new List<double>();
+                    if (!double.TryParse(split[1], out var parsed)) return new List<double>();
+
+                    toReturn.Add(parsed);
+                }
+            }
+
+            _cachedData[id] = toReturn;
+            return toReturn.Select(d => d).ToList();
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
     }
 
     public string Header { get; }
@@ -232,9 +305,18 @@ public class EnergyPlusEsoDataSource : IDataSource
 
     public async Task UpdateCache()
     {
-        _cachedData.Clear();
-        _dataDictionary.Clear();
-        _dataValues.Clear();
-        await ParseData();
+        await _cacheLock.WaitAsync();
+        try
+        {
+            EsoSnapshot? snapshot = await LoadSnapshot();
+            if (snapshot is not null)
+            {
+                ApplySnapshot(snapshot);
+            }
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
     }
 }

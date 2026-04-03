@@ -29,6 +29,7 @@ using ScottPlot.TickGenerators.TimeUnits;
 using Brushes = Avalonia.Media.Brushes;
 using File = System.IO.File;
 using HorizontalAlignment = Avalonia.Layout.HorizontalAlignment;
+using SemaphoreSlim = System.Threading.SemaphoreSlim;
 
 namespace csvplot;
 
@@ -40,6 +41,7 @@ public partial class MainWindow : Window
 
     private readonly List<IDataSource> _loadedDataSources = new();
     private readonly List<FileSystemWatcher> _watchers = new();
+    private readonly SemaphoreSlim _watcherRefreshLock = new(1, 1);
 
     private readonly List<IDataSource> _selectedDataSources = new();
 
@@ -432,44 +434,7 @@ public partial class MainWindow : Window
 
         _loadedDataSources.Add(source);
 
-        if (source is SimpleDelimitedFile file)
-        {
-            if (!_watchers.Any(watcher => watcher.Path == file.FileInfo.DirectoryName! && watcher.Filter == file.FileInfo.Name))
-            {
-                FileSystemWatcher watcher = new FileSystemWatcher(file.FileInfo.DirectoryName!, file.FileInfo.Name);
-                watcher.NotifyFilter = NotifyFilters.Attributes
-                                                              | NotifyFilters.CreationTime
-                                                              | NotifyFilters.DirectoryName
-                                                              | NotifyFilters.FileName
-                                                              | NotifyFilters.LastWrite
-                                                              | NotifyFilters.Security
-                                                              | NotifyFilters.Size;
-                watcher.Changed += WatcherOnChanged;
-                watcher.Deleted += WatcherOnDeleted;
-                watcher.Created += WatcherOnChanged;
-                watcher.EnableRaisingEvents = true;
-                _watchers.Add(watcher);
-            }
-        }
-        else if (source is EnergyPlusEsoDataSource esoFile)
-        {
-             if (!_watchers.Any(watcher => watcher.Path == esoFile.FileInfo.DirectoryName! && watcher.Filter == esoFile.FileInfo.Name))
-             {
-                 FileSystemWatcher watcher = new FileSystemWatcher(esoFile.FileInfo.DirectoryName!, esoFile.FileInfo.Name);
-                 watcher.NotifyFilter = NotifyFilters.Attributes
-                                                               | NotifyFilters.CreationTime
-                                                               | NotifyFilters.DirectoryName
-                                                               | NotifyFilters.FileName
-                                                               | NotifyFilters.LastWrite
-                                                               | NotifyFilters.Security
-                                                               | NotifyFilters.Size;
-                 watcher.Changed += WatcherOnChanged;
-                 watcher.Deleted += WatcherOnDeleted;
-                 watcher.Created += WatcherOnChanged;
-                 watcher.EnableRaisingEvents = true;
-                 _watchers.Add(watcher);
-             }
-        }
+        EnsureWatcherForSource(source);
 
         _selectedDataSources.Add(source);
         RenderDataSources();
@@ -485,31 +450,117 @@ public partial class MainWindow : Window
     private void WatcherOnDeleted(object sender, FileSystemEventArgs e)
     {
         FileSystemWatcher w = (FileSystemWatcher)sender;
-        Console.Error.WriteLine($"Dir: {w.Path}, Filter: {w.Filter}");
+        Console.Error.WriteLine($"DELETION OCCURED Dir: {w.Path}, Filter: {w.Filter}");
     }
 
     private async void WatcherOnChanged(object sender, FileSystemEventArgs e)
     {
-        FileSystemWatcher w = (FileSystemWatcher)sender;
-
-        // Find matching sources
-        foreach (var s in _loadedDataSources)
+        string changedPath = Path.GetFullPath(e.FullPath);
+        await _watcherRefreshLock.WaitAsync();
+        try
         {
-            if (s is SimpleDelimitedFile file)
+            bool matchedSource = false;
+            foreach (var s in _loadedDataSources.ToList())
             {
-                if (file.FileInfo.DirectoryName != w.Path || file.FileInfo.Name != w.Filter) continue;
+                string? watchedPath = GetWatchedFullPath(s);
+                if (watchedPath is null || !PathsEqual(watchedPath, changedPath)) continue;
 
-                // Reload the source
-                await file.UpdateCache();
+                matchedSource = true;
+                await s.UpdateCache();
             }
-            else if (s is EnergyPlusEsoDataSource esoFile)
-            {
-                await esoFile.UpdateCache();
-            }
+
+            if (!matchedSource) return;
+
+            await RefreshUiAfterDataSourceUpdate();
+            await Console.Error.WriteLineAsync($"{DateTime.Now:HH:mm:ss.fff} Updated plots for {changedPath}");
         }
+        finally
+        {
+            _watcherRefreshLock.Release();
+        }
+    }
 
-        await Dispatcher.UIThread.InvokeAsync(() => _vm.UpdatePlots());
-        await Console.Error.WriteLineAsync($"{DateTime.Now:HH:mm:ss.fff} Updated plots for Dir: {w.Path}, Filter: {w.Filter}");
+    private static string? GetWatchedFullPath(IDataSource source)
+    {
+        return source switch
+        {
+            SimpleDelimitedFile file => file.FileInfo.FullName,
+            EnergyPlusEsoDataSource esoFile => esoFile.FileInfo.FullName,
+            _ => null
+        };
+    }
+
+    private static bool PathsEqual(string leftPath, string rightPath)
+    {
+        return string.Equals(
+            Path.GetFullPath(leftPath),
+            Path.GetFullPath(rightPath),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void EnsureWatcherForSource(IDataSource source)
+    {
+        string? fullPath = GetWatchedFullPath(source);
+        if (fullPath is null) return;
+        if (_watchers.Any(watcher => PathsEqual(Path.Combine(watcher.Path, watcher.Filter), fullPath))) return;
+
+        string? directory = Path.GetDirectoryName(fullPath);
+        string fileName = Path.GetFileName(fullPath);
+        if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName)) return;
+
+        FileSystemWatcher watcher = new(directory, fileName);
+        watcher.NotifyFilter = NotifyFilters.Attributes
+                              | NotifyFilters.CreationTime
+                              | NotifyFilters.DirectoryName
+                              | NotifyFilters.FileName
+                              | NotifyFilters.LastWrite
+                              | NotifyFilters.Security
+                              | NotifyFilters.Size;
+        watcher.Changed += WatcherOnChanged;
+        watcher.Deleted += WatcherOnDeleted;
+        watcher.Created += WatcherOnChanged;
+        watcher.EnableRaisingEvents = true;
+        _watchers.Add(watcher);
+    }
+
+    private void RemoveWatcherForSource(IDataSource source)
+    {
+        string? fullPath = GetWatchedFullPath(source);
+        if (fullPath is null) return;
+
+        for (int i = _watchers.Count - 1; i >= 0; i--)
+        {
+            var watcher = _watchers[i];
+            if (!PathsEqual(Path.Combine(watcher.Path, watcher.Filter), fullPath)) continue;
+
+            watcher.EnableRaisingEvents = false;
+            watcher.Changed -= WatcherOnChanged;
+            watcher.Deleted -= WatcherOnDeleted;
+            watcher.Created -= WatcherOnChanged;
+            _watchers.RemoveAt(i);
+            watcher.Dispose();
+        }
+    }
+
+    private Task RefreshUiAfterDataSourceUpdate()
+    {
+        var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await UpdateBackingAvailableTimeSeriesTrendList();
+                UpdateVisibleTimeSeriesTrendList();
+                await _vm.UpdatePlots();
+                tcs.SetResult(null);
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
+
+        return tcs.Task;
     }
 
     private async Task UpdateBackingAvailableTimeSeriesTrendList()
@@ -615,19 +666,7 @@ public partial class MainWindow : Window
         if (sender is not Button b) return;
 
         var source = (IDataSource)b.Tag!;
-
-        if (source is SimpleDelimitedFile simpleFile)
-        {
-            for (int i = _watchers.Count - 1; i >= 0; i--)
-            {
-                var w = _watchers[i];
-                if (w.Path == simpleFile.FileInfo.DirectoryName &&
-                    w.Filter == simpleFile.FileInfo.Name)
-                {
-                    _watchers.RemoveAt(i);
-                }
-            }
-        }
+        RemoveWatcherForSource(source);
 
         _loadedDataSources.Remove(source);
         _selectedDataSources.Remove(source);

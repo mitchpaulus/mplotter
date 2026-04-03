@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ScottPlot;
+using SemaphoreSlim = System.Threading.SemaphoreSlim;
 
 namespace csvplot;
 
@@ -15,6 +16,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
 {
     private List<Trend>? _trends;
     private readonly string _connectionString;
+    private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
     public EnergyPlusSqliteDataSource(string sourceFile)
     {
@@ -24,47 +26,57 @@ public class EnergyPlusSqliteDataSource : IDataSource
 
     public async Task<List<Trend>> Trends()
     {
-        if (_trends is not null && _trends.Any()) return _trends;
-
+        await _cacheLock.WaitAsync();
         try
         {
-            await using SQLiteConnection conn = new SQLiteConnection(_connectionString);
-            conn.Open();
-            string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
-            await using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
-            await using var reader = await cmd.ExecuteReaderAsync();
-            _trends = new List<Trend>();
+            if (_trends is not null && _trends.Any()) return _trends;
 
-            while (await reader.ReadAsync())
+            try
             {
-                object keyValueObj = reader["KeyValue"];
-                string keyValue;
-                if (keyValueObj is DBNull)
+                await using SQLiteConnection conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
+                await using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                List<Trend> loadedTrends = new();
+
+                while (await reader.ReadAsync())
                 {
-                    keyValue = "";
-                }
-                else
-                {
-                    keyValue = (string)keyValueObj;
+                    object keyValueObj = reader["KeyValue"];
+                    string keyValue;
+                    if (keyValueObj is DBNull)
+                    {
+                        keyValue = "";
+                    }
+                    else
+                    {
+                        keyValue = (string)keyValueObj;
+                    }
+
+                    var name = (string)reader["Name"];
+                    var units = (string)reader["Units"];
+                    var reportingFrequency = (string)reader["ReportingFrequency"];
+
+                    if (reportingFrequency == "Hourly")
+                    {
+                        string fullName = $"{keyValue}: {name} [{units}]";
+                        loadedTrends.Add(new Trend(fullName, units, fullName));
+                    }
                 }
 
-                var name = (string)reader["Name"];
-                var units = (string)reader["Units"];
-                var reportingFrequency = (string)reader["ReportingFrequency"];
-
-                if (reportingFrequency == "Hourly")
-                {
-                    string fullName = $"{keyValue}: {name} [{units}]";
-                    _trends.Add(new Trend(fullName, units, fullName));
-                }
+                _trends = loadedTrends;
             }
-        }
-        catch
-        {
-            return new();
-        }
+            catch
+            {
+                return new();
+            }
 
-        return _trends;
+            return _trends;
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
     }
 
     public async Task<List<double>> GetData(string trend)
@@ -187,10 +199,55 @@ public class EnergyPlusSqliteDataSource : IDataSource
         throw new NotImplementedException();
     }
 
-    public Task UpdateCache()
+    public async Task UpdateCache()
     {
-        if (_trends != null) _trends.Clear();
-        return Task.CompletedTask;
+        await _cacheLock.WaitAsync();
+        try
+        {
+            try
+            {
+                await using SQLiteConnection conn = new SQLiteConnection(_connectionString);
+                conn.Open();
+                string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
+                await using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+                await using var reader = await cmd.ExecuteReaderAsync();
+                List<Trend> loadedTrends = new();
+
+                while (await reader.ReadAsync())
+                {
+                    object keyValueObj = reader["KeyValue"];
+                    string keyValue;
+                    if (keyValueObj is DBNull)
+                    {
+                        keyValue = "";
+                    }
+                    else
+                    {
+                        keyValue = (string)keyValueObj;
+                    }
+
+                    var name = (string)reader["Name"];
+                    var units = (string)reader["Units"];
+                    var reportingFrequency = (string)reader["ReportingFrequency"];
+
+                    if (reportingFrequency == "Hourly")
+                    {
+                        string fullName = $"{keyValue}: {name} [{units}]";
+                        loadedTrends.Add(new Trend(fullName, units, fullName));
+                    }
+                }
+
+                _trends = loadedTrends;
+            }
+            catch
+            {
+                // Keep the last good snapshot.
+            }
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
     }
 
     public string Header { get; }

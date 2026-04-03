@@ -4,34 +4,56 @@ using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using SemaphoreSlim = System.Threading.SemaphoreSlim;
 
 namespace csvplot;
 
 public class Bac0DataSource : IDataSource
 {
     private readonly string _sqliteFilePath;
-    private readonly List<string> _trends = new();
+    private readonly SemaphoreSlim _cacheLock = new(1, 1);
+    private List<string> _trends = new();
 
     public Bac0DataSource(string sqliteFilePath)
     {
         _sqliteFilePath = sqliteFilePath;
-        RefreshTrends();
+        try
+        {
+            _trends = LoadTrends();
+        }
+        catch
+        {
+            _trends = new();
+        }
     }
 
-    private void RefreshTrends()
+    private List<string> LoadTrends()
     {
         using SQLiteConnection conn = new SQLiteConnection(_sqliteFilePath.ToSqliteConnString());
         conn.Open();
         var historyCols = conn.GetSchema("COLUMNS", new[] { null, null, "history" });
 
-        _trends.Clear();
+        List<string> trends = new();
         for (int i = 1; i < historyCols.Rows.Count; i++)
         {
-            _trends.Add((string)historyCols.Rows[i]["COLUMN_NAME"]);
+            trends.Add((string)historyCols.Rows[i]["COLUMN_NAME"]);
         }
+
+        return trends;
     }
 
-    public Task<List<Trend>> Trends() => Task.FromResult(_trends.Select(s => new Trend(s, "", s)).ToList());
+    public async Task<List<Trend>> Trends()
+    {
+        await _cacheLock.WaitAsync();
+        try
+        {
+            return _trends.Select(s => new Trend(s, "", s)).ToList();
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
+    }
 
     public Task<List<double>> GetData(string trend)
     {
@@ -113,7 +135,24 @@ public class Bac0DataSource : IDataSource
 
     public Task UpdateCache()
     {
-        RefreshTrends();
-        return Task.CompletedTask;
+        return UpdateCacheInternal();
+    }
+
+    private async Task UpdateCacheInternal()
+    {
+        await _cacheLock.WaitAsync();
+        try
+        {
+            List<string> trends = LoadTrends();
+            _trends = trends;
+        }
+        catch
+        {
+            // Keep the last good snapshot.
+        }
+        finally
+        {
+            _cacheLock.Release();
+        }
     }
 }
