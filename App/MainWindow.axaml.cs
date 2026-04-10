@@ -584,6 +584,13 @@ public partial class MainWindow : Window
         timeSeriesTextBlocks.Clear();
 
         string loweredSearchText = SearchBox.Text?.ToLowerInvariant().Trim() ?? "";
+        Regex? wildcardRegex = null;
+
+        if (loweredSearchText.Contains("*"))
+        {
+            string wildcardPattern = "^" + Regex.Escape(loweredSearchText).Replace("\\*", ".*") + "$";
+            wildcardRegex = new Regex(wildcardPattern);
+        }
 
         if (!loweredSearchText.Contains("*"))
         {
@@ -612,14 +619,11 @@ public partial class MainWindow : Window
                 }
             }
         }
-        else
+        else if (wildcardRegex != null)
         {
-
-            Regex r = new Regex('^' + loweredSearchText.Replace("*", ".*") + '$');
-
             foreach (var key in sortedKeys)
             {
-                if (!r.Match(key.ToLowerInvariant()).Success) continue;
+                if (!wildcardRegex.Match(key.ToLowerInvariant()).Success) continue;
 
                 List<PlotTrendConfig> trends = grouped[key];
                 if (trends.Count > 1)
