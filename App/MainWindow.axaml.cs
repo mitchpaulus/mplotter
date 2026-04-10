@@ -456,6 +456,8 @@ public partial class MainWindow : Window
     private async void WatcherOnChanged(object sender, FileSystemEventArgs e)
     {
         string changedPath = Path.GetFullPath(e.FullPath);
+        FileSystemWatcher w = (FileSystemWatcher)sender;
+        await Console.Error.WriteLineAsync($"CHANGE OCCURED Dir: {w.Path}, Filter: {w.Filter}");
         await _watcherRefreshLock.WaitAsync();
         try
         {
@@ -1036,7 +1038,10 @@ public partial class MainWindow : Window
             if (sourcePair.Key is InfluxDataSource influxDataSource)
             {
                 // Need to specify a higher count than default, as we don't have to be as worried about plotting performance.
-                output = await influxDataSource.GetTimestampData(trends.Select(trend => trend.Name).ToList(), start.AddDays(-1), end.AddDays(1), 500000);
+                output = await influxDataSource.GetTimestampData(trends.Select(trend => trend.Name).ToList(),
+                    new LocalDateTime(DateTime.SpecifyKind(start.AddDays(-1), DateTimeKind.Local)),
+                    new LocalDateTime(DateTime.SpecifyKind(end.AddDays(1), DateTimeKind.Local)),
+                    500000);
             }
             else
             {

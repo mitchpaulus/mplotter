@@ -1,22 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
-namespace CCLLCDataSync;
+namespace csvplot;
 
-public class TimeZones
+public static class TimeZones
 {
-    public readonly Dictionary<string, TimeZoneInfo> AvailableTimeZones;
+    public static readonly Dictionary<string, TimeZoneInfo> AvailableTimeZones;
 
-    private TimeZoneInfo? _central = null;
-    private TimeZoneInfo? _utc = null;
+    private static TimeZoneInfo? _central = null;
+    // private static TimeZoneInfo? _utc = null;
 
-    public TimeZones()
+    static TimeZones()
     {
         AvailableTimeZones = TimeZoneInfo.GetSystemTimeZones().ToDictionary(info => info.Id, info => info);
     }
 
-    public TimeZoneInfo Central()
+    public static TimeZoneInfo Central()
     {
         if (_central is not null) return _central;
 
@@ -36,22 +37,45 @@ public class TimeZones
         throw new TimeZoneNotFoundException("Central Time Zone not found.");
     }
 
-    public TimeZoneInfo Utc()
+    public static TimeZoneInfo Utc() => TimeZoneInfo.Utc;
+}
+
+public readonly struct UtcDateTime : IFormattable
+{
+    public DateTime Value { get; }
+
+    public UtcDateTime(DateTime value)
     {
-        if (_utc is not null) return _utc;
+        if (value.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("Expected UTC DateTime.", nameof(value));
 
-        if (AvailableTimeZones.TryGetValue("Etc/UTC", out var info))
-        {
-            _utc = info;
-            return info;
-        }
-
-        if (AvailableTimeZones.TryGetValue("UTC", out info))
-        {
-            _utc = info;
-            return info;
-        }
-
-        throw new TimeZoneNotFoundException("UTC Time Zone not found.");
+        Value = value;
     }
+
+    public static UtcDateTime Now() => new(DateTime.UtcNow);
+
+    public string ToRfc3339Second() => Value.ToString("yyyy-MM-dd'T'HH:mm:ssK");
+
+    public string ToString(string? format, IFormatProvider? formatProvider) => Value.ToString(format, formatProvider);
+
+    public override string ToString() => Value.ToString(CultureInfo.CurrentCulture);
+}
+
+public readonly struct LocalDateTime : IFormattable
+{
+    public DateTime Value { get; }
+
+    public LocalDateTime(DateTime value)
+    {
+        if (value.Kind != DateTimeKind.Local)
+            throw new ArgumentException("Expected local DateTime.", nameof(value));
+
+        Value = value;
+    }
+
+    public static LocalDateTime Now() => new(DateTime.Now);
+
+    public string ToString(string? format, IFormatProvider? formatProvider) => Value.ToString(format, formatProvider);
+
+    public override string ToString() => Value.ToString(CultureInfo.CurrentCulture);
 }
