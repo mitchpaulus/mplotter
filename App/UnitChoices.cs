@@ -13,7 +13,8 @@ public static class UnitChoices
         "%",
         "Tons",
         "Count",
-        "Amps"
+        "Amps",
+        "psi",
     ];
 
     public static IReadOnlyList<string> GetUnits()
