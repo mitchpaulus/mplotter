@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/mplotter/config.schema.json",
+  "title": "MPlotter Configuration",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "influx": {
+      "type": "object",
+      "properties": {
+        "buckets": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/influxBucket"
+          }
+        },
+        "points": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/influxPoint"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "influxBucket": {
+      "type": "object",
+      "properties": {
+        "containers": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/influxContainer"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "influxContainer": {
+      "type": "object",
+      "properties": {
+        "tags": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "parent": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "influxPoint": {
+      "type": "object",
+      "properties": {
+        "tags": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "container": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "alias": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

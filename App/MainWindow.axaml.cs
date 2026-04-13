@@ -19,6 +19,7 @@ using Avalonia.Markup.Xaml.Templates;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Domain;
@@ -119,6 +120,8 @@ public partial class MainWindow : Window
         _vm = new MainViewModel(plot!, StorageProvider, this);
         DataContext = _vm;
 
+        _timeSeriesTrendsListBox.AddHandler(InputElement.PointerPressedEvent, TimeSeriesTrendListBox_OnPointerPressed, RoutingStrategies.Tunnel);
+
         UpdateMrus();
         _timeSeriesTrendsListBox.SelectionChanged += TimeSeriesTrendList_OnSelectionChanged;
         ScrollViewer.SetAllowAutoHide(_timeSeriesTrendsListBox, false);
@@ -214,10 +217,7 @@ public partial class MainWindow : Window
         {
             if (serie.XTrend is { } xTrend)
             {
-                TextBlock b = new();
-                b.Text = xTrend.Trend.DisplayName;
-                b.TextWrapping = TextWrapping.Wrap;
-                b.Tag = serie.XTrend;
+                TextBlock b = TrendTextBlockFactory.Create(xTrend.Trend, serie.XTrend);
                 Grid.SetRow(b, row);
                 Grid.SetColumn(b, 0);
                 _xyTrendSelectionGrid.Children.Add(b);
@@ -235,10 +235,7 @@ public partial class MainWindow : Window
 
             if (serie.YTrend is { } yTrend)
             {
-                TextBlock b = new();
-                b.Text = yTrend.Trend.DisplayName;
-                b.TextWrapping = TextWrapping.Wrap;
-                b.Tag = serie.YTrend;
+                TextBlock b = TrendTextBlockFactory.Create(yTrend.Trend, serie.YTrend);
                 Grid.SetRow(b, row);
                 Grid.SetColumn(b, 1);
                 _xyTrendSelectionGrid.Children.Add(b);
@@ -544,7 +541,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private Task RefreshUiAfterDataSourceUpdate()
+    public Task RefreshUiAfterDataSourceUpdate()
     {
         var tcs = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
         Dispatcher.UIThread.Post(async () =>
@@ -553,6 +550,7 @@ public partial class MainWindow : Window
             {
                 await UpdateBackingAvailableTimeSeriesTrendList();
                 UpdateVisibleTimeSeriesTrendList();
+                UpdateXyGrid();
                 await _vm.UpdatePlots();
                 tcs.SetResult(null);
             }
@@ -573,6 +571,8 @@ public partial class MainWindow : Window
             var trends = await s.Trends();
             _availableTimeSeriesTrends.AddRange(trends.Select(trend => new PlotTrendConfig(s, trend)));
         }
+
+        RefreshSelectedTrendReferences();
     }
 
     private void UpdateVisibleTimeSeriesTrendList()
@@ -603,19 +603,13 @@ public partial class MainWindow : Window
                 {
                     foreach (var t in trends)
                     {
-                        TextBlock b = new TextBlock();
-                        b.Text = $"{t.DataSource.ShortName}: {t.Trend.DisplayName}";
-                        b.Tag = t;
-                        timeSeriesTextBlocks.Add(b);
+                        timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: true));
                     }
                 }
                 else
                 {
                     var t = trends[0];
-                    TextBlock b = new TextBlock();
-                    b.Text = $"{t.Trend.DisplayName}";
-                    b.Tag = t;
-                    timeSeriesTextBlocks.Add(b);
+                    timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: false));
                 }
             }
         }
@@ -630,19 +624,13 @@ public partial class MainWindow : Window
                 {
                     foreach (var t in trends)
                     {
-                        TextBlock b = new TextBlock();
-                        b.Text = $"{t.DataSource.ShortName}: {t.Trend.DisplayName}";
-                        b.Tag = t;
-                        timeSeriesTextBlocks.Add(b);
+                        timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: true));
                     }
                 }
                 else
                 {
                     var t = trends[0];
-                    TextBlock b = new TextBlock();
-                    b.Text = $"{t.Trend.DisplayName}";
-                    b.Tag = t;
-                    timeSeriesTextBlocks.Add(b);
+                    timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: false));
                 }
             }
 
@@ -665,6 +653,151 @@ public partial class MainWindow : Window
         }
 
         _currentlyFiltering = false;
+    }
+
+    private TextBlock CreateTrendTextBlock(PlotTrendConfig config, bool includeSourcePrefix)
+    {
+        string? prefix = includeSourcePrefix ? $"{config.DataSource.ShortName}: " : null;
+        return TrendTextBlockFactory.Create(config.Trend, config, prefix);
+    }
+
+    private async void TimeSeriesTrendListBox_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not ListBox listBox) return;
+        if (!e.GetCurrentPoint(listBox).Properties.IsRightButtonPressed) return;
+
+        e.Handled = true;
+
+        PlotTrendConfig? config = GetPlotTrendConfigFromListBoxItem(e.Source);
+        if (config is null) return;
+        if (config.DataSource is not IEditableTrendUnitSource) return;
+
+        var (configs, skippedCount) = GetEditableTargetsForUnitEdit(config);
+        await EditTrendUnits(configs, skippedCount);
+    }
+
+    private async Task EditTrendUnits(List<PlotTrendConfig> configs, int skippedCount)
+    {
+        if (!configs.Any()) return;
+        if (configs[0].DataSource is not IEditableTrendUnitSource) return;
+
+        string? currentUnit = GetInitialUnitForEdit(configs);
+        string? note = skippedCount > 0
+            ? $"{skippedCount} selected trend{(skippedCount == 1 ? "" : "s")} cannot have units edited and will be ignored."
+            : null;
+        UnitDialog dialog = new(UnitChoices.GetUnits(), currentUnit, note);
+        dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        dialog.Width = 400;
+        dialog.Height = 600;
+
+        string? selectedUnit = await dialog.ShowDialog<string?>(this);
+        if (selectedUnit is null) return;
+
+        try
+        {
+            foreach (IGrouping<IEditableTrendUnitSource, PlotTrendConfig> sourceGroup in configs
+                         .Where(config => config.DataSource is IEditableTrendUnitSource)
+                         .GroupBy(config => (IEditableTrendUnitSource)config.DataSource))
+            {
+                await sourceGroup.Key.SetUnits(sourceGroup.Select(config => config.Trend), selectedUnit);
+            }
+
+            foreach (PlotTrendConfig config in configs)
+            {
+                config.Trend.Unit = selectedUnit ?? "";
+            }
+
+            await RefreshUiAfterDataSourceUpdate();
+        }
+        catch (Exception ex)
+        {
+            await ShowMessage("Failed To Save Unit", $"Could not write the configuration file.\n\n{ex.Message}");
+        }
+    }
+
+    private (List<PlotTrendConfig> Configs, int SkippedCount) GetEditableTargetsForUnitEdit(PlotTrendConfig clickedConfig)
+    {
+        List<PlotTrendConfig> allSelectedConfigs = SelectedTimeSeriesTrends
+            .Distinct()
+            .ToList();
+
+        List<PlotTrendConfig> editableSelectedConfigs = allSelectedConfigs
+            .Where(config => config.DataSource is IEditableTrendUnitSource)
+            .ToList()
+            ;
+
+        if (!allSelectedConfigs.Contains(clickedConfig))
+        {
+            return (new List<PlotTrendConfig> { clickedConfig }, 0);
+        }
+
+        int skippedCount = allSelectedConfigs.Count - editableSelectedConfigs.Count;
+        return (editableSelectedConfigs, skippedCount);
+    }
+
+    private static string? GetInitialUnitForEdit(IEnumerable<PlotTrendConfig> configs)
+    {
+        List<string> units = configs
+            .Select(config => string.IsNullOrWhiteSpace(config.Trend.Unit) ? "" : config.Trend.Unit)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return units.Count == 1 ? units[0] : "";
+    }
+
+    public async Task ShowMessage(string title, string message)
+    {
+        MessageDialog dialog = new(title, message)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        await dialog.ShowDialog(this);
+    }
+
+    private static PlotTrendConfig? GetPlotTrendConfigFromListBoxItem(object? source)
+    {
+        if (source is not Visual visual) return null;
+
+        ListBoxItem? listBoxItem = visual.FindAncestorOfType<ListBoxItem>(true);
+        if (listBoxItem is null) return null;
+
+        if (listBoxItem.Content is PlotTrendConfig contentConfig)
+        {
+            return contentConfig;
+        }
+
+        if (listBoxItem.Content is TextBlock textBlock && textBlock.Tag is PlotTrendConfig taggedConfig)
+        {
+            return taggedConfig;
+        }
+
+        if (listBoxItem.DataContext is PlotTrendConfig dataContextConfig)
+        {
+            return dataContextConfig;
+        }
+
+        if (listBoxItem.DataContext is TextBlock { Tag: PlotTrendConfig textBlockDataContextConfig })
+        {
+            return textBlockDataContextConfig;
+        }
+
+        return null;
+    }
+
+    private void RefreshSelectedTrendReferences()
+    {
+        Dictionary<(IDataSource Source, string Name), PlotTrendConfig> availableMap = _availableTimeSeriesTrends
+            .GroupBy(config => (config.DataSource, config.Trend.Name))
+            .ToDictionary(group => group.Key, group => group.First());
+
+        for (int i = 0; i < SelectedTimeSeriesTrends.Count; i++)
+        {
+            PlotTrendConfig selected = SelectedTimeSeriesTrends[i];
+            if (availableMap.TryGetValue((selected.DataSource, selected.Trend.Name), out PlotTrendConfig? replacement))
+            {
+                SelectedTimeSeriesTrends[i] = replacement;
+            }
+        }
     }
 
     private async void RemoveDataSource(object? sender, EventArgs args)
@@ -1378,9 +1511,7 @@ public class PlotTrendConfig : IEquatable<PlotTrendConfig>
         if (ReferenceEquals(null, other)) return false;
         if (ReferenceEquals(this, other)) return true;
         return DataSource.Equals(other.DataSource)
-               && string.Equals(Trend.Name, other.Trend.Name, StringComparison.Ordinal)
-               && string.Equals(Trend.Unit, other.Trend.Unit, StringComparison.Ordinal)
-               && string.Equals(Trend.DisplayName, other.Trend.DisplayName, StringComparison.Ordinal);
+               && string.Equals(Trend.Name, other.Trend.Name, StringComparison.Ordinal);
     }
 
     public override bool Equals(object? obj)
@@ -1393,7 +1524,7 @@ public class PlotTrendConfig : IEquatable<PlotTrendConfig>
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(DataSource, Trend.Name, Trend.Unit, Trend.DisplayName);
+        return HashCode.Combine(DataSource, Trend.Name);
     }
 
     public static bool operator ==(PlotTrendConfig? left, PlotTrendConfig? right)

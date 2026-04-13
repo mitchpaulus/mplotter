@@ -47,7 +47,7 @@ public class Bac0DataSource : IDataSource
         await _cacheLock.WaitAsync();
         try
         {
-            return _trends.Select(s => new Trend(s, "", s)).ToList();
+            return _trends.Select(s => new Trend(s, s.GetUnit() ?? "", s)).ToList();
         }
         finally
         {

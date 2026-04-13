@@ -1,0 +1,26 @@
+{
+    "version": 1,
+    "influx": {
+        "buckets": {
+            "bucket one": {
+                "containers": {
+                    "equipment name 1": {
+                        "tags": ["tag1", "tag2"],
+                        "parent": "equipment name 2"
+                    },
+                    "root equipment name 2": {
+                        "tags": ["tag1", "tag2"]
+                    }
+                }
+            }
+        },
+        "points": {
+            "Device 1/analog input 1": {
+                "tags": ["tag1", "tag2"],
+                "container": "equipment name 1",
+                "unit": "°F",
+                "alias": "Better name for this trend."
+            }
+        }
+    }
+}

@@ -145,6 +145,117 @@ public class Tests
         bool result = MainWindow.DateRangeChangeRequiresPlotRebuild(mode, anyDbSourcesSelected);
         Assert.That(result, Is.EqualTo(expected));
     }
+
+    [Test]
+    public void ConfigurationParserReadsExampleShape()
+    {
+        string json = """
+                      {
+                        "version": 1,
+                        "influx": {
+                          "buckets": {
+                            "bucket one": {
+                              "containers": {
+                                "equipment name 1": {
+                                  "tags": ["tag1", "tag2"],
+                                  "parent": "equipment name 2"
+                                }
+                              }
+                            }
+                          },
+                          "points": {
+                            "Device 1/analog input 1": {
+                              "tags": ["tag1", "tag2"],
+                              "container": "equipment name 1",
+                              "unit": "°F",
+                              "alias": "Better name for this trend."
+                            }
+                          }
+                        }
+                      }
+                      """;
+
+        using MemoryStream stream = new(Encoding.UTF8.GetBytes(json));
+        Configuration config = ConfigurationParser.LoadConfiguration(stream);
+
+        Assert.That(config.Version, Is.EqualTo(1));
+        Assert.That(config.Influx.Buckets, Is.Not.Null);
+        Assert.That(config.Influx.Buckets!, Contains.Key("bucket one"));
+        Assert.That(config.Influx.Points, Is.Not.Null);
+        Assert.That(config.Influx.Points!, Contains.Key("Device 1/analog input 1"));
+        Assert.That(config.Influx.Points!["Device 1/analog input 1"].Unit, Is.EqualTo("°F"));
+        Assert.That(config.Influx.Points!["Device 1/analog input 1"].Alias, Is.EqualTo("Better name for this trend."));
+    }
+
+    [Test]
+    public void ConfigurationParserReadsLegacyPointArray()
+    {
+        string json = """
+                      {
+                        "points": [
+                          {
+                            "name": "Legacy Trend",
+                            "unit": "kW",
+                            "displayName": "Legacy Alias"
+                          }
+                        ]
+                      }
+                      """;
+
+        using MemoryStream stream = new(Encoding.UTF8.GetBytes(json));
+        Configuration config = ConfigurationParser.LoadConfiguration(stream);
+
+        Assert.That(config.Influx.Points, Is.Not.Null);
+        Assert.That(config.Influx.Points!, Contains.Key("Legacy Trend"));
+        Assert.That(config.Influx.Points!["Legacy Trend"].Unit, Is.EqualTo("kW"));
+        Assert.That(config.Influx.Points!["Legacy Trend"].Alias, Is.EqualTo("Legacy Alias"));
+    }
+
+    [Test]
+    public void ConfigurationParserReadsPascalCaseWrittenConfig()
+    {
+        string json = """
+                      {
+                        "Version": 1,
+                        "Influx": {
+                          "Points": {
+                            "Trend A": {
+                              "Unit": "GPM",
+                              "Alias": "Flow A"
+                            }
+                          }
+                        }
+                      }
+                      """;
+
+        using MemoryStream stream = new(Encoding.UTF8.GetBytes(json));
+        Configuration config = ConfigurationParser.LoadConfiguration(stream);
+
+        Assert.That(config.Influx.Points, Is.Not.Null);
+        Assert.That(config.Influx.Points!, Contains.Key("Trend A"));
+        Assert.That(config.Influx.Points!["Trend A"].Unit, Is.EqualTo("GPM"));
+        Assert.That(config.Influx.Points!["Trend A"].Alias, Is.EqualTo("Flow A"));
+    }
+
+    [Test]
+    public void ConfigurationParserWritesCamelCase()
+    {
+        Configuration configuration = new();
+        configuration.GetOrCreateInfluxPoint("Trend A").Unit = "GPM";
+
+        using MemoryStream stream = new();
+        ConfigurationParser.SaveConfiguration(configuration, stream);
+        string output = Encoding.UTF8.GetString(stream.ToArray());
+
+        Assert.That(output, Does.Contain("\"version\""));
+        Assert.That(output, Does.Contain("\"influx\""));
+        Assert.That(output, Does.Contain("\"points\""));
+        Assert.That(output, Does.Contain("\"unit\""));
+        Assert.That(output, Does.Not.Contain("\"Version\""));
+        Assert.That(output, Does.Not.Contain("\"Influx\""));
+        Assert.That(output, Does.Not.Contain("\"Points\""));
+        Assert.That(output, Does.Not.Contain("\"Unit\""));
+    }
 }
 
 public class TestClass
