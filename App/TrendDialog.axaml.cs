@@ -7,6 +7,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using Avalonia.VisualTree;
 using ScottPlot.Plottables;
 
 namespace csvplot;
@@ -25,6 +27,7 @@ public partial class TrendDialog : Window
         InitializeComponent();
         InitSources(new ());
         TrendsListBox.SelectionMode = SelectionMode.Toggle | SelectionMode.Multiple;
+        TrendsListBox.AddHandler(InputElement.PointerPressedEvent, TrendsListBox_OnPointerPressed, RoutingStrategies.Tunnel);
         Opened += TrendDialog_OnOpened;
     }
 
@@ -33,6 +36,7 @@ public partial class TrendDialog : Window
         InitializeComponent();
         InitSources(sources);
         TrendsListBox.SelectionMode = selectionMode;
+        TrendsListBox.AddHandler(InputElement.PointerPressedEvent, TrendsListBox_OnPointerPressed, RoutingStrategies.Tunnel);
         Opened += TrendDialog_OnOpened;
     }
 
@@ -85,13 +89,7 @@ public partial class TrendDialog : Window
 
             foreach (var trend in trends)
             {
-                TextBlock b = new TextBlock()
-                {
-                    Text = trend.Name,
-                    Tag = new PlotTrendConfig(source, trend)
-                };
-
-                blockList.Add(b);
+                blockList.Add(CreateTrendTextBlock(source, trend));
             }
         }
 
@@ -115,14 +113,7 @@ public partial class TrendDialog : Window
              foreach (var trend in trends)
              {
                  if (!trend.Name.ToLowerInvariant().Contains(TrendSearchBox.Text ?? "".ToLowerInvariant())) continue;
-
-                 TextBlock b = new TextBlock()
-                 {
-                     Text = trend.Name,
-                     Tag = new PlotTrendConfig(source, trend)
-                 };
-
-                 blockList.Add(b);
+                 blockList.Add(CreateTrendTextBlock(source, trend));
              }
          }
 
@@ -156,5 +147,163 @@ public partial class TrendDialog : Window
     private void TrendDialog_OnOpened(object? sender, EventArgs e)
     {
         TrendSearchBox.Focus();
+    }
+
+    private TextBlock CreateTrendTextBlock(IDataSource source, Trend trend)
+    {
+        PlotTrendConfig config = new(source, trend);
+        return TrendTextBlockFactory.Create(trend, config);
+    }
+
+    private async void TrendsListBox_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is not ListBox listBox) return;
+        if (!e.GetCurrentPoint(listBox).Properties.IsRightButtonPressed) return;
+
+        e.Handled = true;
+
+        PlotTrendConfig? config = GetPlotTrendConfigFromListBoxItem(e.Source);
+        if (config is null) return;
+        if (config.DataSource is not IEditableTrendUnitSource) return;
+
+        var (configs, skippedCount) = GetEditableTargetsForUnitEdit(config);
+        await EditTrendUnits(configs, skippedCount);
+    }
+
+    private async Task EditTrendUnits(List<PlotTrendConfig> configs, int skippedCount)
+    {
+        if (!configs.Any()) return;
+        if (configs[0].DataSource is not IEditableTrendUnitSource) return;
+
+        string? currentUnit = GetInitialUnitForEdit(configs);
+        string? note = skippedCount > 0
+            ? $"{skippedCount} selected trend{(skippedCount == 1 ? "" : "s")} cannot have units edited and will be ignored."
+            : null;
+        UnitDialog dialog = new(UnitChoices.GetUnits(), currentUnit, note);
+        dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        dialog.Width = 400;
+        dialog.Height = 600;
+
+        string? selectedUnit = await dialog.ShowDialog<string?>(this);
+        if (selectedUnit is null) return;
+
+        try
+        {
+            foreach (IGrouping<IEditableTrendUnitSource, PlotTrendConfig> sourceGroup in configs
+                         .Where(config => config.DataSource is IEditableTrendUnitSource)
+                         .GroupBy(config => (IEditableTrendUnitSource)config.DataSource))
+            {
+                await sourceGroup.Key.SetUnits(sourceGroup.Select(config => config.Trend), selectedUnit);
+            }
+
+            foreach (PlotTrendConfig config in configs)
+            {
+                config.Trend.Unit = selectedUnit ?? "";
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowMessage("Failed To Save Unit", $"Could not write the configuration file.\n\n{ex.Message}");
+            return;
+        }
+
+        if (Owner is MainWindow mainWindow)
+        {
+            await mainWindow.RefreshUiAfterDataSourceUpdate();
+        }
+
+        await RefreshSelectedConfigReferences();
+        await PopulateListBox();
+    }
+
+    private (List<PlotTrendConfig> Configs, int SkippedCount) GetEditableTargetsForUnitEdit(PlotTrendConfig clickedConfig)
+    {
+        List<PlotTrendConfig> allSelectedConfigs = SelectedConfigs
+            .Distinct()
+            .ToList();
+
+        List<PlotTrendConfig> editableSelectedConfigs = allSelectedConfigs
+            .Where(config => config.DataSource is IEditableTrendUnitSource)
+            .ToList()
+            ;
+
+        if (!allSelectedConfigs.Contains(clickedConfig))
+        {
+            return (new List<PlotTrendConfig> { clickedConfig }, 0);
+        }
+
+        int skippedCount = allSelectedConfigs.Count - editableSelectedConfigs.Count;
+        return (editableSelectedConfigs, skippedCount);
+    }
+
+    private static string? GetInitialUnitForEdit(IEnumerable<PlotTrendConfig> configs)
+    {
+        List<string> units = configs
+            .Select(config => string.IsNullOrWhiteSpace(config.Trend.Unit) ? "" : config.Trend.Unit)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return units.Count == 1 ? units[0] : "";
+    }
+
+    private async Task ShowMessage(string title, string message)
+    {
+        MessageDialog dialog = new(title, message)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        await dialog.ShowDialog(this);
+    }
+
+    private async Task RefreshSelectedConfigReferences()
+    {
+        Dictionary<(IDataSource Source, string Name), PlotTrendConfig> updatedConfigs = new();
+        foreach (IDataSource source in SelectedConfigs.Select(config => config.DataSource).Distinct())
+        {
+            List<Trend> trends = await source.Trends();
+            foreach (Trend trend in trends)
+            {
+                updatedConfigs[(source, trend.Name)] = new PlotTrendConfig(source, trend);
+            }
+        }
+
+        for (int i = 0; i < SelectedConfigs.Count; i++)
+        {
+            PlotTrendConfig selected = SelectedConfigs[i];
+            if (updatedConfigs.TryGetValue((selected.DataSource, selected.Trend.Name), out PlotTrendConfig? replacement))
+            {
+                SelectedConfigs[i] = replacement;
+            }
+        }
+    }
+
+    private static PlotTrendConfig? GetPlotTrendConfigFromListBoxItem(object? source)
+    {
+        if (source is not Visual visual) return null;
+
+        ListBoxItem? listBoxItem = visual.FindAncestorOfType<ListBoxItem>(true);
+        if (listBoxItem is null) return null;
+
+        if (listBoxItem.Content is PlotTrendConfig contentConfig)
+        {
+            return contentConfig;
+        }
+
+        if (listBoxItem.Content is TextBlock textBlock && textBlock.Tag is PlotTrendConfig taggedConfig)
+        {
+            return taggedConfig;
+        }
+
+        if (listBoxItem.DataContext is PlotTrendConfig dataContextConfig)
+        {
+            return dataContextConfig;
+        }
+
+        if (listBoxItem.DataContext is TextBlock { Tag: PlotTrendConfig textBlockDataContextConfig })
+        {
+            return textBlockDataContextConfig;
+        }
+
+        return null;
     }
 }

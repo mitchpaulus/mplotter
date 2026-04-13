@@ -26,9 +26,10 @@ public class InfluxEnv
     public bool IsValid() => !(string.IsNullOrWhiteSpace(InfluxToken) || string.IsNullOrWhiteSpace(InfluxHost) || string.IsNullOrWhiteSpace(InfluxOrg));
 }
 
-public class InfluxDataSource : IDataSource
+public class InfluxDataSource : IDataSource, IEditableTrendUnitSource
 {
     private readonly string _bucket;
+    private Configuration _configuration = new();
 
     private readonly string _influxToken;
     private readonly string _influxOrg;
@@ -54,6 +55,8 @@ public class InfluxDataSource : IDataSource
 
         Header = $"Influx: {bucket}";
         ShortName = $"Influx: {bucket}";
+
+        LoadConfiguration();
     }
 
     public static InfluxEnv GetEnv()
@@ -75,6 +78,7 @@ public class InfluxDataSource : IDataSource
     public async Task<List<Trend>> Trends()
     {
         if (!_isValid) return new List<Trend>();
+        LoadConfiguration();
 
         try
         {
@@ -94,31 +98,12 @@ public class InfluxDataSource : IDataSource
             var measurementStrings = allMeasurementStrings
                 .Where(s => s != "sensor-node").ToList();
 
-            // Try to read configuration from %APPDATA%/mplotter/influx/{_bucket}.json
-            Dictionary<string, string> unitMap = new();
-            Dictionary<string, string> displayNameMap = new();
-            try
-            {
-                FileStream stream = new FileStream(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "mplotter", "influx", $"{_bucket}.json"), FileMode.Open);
-                var config = ConfigurationParser.LoadConfiguration(stream);
-
-                foreach (var point in config.Points)
-                {
-                    unitMap[point.Name] = point.Unit;
-                    displayNameMap[point.Name] = point.DisplayName;
-                }
-            }
-            catch
-            {
-                // Do nothing
-            }
-
             List<Trend> trends = new(measurementStrings.Count);
 
             foreach (var measurement in measurementStrings)
             {
-                string unit = unitMap.GetValueOrDefault(measurement, "");
-                string displayName = displayNameMap.GetValueOrDefault(measurement, measurement);
+                string unit = GetExplicitUnit(measurement) ?? measurement.GetUnit() ?? "";
+                string displayName = GetDisplayName(measurement) ?? measurement;
                 trends.Add(new Trend(measurement, unit, displayName));
             }
 
@@ -174,6 +159,43 @@ public class InfluxDataSource : IDataSource
     public string ShortName { get; }
 
     public Task<DataSourceType> DataSourceType() => Task.FromResult(csvplot.DataSourceType.Database);
+
+    public Task SetUnit(Trend trend, string? unit)
+    {
+        return SetUnits(new[] { trend }, unit);
+    }
+
+    public Task SetUnits(IEnumerable<Trend> trends, string? unit)
+    {
+        LoadConfiguration();
+        string? normalizedUnit = string.IsNullOrWhiteSpace(unit) ? null : unit.Trim();
+        List<Trend> trendList = trends.DistinctBy(trend => trend.Name).ToList();
+
+        foreach (Trend trend in trendList)
+        {
+            PointConfig pointConfig = _configuration.GetOrCreateInfluxPoint(trend.Name);
+            pointConfig.Unit = normalizedUnit;
+            _configuration.RemoveInfluxPointIfEmpty(trend.Name);
+        }
+
+        string configPath = ConfigurationParser.GetDefaultConfigurationPath();
+
+        try
+        {
+            Console.WriteLine(
+                $"[InfluxConfig] Writing unit override batch. Bucket='{_bucket}', Count='{trendList.Count}', Unit='{normalizedUnit ?? "(automatic)"}', Path='{configPath}'");
+            ConfigurationParser.SaveConfiguration(_configuration);
+            Console.WriteLine(
+                $"[InfluxConfig] Write succeeded. Bucket='{_bucket}', Count='{trendList.Count}', Path='{configPath}'");
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(
+                $"[InfluxConfig] Write failed. Bucket='{_bucket}', Count='{trendList.Count}', Unit='{normalizedUnit ?? "(automatic)"}', Path='{configPath}', Error='{ex.Message}'");
+            throw;
+        }
+    }
 
     public async Task<TimestampData> GetTimestampData(string trend)
     {
@@ -503,5 +525,79 @@ public class InfluxDataSource : IDataSource
     public Task UpdateCache()
     {
         return Task.CompletedTask;
+    }
+
+    private void LoadConfiguration()
+    {
+        _configuration = ConfigurationParser.LoadConfiguration();
+
+        try
+        {
+            string legacyConfigPath = GetLegacyBucketConfigurationPath();
+            using FileStream stream = new(legacyConfigPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            Configuration legacyConfiguration = ConfigurationParser.LoadConfiguration(stream);
+            MergeMissingPointConfiguration(legacyConfiguration);
+        }
+        catch
+        {
+            // Ignore missing legacy configs.
+        }
+    }
+
+    private void MergeMissingPointConfiguration(Configuration other)
+    {
+        if (other.Influx.Points is null) return;
+
+        foreach (var (pointName, otherPoint) in other.Influx.Points)
+        {
+            PointConfig targetPoint = _configuration.GetOrCreateInfluxPoint(pointName);
+
+            if (string.IsNullOrWhiteSpace(targetPoint.Unit) && !string.IsNullOrWhiteSpace(otherPoint.Unit))
+            {
+                targetPoint.Unit = otherPoint.Unit;
+            }
+
+            if (string.IsNullOrWhiteSpace(targetPoint.Alias) && !string.IsNullOrWhiteSpace(otherPoint.Alias))
+            {
+                targetPoint.Alias = otherPoint.Alias;
+            }
+
+            if (string.IsNullOrWhiteSpace(targetPoint.Container) && !string.IsNullOrWhiteSpace(otherPoint.Container))
+            {
+                targetPoint.Container = otherPoint.Container;
+            }
+
+            if ((targetPoint.Tags is null || targetPoint.Tags.Count == 0) && otherPoint.Tags is { Count: > 0 })
+            {
+                targetPoint.Tags = otherPoint.Tags.ToList();
+            }
+        }
+    }
+
+    private string? GetExplicitUnit(string trendName)
+    {
+        if (_configuration.Influx.Points is null) return null;
+        if (!_configuration.Influx.Points.TryGetValue(trendName, out PointConfig? pointConfig)) return null;
+        return string.IsNullOrWhiteSpace(pointConfig.Unit) ? null : pointConfig.Unit;
+    }
+
+    private string? GetDisplayName(string trendName)
+    {
+        if (_configuration.Influx.Points is null) return null;
+        if (!_configuration.Influx.Points.TryGetValue(trendName, out PointConfig? pointConfig)) return null;
+        return string.IsNullOrWhiteSpace(pointConfig.Alias) ? null : pointConfig.Alias;
+    }
+
+    private string GetLegacyBucketConfigurationPath()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "mplotter", "influx", $"{_bucket}.json");
+        }
+
+        string? home = Environment.GetEnvironmentVariable("HOME");
+        return home is null
+            ? Path.Combine("influx", $"{_bucket}.json")
+            : Path.Combine(home, ".config", "mplotter", "influx", $"{_bucket}.json");
     }
 }

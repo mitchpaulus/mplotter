@@ -162,7 +162,7 @@ public class EnergyPlusEsoDataSource : IDataSource
         await _cacheLock.WaitAsync();
         try
         {
-            return _dataDictionary.Keys.Select(name => new Trend(name, "", name)).ToList();
+            return _dataDictionary.Keys.Select(name => new Trend(name, name.GetUnit() ?? "", name)).ToList();
         }
         finally
         {

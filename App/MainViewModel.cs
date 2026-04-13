@@ -151,7 +151,7 @@ public class MainViewModel : INotifyPropertyChanged
             return;
         }
 
-        IEnumerable<IGrouping<string?,PlotTrendConfig>> unitGrouped = _window.SelectedTimeSeriesTrends.GroupBy(config => config.Trend.GetUnit());
+        IEnumerable<IGrouping<string?,PlotTrendConfig>> unitGrouped = _window.SelectedTimeSeriesTrends.GroupBy(config => string.IsNullOrWhiteSpace(config.Trend.Unit) ? null : config.Trend.Unit);
 
         List<AvaPlot> plots = new();
 

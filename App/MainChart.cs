@@ -35,6 +35,19 @@ public interface IDataSource
     public Task UpdateCache();
 }
 
+public interface IEditableTrendUnitSource
+{
+    Task SetUnit(Trend trend, string? unit);
+
+    async Task SetUnits(IEnumerable<Trend> trends, string? unit)
+    {
+        foreach (Trend trend in trends)
+        {
+            await SetUnit(trend, unit);
+        }
+    }
+}
+
 public enum GapState
 {
     HasGaps,
