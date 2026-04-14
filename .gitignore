@@ -3,6 +3,8 @@
 App/deploy.sh
 App/publish-win/
 
+tags.txt
+
 # ANTLR related files
 *.tokens
 *.interp

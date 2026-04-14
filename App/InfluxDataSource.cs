@@ -26,7 +26,7 @@ public class InfluxEnv
     public bool IsValid() => !(string.IsNullOrWhiteSpace(InfluxToken) || string.IsNullOrWhiteSpace(InfluxHost) || string.IsNullOrWhiteSpace(InfluxOrg));
 }
 
-public class InfluxDataSource : IDataSource, IEditableTrendUnitSource
+public class InfluxDataSource : IDataSource, IEditableTrendUnitSource, IEditableTrendTagSource
 {
     private readonly string _bucket;
     private Configuration _configuration = new();
@@ -104,7 +104,7 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource
             {
                 string unit = GetExplicitUnit(measurement) ?? measurement.GetUnit() ?? "";
                 string displayName = GetDisplayName(measurement) ?? measurement;
-                trends.Add(new Trend(measurement, unit, displayName));
+                trends.Add(new Trend(measurement, unit, displayName, GetExplicitTags(measurement)));
             }
 
             if (measurementStrings.Count != allMeasurementStrings.Count)
@@ -173,9 +173,9 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource
 
         foreach (Trend trend in trendList)
         {
-            PointConfig pointConfig = _configuration.GetOrCreateInfluxPoint(trend.Name);
+            PointConfig pointConfig = _configuration.GetOrCreateInfluxPoint(_bucket, trend.Name);
             pointConfig.Unit = normalizedUnit;
-            _configuration.RemoveInfluxPointIfEmpty(trend.Name);
+            _configuration.RemoveInfluxPointIfEmpty(_bucket, trend.Name);
         }
 
         string configPath = ConfigurationParser.GetDefaultConfigurationPath();
@@ -193,6 +193,53 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource
         {
             Console.Error.WriteLine(
                 $"[InfluxConfig] Write failed. Bucket='{_bucket}', Count='{trendList.Count}', Unit='{normalizedUnit ?? "(automatic)"}', Path='{configPath}', Error='{ex.Message}'");
+            throw;
+        }
+    }
+
+    public Task SetTags(Trend trend, IReadOnlyList<string>? tags)
+    {
+        return SetTags(new[] { trend }, tags);
+    }
+
+    public Task SetTags(IEnumerable<Trend> trends, IReadOnlyList<string>? tags)
+    {
+        LoadConfiguration();
+        List<string>? normalizedTags = tags?
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Select(tag => tag.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (normalizedTags is { Count: 0 })
+        {
+            normalizedTags = null;
+        }
+
+        List<Trend> trendList = trends.DistinctBy(trend => trend.Name).ToList();
+
+        foreach (Trend trend in trendList)
+        {
+            PointConfig pointConfig = _configuration.GetOrCreateInfluxPoint(_bucket, trend.Name);
+            pointConfig.Tags = normalizedTags is null ? null : normalizedTags.ToList();
+            _configuration.RemoveInfluxPointIfEmpty(_bucket, trend.Name);
+        }
+
+        string configPath = ConfigurationParser.GetDefaultConfigurationPath();
+
+        try
+        {
+            Console.WriteLine(
+                $"[InfluxConfig] Writing tag override batch. Bucket='{_bucket}', Count='{trendList.Count}', Tags='{string.Join(",", normalizedTags ?? new List<string>())}', Path='{configPath}'");
+            ConfigurationParser.SaveConfiguration(_configuration);
+            Console.WriteLine(
+                $"[InfluxConfig] Write succeeded. Bucket='{_bucket}', Count='{trendList.Count}', Path='{configPath}'");
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(
+                $"[InfluxConfig] Write failed. Bucket='{_bucket}', Count='{trendList.Count}', Tags='{string.Join(",", normalizedTags ?? new List<string>())}', Path='{configPath}', Error='{ex.Message}'");
             throw;
         }
     }
@@ -546,11 +593,12 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource
 
     private void MergeMissingPointConfiguration(Configuration other)
     {
-        if (other.Influx.Points is null) return;
+        Dictionary<string, PointConfig>? otherPoints = other.GetInfluxPoints(_bucket);
+        if (otherPoints is null) return;
 
-        foreach (var (pointName, otherPoint) in other.Influx.Points)
+        foreach (var (pointName, otherPoint) in otherPoints)
         {
-            PointConfig targetPoint = _configuration.GetOrCreateInfluxPoint(pointName);
+            PointConfig targetPoint = _configuration.GetOrCreateInfluxPoint(_bucket, pointName);
 
             if (string.IsNullOrWhiteSpace(targetPoint.Unit) && !string.IsNullOrWhiteSpace(otherPoint.Unit))
             {
@@ -576,16 +624,27 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource
 
     private string? GetExplicitUnit(string trendName)
     {
-        if (_configuration.Influx.Points is null) return null;
-        if (!_configuration.Influx.Points.TryGetValue(trendName, out PointConfig? pointConfig)) return null;
+        Dictionary<string, PointConfig>? points = _configuration.GetInfluxPoints(_bucket);
+        if (points is null) return null;
+        if (!points.TryGetValue(trendName, out PointConfig? pointConfig)) return null;
         return string.IsNullOrWhiteSpace(pointConfig.Unit) ? null : pointConfig.Unit;
     }
 
     private string? GetDisplayName(string trendName)
     {
-        if (_configuration.Influx.Points is null) return null;
-        if (!_configuration.Influx.Points.TryGetValue(trendName, out PointConfig? pointConfig)) return null;
+        Dictionary<string, PointConfig>? points = _configuration.GetInfluxPoints(_bucket);
+        if (points is null) return null;
+        if (!points.TryGetValue(trendName, out PointConfig? pointConfig)) return null;
         return string.IsNullOrWhiteSpace(pointConfig.Alias) ? null : pointConfig.Alias;
+    }
+
+    private List<string>? GetExplicitTags(string trendName)
+    {
+        Dictionary<string, PointConfig>? points = _configuration.GetInfluxPoints(_bucket);
+        if (points is null) return null;
+        if (!points.TryGetValue(trendName, out PointConfig? pointConfig)) return null;
+        if (pointConfig.Tags is not { Count: > 0 }) return null;
+        return pointConfig.Tags.Where(tag => !string.IsNullOrWhiteSpace(tag)).Distinct(StringComparer.Ordinal).ToList();
     }
 
     private string GetLegacyBucketConfigurationPath()

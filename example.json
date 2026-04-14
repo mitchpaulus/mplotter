@@ -11,15 +11,15 @@
                     "root equipment name 2": {
                         "tags": ["tag1", "tag2"]
                     }
+                },
+                "points": {
+                    "Device 1/analog input 1": {
+                        "tags": ["tag1", "tag2"],
+                        "container": "equipment name 1",
+                        "unit": "°F",
+                        "alias": "Better name for this trend."
+                    }
                 }
-            }
-        },
-        "points": {
-            "Device 1/analog input 1": {
-                "tags": ["tag1", "tag2"],
-                "container": "equipment name 1",
-                "unit": "°F",
-                "alias": "Better name for this trend."
             }
         }
     }
