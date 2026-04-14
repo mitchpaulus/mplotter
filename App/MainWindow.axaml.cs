@@ -577,8 +577,10 @@ public partial class MainWindow : Window
 
     private void UpdateVisibleTimeSeriesTrendList()
     {
-        Dictionary<string, List<PlotTrendConfig>> grouped = _availableTimeSeriesTrends.GroupBy(config => config.Trend.Name).ToDictionary(configs => configs.Key, configs => configs.ToList());
-        var sortedKeys = grouped.Keys.OrderBy(s => s.ToLowerInvariant());
+        Dictionary<string, List<PlotTrendConfig>> grouped = _availableTimeSeriesTrends
+            .GroupBy(config => config.Trend.DisplayName, StringComparer.Ordinal)
+            .ToDictionary(configs => configs.Key, configs => configs.ToList(), StringComparer.Ordinal);
+        var sortedKeys = grouped.Keys.OrderBy(s => s, StringComparer.OrdinalIgnoreCase);
 
         List<TextBlock> timeSeriesTextBlocks = _currentTimeSeriesTextBlocks == 1 ? _timeSeriesTextBlocks2 : _timeSeriesTextBlocks1;
         timeSeriesTextBlocks.Clear();
@@ -596,9 +598,8 @@ public partial class MainWindow : Window
         {
             foreach (var key in sortedKeys)
             {
-                if (!key.ToLowerInvariant().Contains(loweredSearchText)) continue;
-
                 List<PlotTrendConfig> trends = grouped[key];
+                if (!trends.Any(config => config.Trend.DisplayLabel.ToLowerInvariant().Contains(loweredSearchText))) continue;
                 if (trends.Count > 1)
                 {
                     foreach (var t in trends)
@@ -617,9 +618,8 @@ public partial class MainWindow : Window
         {
             foreach (var key in sortedKeys)
             {
-                if (!wildcardRegex.Match(key.ToLowerInvariant()).Success) continue;
-
                 List<PlotTrendConfig> trends = grouped[key];
+                if (!trends.Any(config => wildcardRegex.Match(config.Trend.DisplayLabel.ToLowerInvariant()).Success)) continue;
                 if (trends.Count > 1)
                 {
                     foreach (var t in trends)

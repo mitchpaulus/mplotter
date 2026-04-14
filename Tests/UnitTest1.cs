@@ -258,6 +258,14 @@ public class Tests
 
         Assert.That(trend.DisplayLabel, Is.EqualTo("Trend A [GPM, tag1, tag2, tag3, tag4, tag5, 2 more..]"));
     }
+
+    [Test]
+    public void TrendDisplayLabelUsesAliasForDisplay()
+    {
+        Trend trend = new("raw.measurement.name", "GPM", "Chilled Water Flow", new[] { "primary" });
+
+        Assert.That(trend.DisplayLabel, Is.EqualTo("Chilled Water Flow [GPM, primary]"));
+    }
 }
 
 public class TestClass

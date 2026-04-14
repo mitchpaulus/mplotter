@@ -112,7 +112,8 @@ public partial class TrendDialog : Window
 
              foreach (var trend in trends)
              {
-                 if (!trend.Name.ToLowerInvariant().Contains(TrendSearchBox.Text ?? "".ToLowerInvariant())) continue;
+                 string searchText = TrendSearchBox.Text?.ToLowerInvariant() ?? "";
+                 if (!trend.DisplayLabel.ToLowerInvariant().Contains(searchText)) continue;
                  blockList.Add(CreateTrendTextBlock(source, trend));
              }
          }
