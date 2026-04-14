@@ -242,6 +242,22 @@ public class Tests
         Assert.That(output, Does.Not.Contain("\"Points\""));
         Assert.That(output, Does.Not.Contain("\"Unit\""));
     }
+
+    [Test]
+    public void TrendDisplayLabelIncludesUnitAndTags()
+    {
+        Trend trend = new("Trend A", "GPM", "Trend A", new[] { "tag2", "tag1" });
+
+        Assert.That(trend.DisplayLabel, Is.EqualTo("Trend A [GPM, tag1, tag2]"));
+    }
+
+    [Test]
+    public void TrendDisplayLabelTruncatesAfterFiveTags()
+    {
+        Trend trend = new("Trend A", "GPM", "Trend A", new[] { "tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7" });
+
+        Assert.That(trend.DisplayLabel, Is.EqualTo("Trend A [GPM, tag1, tag2, tag3, tag4, tag5, 2 more..]"));
+    }
 }
 
 public class TestClass
