@@ -160,15 +160,15 @@ public class Tests
                                   "tags": ["tag1", "tag2"],
                                   "parent": "equipment name 2"
                                 }
+                              },
+                              "points": {
+                                "Device 1/analog input 1": {
+                                  "tags": ["tag1", "tag2"],
+                                  "container": "equipment name 1",
+                                  "unit": "°F",
+                                  "alias": "Better name for this trend."
+                                }
                               }
-                            }
-                          },
-                          "points": {
-                            "Device 1/analog input 1": {
-                              "tags": ["tag1", "tag2"],
-                              "container": "equipment name 1",
-                              "unit": "°F",
-                              "alias": "Better name for this trend."
                             }
                           }
                         }
@@ -181,34 +181,10 @@ public class Tests
         Assert.That(config.Version, Is.EqualTo(1));
         Assert.That(config.Influx.Buckets, Is.Not.Null);
         Assert.That(config.Influx.Buckets!, Contains.Key("bucket one"));
-        Assert.That(config.Influx.Points, Is.Not.Null);
-        Assert.That(config.Influx.Points!, Contains.Key("Device 1/analog input 1"));
-        Assert.That(config.Influx.Points!["Device 1/analog input 1"].Unit, Is.EqualTo("°F"));
-        Assert.That(config.Influx.Points!["Device 1/analog input 1"].Alias, Is.EqualTo("Better name for this trend."));
-    }
-
-    [Test]
-    public void ConfigurationParserReadsLegacyPointArray()
-    {
-        string json = """
-                      {
-                        "points": [
-                          {
-                            "name": "Legacy Trend",
-                            "unit": "kW",
-                            "displayName": "Legacy Alias"
-                          }
-                        ]
-                      }
-                      """;
-
-        using MemoryStream stream = new(Encoding.UTF8.GetBytes(json));
-        Configuration config = ConfigurationParser.LoadConfiguration(stream);
-
-        Assert.That(config.Influx.Points, Is.Not.Null);
-        Assert.That(config.Influx.Points!, Contains.Key("Legacy Trend"));
-        Assert.That(config.Influx.Points!["Legacy Trend"].Unit, Is.EqualTo("kW"));
-        Assert.That(config.Influx.Points!["Legacy Trend"].Alias, Is.EqualTo("Legacy Alias"));
+        Assert.That(config.Influx.Buckets!["bucket one"].Points, Is.Not.Null);
+        Assert.That(config.Influx.Buckets!["bucket one"].Points!, Contains.Key("Device 1/analog input 1"));
+        Assert.That(config.Influx.Buckets!["bucket one"].Points!["Device 1/analog input 1"].Unit, Is.EqualTo("°F"));
+        Assert.That(config.Influx.Buckets!["bucket one"].Points!["Device 1/analog input 1"].Alias, Is.EqualTo("Better name for this trend."));
     }
 
     [Test]
@@ -218,10 +194,14 @@ public class Tests
                       {
                         "Version": 1,
                         "Influx": {
-                          "Points": {
-                            "Trend A": {
-                              "Unit": "GPM",
-                              "Alias": "Flow A"
+                          "Buckets": {
+                            "Bucket One": {
+                              "Points": {
+                                "Trend A": {
+                                  "Unit": "GPM",
+                                  "Alias": "Flow A"
+                                }
+                              }
                             }
                           }
                         }
@@ -231,17 +211,20 @@ public class Tests
         using MemoryStream stream = new(Encoding.UTF8.GetBytes(json));
         Configuration config = ConfigurationParser.LoadConfiguration(stream);
 
-        Assert.That(config.Influx.Points, Is.Not.Null);
-        Assert.That(config.Influx.Points!, Contains.Key("Trend A"));
-        Assert.That(config.Influx.Points!["Trend A"].Unit, Is.EqualTo("GPM"));
-        Assert.That(config.Influx.Points!["Trend A"].Alias, Is.EqualTo("Flow A"));
+        Assert.That(config.Influx.Buckets, Is.Not.Null);
+        Assert.That(config.Influx.Buckets!, Contains.Key("Bucket One"));
+        Assert.That(config.Influx.Buckets!["Bucket One"].Points, Is.Not.Null);
+        Assert.That(config.Influx.Buckets!["Bucket One"].Points!, Contains.Key("Trend A"));
+        Assert.That(config.Influx.Buckets!["Bucket One"].Points!["Trend A"].Unit, Is.EqualTo("GPM"));
+        Assert.That(config.Influx.Buckets!["Bucket One"].Points!["Trend A"].Alias, Is.EqualTo("Flow A"));
     }
 
     [Test]
     public void ConfigurationParserWritesCamelCase()
     {
         Configuration configuration = new();
-        configuration.GetOrCreateInfluxPoint("Trend A").Unit = "GPM";
+        configuration.GetOrCreateInfluxPoint("bucket one", "Trend A").Unit = "GPM";
+        configuration.GetOrCreateInfluxPoint("bucket one", "Trend A").Tags = new List<string> { "tag1" };
 
         using MemoryStream stream = new();
         ConfigurationParser.SaveConfiguration(configuration, stream);
@@ -249,12 +232,58 @@ public class Tests
 
         Assert.That(output, Does.Contain("\"version\""));
         Assert.That(output, Does.Contain("\"influx\""));
+        Assert.That(output, Does.Contain("\"buckets\""));
+        Assert.That(output, Does.Contain("\"bucket one\""));
         Assert.That(output, Does.Contain("\"points\""));
         Assert.That(output, Does.Contain("\"unit\""));
+        Assert.That(output, Does.Contain("\"tags\""));
         Assert.That(output, Does.Not.Contain("\"Version\""));
         Assert.That(output, Does.Not.Contain("\"Influx\""));
         Assert.That(output, Does.Not.Contain("\"Points\""));
         Assert.That(output, Does.Not.Contain("\"Unit\""));
+    }
+
+    [Test]
+    public void TrendDisplayLabelIncludesUnitAndTags()
+    {
+        Trend trend = new("Trend A", "GPM", "Trend A", new[] { "tag2", "tag1" });
+
+        Assert.That(trend.DisplayLabel, Is.EqualTo("Trend A [GPM, tag1, tag2]"));
+    }
+
+    [Test]
+    public void TrendDisplayLabelTruncatesAfterFiveTags()
+    {
+        Trend trend = new("Trend A", "GPM", "Trend A", new[] { "tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7" });
+
+        Assert.That(trend.DisplayLabel, Is.EqualTo("Trend A [GPM, tag1, tag2, tag3, tag4, tag5, 2 more..]"));
+    }
+
+    [Test]
+    public void TrendDisplayLabelUsesAliasForDisplay()
+    {
+        Trend trend = new("raw.measurement.name", "GPM", "Chilled Water Flow", new[] { "primary" });
+
+        Assert.That(trend.DisplayLabel, Is.EqualTo("Chilled Water Flow [GPM, primary]"));
+    }
+
+    [Test]
+    public void TagSearchMatchesExactTokensWithAndSemantics()
+    {
+        Assert.That(TagSearchHelper.MatchesAllTokens(new[] { "Primary", "CHW", "Plant" }, "primary chw"), Is.True);
+        Assert.That(TagSearchHelper.MatchesAllTokens(new[] { "Primary", "Plant" }, "primary chw"), Is.False);
+        Assert.That(TagSearchHelper.MatchesAllTokens(new[] { "Primary", "CHW" }, "pri"), Is.False);
+    }
+
+    [Test]
+    public void TagSearchSuggestionsPreferPrefixMatchesAndKeepPreviousTokens()
+    {
+        List<string> suggestions = TagSearchHelper.GetSuggestions(
+            "chw pri",
+            new[] { "Primary", "Secondary", "AirPrimary", "Plant", "CHW" });
+
+        Assert.That(suggestions, Is.EqualTo(new[] { "Primary", "AirPrimary" }));
+        Assert.That(TagSearchHelper.ApplySuggestion("chw pri", "Primary"), Is.EqualTo("chw Primary "));
     }
 }
 

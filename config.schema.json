@@ -16,12 +16,6 @@
           "additionalProperties": {
             "$ref": "#/$defs/influxBucket"
           }
-        },
-        "points": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/influxPoint"
-          }
         }
       },
       "additionalProperties": false
@@ -45,6 +39,12 @@
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/influxContainer"
+          }
+        },
+        "points": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/influxPoint"
           }
         }
       },

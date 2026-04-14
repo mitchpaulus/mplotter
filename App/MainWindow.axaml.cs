@@ -53,6 +53,7 @@ public partial class MainWindow : Window
     private readonly List<TextBlock> _timeSeriesTextBlocks2 = new();
     private int _currentTimeSeriesTextBlocks = 1;
     private bool _currentlyFiltering = false;
+    private bool _suppressTagSuggestionSelectionChanged = false;
 
     private readonly ListBox _timeSeriesTrendsListBox = new()
     {
@@ -178,7 +179,13 @@ public partial class MainWindow : Window
 
     private async void SearchTimerOnElapsed(object? sender, ElapsedEventArgs e)
     {
-        await Dispatcher.UIThread.InvokeAsync(UpdateVisibleTimeSeriesTrendList);
+        await Dispatcher.UIThread.InvokeAsync(RefreshSearchUi);
+    }
+
+    private void RefreshSearchUi()
+    {
+        UpdateVisibleTimeSeriesTrendList();
+        UpdateTagSuggestions();
     }
 
     private void AddXySerieButtonOnClick(object? sender, RoutedEventArgs e)
@@ -404,7 +411,7 @@ public partial class MainWindow : Window
 
         RenderDataSources();
         await UpdateBackingAvailableTimeSeriesTrendList();
-        UpdateVisibleTimeSeriesTrendList();
+        RefreshSearchUi();
         await _vm.UpdatePlots();
     }
 
@@ -436,7 +443,7 @@ public partial class MainWindow : Window
         _selectedDataSources.Add(source);
         RenderDataSources();
         await UpdateBackingAvailableTimeSeriesTrendList();
-        UpdateVisibleTimeSeriesTrendList();
+        RefreshSearchUi();
 
         foreach (var c in MruPanel.Children) if (c is Button b) b.IsEnabled = true;
         BrowseButton.IsEnabled = true;
@@ -549,7 +556,7 @@ public partial class MainWindow : Window
             try
             {
                 await UpdateBackingAvailableTimeSeriesTrendList();
-                UpdateVisibleTimeSeriesTrendList();
+                RefreshSearchUi();
                 UpdateXyGrid();
                 await _vm.UpdatePlots();
                 tcs.SetResult(null);
@@ -577,13 +584,8 @@ public partial class MainWindow : Window
 
     private void UpdateVisibleTimeSeriesTrendList()
     {
-        Dictionary<string, List<PlotTrendConfig>> grouped = _availableTimeSeriesTrends.GroupBy(config => config.Trend.Name).ToDictionary(configs => configs.Key, configs => configs.ToList());
-        var sortedKeys = grouped.Keys.OrderBy(s => s.ToLowerInvariant());
-
-        List<TextBlock> timeSeriesTextBlocks = _currentTimeSeriesTextBlocks == 1 ? _timeSeriesTextBlocks2 : _timeSeriesTextBlocks1;
-        timeSeriesTextBlocks.Clear();
-
         string loweredSearchText = SearchBox.Text?.ToLowerInvariant().Trim() ?? "";
+        string tagSearchText = TagSearchBox.Text ?? "";
         Regex? wildcardRegex = null;
 
         if (loweredSearchText.Contains("*"))
@@ -592,48 +594,31 @@ public partial class MainWindow : Window
             wildcardRegex = new Regex(wildcardPattern);
         }
 
-        if (!loweredSearchText.Contains("*"))
-        {
-            foreach (var key in sortedKeys)
-            {
-                if (!key.ToLowerInvariant().Contains(loweredSearchText)) continue;
+        Dictionary<string, List<PlotTrendConfig>> grouped = _availableTimeSeriesTrends
+            .Where(config => MatchesNameSearch(config.Trend, loweredSearchText, wildcardRegex))
+            .Where(config => TagSearchHelper.MatchesAllTokens(config.Trend.Tags, tagSearchText))
+            .GroupBy(config => config.Trend.DisplayName, StringComparer.Ordinal)
+            .ToDictionary(configs => configs.Key, configs => configs.ToList(), StringComparer.Ordinal);
+        var sortedKeys = grouped.Keys.OrderBy(s => s, StringComparer.OrdinalIgnoreCase);
 
-                List<PlotTrendConfig> trends = grouped[key];
-                if (trends.Count > 1)
+        List<TextBlock> timeSeriesTextBlocks = _currentTimeSeriesTextBlocks == 1 ? _timeSeriesTextBlocks2 : _timeSeriesTextBlocks1;
+        timeSeriesTextBlocks.Clear();
+
+        foreach (var key in sortedKeys)
+        {
+            List<PlotTrendConfig> trends = grouped[key];
+            if (trends.Count > 1)
+            {
+                foreach (var t in trends)
                 {
-                    foreach (var t in trends)
-                    {
-                        timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: true));
-                    }
-                }
-                else
-                {
-                    var t = trends[0];
-                    timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: false));
+                    timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: true));
                 }
             }
-        }
-        else if (wildcardRegex != null)
-        {
-            foreach (var key in sortedKeys)
+            else
             {
-                if (!wildcardRegex.Match(key.ToLowerInvariant()).Success) continue;
-
-                List<PlotTrendConfig> trends = grouped[key];
-                if (trends.Count > 1)
-                {
-                    foreach (var t in trends)
-                    {
-                        timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: true));
-                    }
-                }
-                else
-                {
-                    var t = trends[0];
-                    timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: false));
-                }
+                var t = trends[0];
+                timeSeriesTextBlocks.Add(CreateTrendTextBlock(t, includeSourcePrefix: false));
             }
-
         }
 
         _currentlyFiltering = true;
@@ -655,13 +640,77 @@ public partial class MainWindow : Window
         _currentlyFiltering = false;
     }
 
+    private static bool MatchesNameSearch(Trend trend, string loweredSearchText, Regex? wildcardRegex)
+    {
+        if (string.IsNullOrWhiteSpace(loweredSearchText)) return true;
+
+        string displayName = trend.DisplayName.ToLowerInvariant();
+        if (wildcardRegex is null)
+        {
+            return displayName.Contains(loweredSearchText);
+        }
+
+        return wildcardRegex.Match(displayName).Success;
+    }
+
+    private IEnumerable<string> GetKnownTags()
+    {
+        return TagChoices.GetTags()
+            .Concat(_availableTimeSeriesTrends.SelectMany(config => config.Trend.Tags))
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void UpdateTagSuggestions()
+    {
+        List<string> suggestions = TagSearchHelper.GetSuggestions(TagSearchBox.Text, GetKnownTags());
+
+        _suppressTagSuggestionSelectionChanged = true;
+        TagSuggestionListBox.ItemsSource = suggestions;
+        TagSuggestionListBox.IsVisible = suggestions.Count > 0;
+        TagSuggestionListBox.SelectedIndex = suggestions.Count > 0 ? 0 : -1;
+        _suppressTagSuggestionSelectionChanged = false;
+    }
+
+    private bool AcceptSelectedTagSuggestion()
+    {
+        if (TagSuggestionListBox.SelectedItem is not string suggestion)
+        {
+            return false;
+        }
+
+        TagSearchBox.Text = TagSearchHelper.ApplySuggestion(TagSearchBox.Text, suggestion);
+        TagSearchBox.CaretIndex = TagSearchBox.Text.Length;
+        TagSearchBox.Focus();
+        return true;
+    }
+
+    private void MoveTagSuggestionSelection(int delta)
+    {
+        if (TagSuggestionListBox.ItemsSource is not IEnumerable<string> suggestions) return;
+
+        List<string> suggestionList = suggestions.ToList();
+        if (suggestionList.Count == 0) return;
+
+        int currentIndex = TagSuggestionListBox.SelectedIndex;
+        if (currentIndex < 0)
+        {
+            currentIndex = 0;
+        }
+
+        int nextIndex = Math.Clamp(currentIndex + delta, 0, suggestionList.Count - 1);
+        _suppressTagSuggestionSelectionChanged = true;
+        TagSuggestionListBox.SelectedIndex = nextIndex;
+        _suppressTagSuggestionSelectionChanged = false;
+    }
+
     private TextBlock CreateTrendTextBlock(PlotTrendConfig config, bool includeSourcePrefix)
     {
         string? prefix = includeSourcePrefix ? $"{config.DataSource.ShortName}: " : null;
         return TrendTextBlockFactory.Create(config.Trend, config, prefix);
     }
 
-    private async void TimeSeriesTrendListBox_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void TimeSeriesTrendListBox_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not ListBox listBox) return;
         if (!e.GetCurrentPoint(listBox).Properties.IsRightButtonPressed) return;
@@ -670,10 +719,40 @@ public partial class MainWindow : Window
 
         PlotTrendConfig? config = GetPlotTrendConfigFromListBoxItem(e.Source);
         if (config is null) return;
-        if (config.DataSource is not IEditableTrendUnitSource) return;
+        ShowTrendContextMenu(listBox, config);
+    }
 
-        var (configs, skippedCount) = GetEditableTargetsForUnitEdit(config);
-        await EditTrendUnits(configs, skippedCount);
+    private void ShowTrendContextMenu(Control placementTarget, PlotTrendConfig clickedConfig)
+    {
+        ContextMenu contextMenu = new()
+        {
+            Placement = PlacementMode.Pointer
+        };
+
+        if (clickedConfig.DataSource is IEditableTrendUnitSource)
+        {
+            MenuItem unitItem = new() { Header = "Edit Unit..." };
+            unitItem.Click += async (_, _) =>
+            {
+                var (configs, skippedCount) = GetEditableTargetsForUnitEdit(clickedConfig);
+                await EditTrendUnits(configs, skippedCount);
+            };
+            contextMenu.Items.Add(unitItem);
+        }
+
+        if (clickedConfig.DataSource is IEditableTrendTagSource)
+        {
+            MenuItem tagItem = new() { Header = "Edit Tags..." };
+            tagItem.Click += async (_, _) =>
+            {
+                var (configs, skippedCount) = GetEditableTargetsForTagEdit(clickedConfig);
+                await EditTrendTags(configs, skippedCount);
+            };
+            contextMenu.Items.Add(tagItem);
+        }
+
+        if (contextMenu.Items.Count == 0) return;
+        contextMenu.Open(placementTarget);
     }
 
     private async Task EditTrendUnits(List<PlotTrendConfig> configs, int skippedCount)
@@ -715,6 +794,52 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task EditTrendTags(List<PlotTrendConfig> configs, int skippedCount)
+    {
+        if (!configs.Any()) return;
+        if (configs[0].DataSource is not IEditableTrendTagSource) return;
+
+        List<string> currentTags = GetInitialTagsForEdit(configs);
+        string? note = skippedCount > 0
+            ? $"{skippedCount} selected trend{(skippedCount == 1 ? "" : "s")} cannot have tags edited and will be ignored."
+            : null;
+        TagDialog dialog = new(TagChoices.GetTags(), currentTags, note);
+        dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        dialog.Width = 400;
+        dialog.Height = 600;
+
+        List<string>? selectedTags = await dialog.ShowDialog<List<string>?>(this);
+        if (selectedTags is null) return;
+        try
+        {
+            foreach (IGrouping<(IEditableTrendTagSource Source, string Signature), PlotTrendConfig> saveGroup in configs
+                         .Where(config => config.DataSource is IEditableTrendTagSource)
+                         .GroupBy(config =>
+                         {
+                             List<string> mergedTags = MergeTags(config.Trend.Tags, selectedTags);
+                             string signature = string.Join("\u001f", mergedTags);
+                             return ((IEditableTrendTagSource)config.DataSource, signature);
+                         }))
+            {
+                List<string> mergedTags = saveGroup.First().Trend.Tags;
+                mergedTags = MergeTags(saveGroup.First().Trend.Tags, selectedTags);
+                IReadOnlyList<string>? tagsToSave = mergedTags.Count == 0 ? null : mergedTags;
+                await saveGroup.Key.Source.SetTags(saveGroup.Select(config => config.Trend), tagsToSave);
+            }
+
+            foreach (PlotTrendConfig config in configs)
+            {
+                config.Trend.Tags = MergeTags(config.Trend.Tags, selectedTags);
+            }
+
+            await RefreshUiAfterDataSourceUpdate();
+        }
+        catch (Exception ex)
+        {
+            await ShowMessage("Failed To Save Tags", $"Could not write the configuration file.\n\n{ex.Message}");
+        }
+    }
+
     private (List<PlotTrendConfig> Configs, int SkippedCount) GetEditableTargetsForUnitEdit(PlotTrendConfig clickedConfig)
     {
         List<PlotTrendConfig> allSelectedConfigs = SelectedTimeSeriesTrends
@@ -735,6 +860,25 @@ public partial class MainWindow : Window
         return (editableSelectedConfigs, skippedCount);
     }
 
+    private (List<PlotTrendConfig> Configs, int SkippedCount) GetEditableTargetsForTagEdit(PlotTrendConfig clickedConfig)
+    {
+        List<PlotTrendConfig> allSelectedConfigs = SelectedTimeSeriesTrends
+            .Distinct()
+            .ToList();
+
+        List<PlotTrendConfig> editableSelectedConfigs = allSelectedConfigs
+            .Where(config => config.DataSource is IEditableTrendTagSource)
+            .ToList();
+
+        if (!allSelectedConfigs.Contains(clickedConfig))
+        {
+            return (new List<PlotTrendConfig> { clickedConfig }, 0);
+        }
+
+        int skippedCount = allSelectedConfigs.Count - editableSelectedConfigs.Count;
+        return (editableSelectedConfigs, skippedCount);
+    }
+
     private static string? GetInitialUnitForEdit(IEnumerable<PlotTrendConfig> configs)
     {
         List<string> units = configs
@@ -743,6 +887,26 @@ public partial class MainWindow : Window
             .ToList();
 
         return units.Count == 1 ? units[0] : "";
+    }
+
+    private static List<string> GetInitialTagsForEdit(IEnumerable<PlotTrendConfig> configs)
+    {
+        return configs
+            .SelectMany(config => config.Trend.Tags)
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<string> MergeTags(IEnumerable<string> existingTags, IEnumerable<string> addedTags)
+    {
+        return existingTags
+            .Concat(addedTags)
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task ShowMessage(string title, string message)
@@ -822,7 +986,7 @@ public partial class MainWindow : Window
         }
 
         await UpdateBackingAvailableTimeSeriesTrendList();
-        UpdateVisibleTimeSeriesTrendList();
+        RefreshSearchUi();
         await _vm.UpdatePlots();
     }
 
@@ -1027,8 +1191,39 @@ public partial class MainWindow : Window
         }
         else if (e.Key == Key.Escape)
         {
-            SearchBox.Clear();
-            SearchBox.Focus();
+            if (FocusManager?.GetFocusedElement() is TextBox focusedTextBox && focusedTextBox.Name == "TagSearchBox")
+            {
+                if (string.IsNullOrWhiteSpace(TagSearchBox.Text))
+                {
+                    MainSourceGrid.Focus();
+                }
+                else
+                {
+                    TagSearchBox.Clear();
+                    TagSearchBox.Focus();
+                }
+            }
+            else if (FocusManager?.GetFocusedElement() is TextBox searchTextBox && searchTextBox.Name == "SearchBox")
+            {
+                if (string.IsNullOrWhiteSpace(SearchBox.Text))
+                {
+                    MainSourceGrid.Focus();
+                }
+                else
+                {
+                    SearchBox.Clear();
+                    SearchBox.Focus();
+                }
+            }
+            e.Handled = true;
+        }
+        else if (e.Key == Key.T)
+        {
+            if (FocusManager == null || FocusManager.GetFocusedElement() is TextBox) return;
+            if (MainTabControl.SelectedItem != SourceTabItem) return;
+
+            TagSearchBox.Focus();
+            e.Handled = true;
         }
         else if (e.Key == Key.I)
         {
@@ -1115,6 +1310,47 @@ public partial class MainWindow : Window
     {
         _searchTimer.Stop();
         _searchTimer.Start();
+    }
+
+    private void TagSearchBox_OnTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        UpdateTagSuggestions();
+        _searchTimer.Stop();
+        _searchTimer.Start();
+    }
+
+    private void TagSearchBox_OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Down)
+        {
+            MoveTagSuggestionSelection(1);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Up)
+        {
+            MoveTagSuggestionSelection(-1);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Tab || e.Key == Key.Enter)
+        {
+            if (AcceptSelectedTagSuggestion())
+            {
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void TagSuggestionListBox_OnPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (_suppressTagSuggestionSelectionChanged) return;
+        if (AcceptSelectedTagSuggestion())
+        {
+            e.Handled = true;
+        }
     }
 
     private async void ExportButtonOnClick(object? sender, RoutedEventArgs e)

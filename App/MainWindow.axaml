@@ -21,7 +21,7 @@
         </Grid.ColumnDefinitions>
         <TabControl Grid.Column="0" x:Name="MainTabControl">
             <TabItem Header="Source" x:Name="SourceTabItem">
-                <Grid Name="MainSourceGrid">
+                <Grid Name="MainSourceGrid" Focusable="True">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"></RowDefinition> <!-- Browse Buttons, etc.  -->
                         <RowDefinition Height="Auto"></RowDefinition> <!-- MRU label -->
@@ -54,10 +54,23 @@
                         <StackPanel Name="DataSourcesList"> </StackPanel>
                     </ScrollViewer>
 
-                    <Grid Grid.Row="4"  ColumnDefinitions="* Auto">
-                        <TextBox x:Name="SearchBox" Grid.Column="0" TextChanged="SearchBox_OnTextChanged" Watermark="Search.." Margin="0 10 0 10"></TextBox>
-                        <Button Click="ClearSelections" Margin="10 0 0 0" Grid.Column="1">Clear</Button>
-                    </Grid>
+                    <StackPanel Grid.Row="4" Spacing="6" Margin="0 0 0 10">
+                        <Grid ColumnDefinitions="* Auto">
+                            <TextBox x:Name="SearchBox" Grid.Column="0" TextChanged="SearchBox_OnTextChanged" Watermark="Search.." Margin="0 10 0 0"></TextBox>
+                            <Button Click="ClearSelections" Margin="10 0 0 0" Grid.Column="1">Clear</Button>
+                        </Grid>
+
+                        <TextBox x:Name="TagSearchBox"
+                                 TextChanged="TagSearchBox_OnTextChanged"
+                                 KeyDown="TagSearchBox_OnKeyDown"
+                                 Watermark="Tag search.." />
+
+                        <ListBox x:Name="TagSuggestionListBox"
+                                 IsVisible="False"
+                                 MaxHeight="140"
+                                 SelectionMode="Single"
+                                 PointerReleased="TagSuggestionListBox_OnPointerReleased" />
+                    </StackPanel>
 
                     <!-- <ListBox Grid.Row="5" Name="TimeSeriesTrendList" SelectionChanged="TimeSeriesTrendList_OnSelectionChanged" SelectionMode="Multiple,Toggle"> -->
                     <!-- -->

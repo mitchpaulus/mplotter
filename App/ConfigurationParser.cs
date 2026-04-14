@@ -65,12 +65,6 @@ public static class ConfigurationParser
             {
                 ParseInfluxConfiguration(cfg, influxElement);
             }
-
-            // Legacy support for the older top-level array format.
-            if (TryGetProperty(root, "points", out JsonElement pointsElement) && pointsElement.ValueKind == JsonValueKind.Array)
-            {
-                ParseLegacyPoints(cfg, pointsElement);
-            }
         }
         catch
         {
@@ -108,143 +102,88 @@ public static class ConfigurationParser
                 cfg.Influx.Buckets ??= new Dictionary<string, InfluxBucketConfig>(StringComparer.Ordinal);
                 cfg.Influx.Buckets[bucketProp.Name] = bucket;
 
-                if (!TryGetProperty(bucketProp.Value, "containers", out JsonElement containersElement)
-                    || containersElement.ValueKind != JsonValueKind.Object)
+                if (TryGetProperty(bucketProp.Value, "containers", out JsonElement containersElement)
+                    && containersElement.ValueKind == JsonValueKind.Object)
                 {
-                    continue;
-                }
-
-                bucket.Containers ??= new Dictionary<string, InfluxContainerConfig>(StringComparer.Ordinal);
-                foreach (JsonProperty containerProp in containersElement.EnumerateObject())
-                {
-                    InfluxContainerConfig container = new();
-                    bucket.Containers[containerProp.Name] = container;
-
-                    if (TryGetProperty(containerProp.Value, "tags", out JsonElement tagsElement)
-                        && tagsElement.ValueKind == JsonValueKind.Array)
+                    bucket.Containers ??= new Dictionary<string, InfluxContainerConfig>(StringComparer.Ordinal);
+                    foreach (JsonProperty containerProp in containersElement.EnumerateObject())
                     {
-                        container.Tags = tagsElement
-                            .EnumerateArray()
-                            .Where(tag => tag.ValueKind == JsonValueKind.String)
-                            .Select(tag => tag.GetString())
-                            .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                            .Cast<string>()
-                            .ToList();
-                    }
+                        InfluxContainerConfig container = new();
+                        bucket.Containers[containerProp.Name] = container;
 
-                    if (TryGetProperty(containerProp.Value, "parent", out JsonElement parentElement)
-                        && parentElement.ValueKind == JsonValueKind.String)
-                    {
-                        container.Parent = parentElement.GetString();
+                        if (TryGetProperty(containerProp.Value, "tags", out JsonElement tagsElement)
+                            && tagsElement.ValueKind == JsonValueKind.Array)
+                        {
+                            container.Tags = tagsElement
+                                .EnumerateArray()
+                                .Where(tag => tag.ValueKind == JsonValueKind.String)
+                                .Select(tag => tag.GetString())
+                                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                                .Cast<string>()
+                                .ToList();
+                        }
+
+                        if (TryGetProperty(containerProp.Value, "parent", out JsonElement parentElement)
+                            && parentElement.ValueKind == JsonValueKind.String)
+                        {
+                            container.Parent = parentElement.GetString();
+                        }
                     }
                 }
-            }
-        }
 
-        if (TryGetProperty(influxElement, "points", out JsonElement pointsElement) && pointsElement.ValueKind == JsonValueKind.Object)
-        {
-            cfg.Influx.Points ??= new Dictionary<string, PointConfig>(StringComparer.Ordinal);
-
-            foreach (JsonProperty pointProp in pointsElement.EnumerateObject())
-            {
-                PointConfig point = new();
-                cfg.Influx.Points[pointProp.Name] = point;
-
-                if (TryGetProperty(pointProp.Value, "tags", out JsonElement tagsElement)
-                    && tagsElement.ValueKind == JsonValueKind.Array)
+                if (TryGetProperty(bucketProp.Value, "points", out JsonElement pointsElement)
+                    && pointsElement.ValueKind == JsonValueKind.Object)
                 {
-                    point.Tags = tagsElement
-                        .EnumerateArray()
-                        .Where(tag => tag.ValueKind == JsonValueKind.String)
-                        .Select(tag => tag.GetString())
-                        .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                        .Cast<string>()
-                        .ToList();
-                }
-
-                if (TryGetProperty(pointProp.Value, "container", out JsonElement containerElement)
-                    && containerElement.ValueKind == JsonValueKind.String)
-                {
-                    point.Container = containerElement.GetString();
-                }
-
-                if (TryGetProperty(pointProp.Value, "unit", out JsonElement unitElement)
-                    && unitElement.ValueKind == JsonValueKind.String)
-                {
-                    point.Unit = unitElement.GetString();
-                }
-
-                if (TryGetProperty(pointProp.Value, "alias", out JsonElement aliasElement)
-                    && aliasElement.ValueKind == JsonValueKind.String)
-                {
-                    point.Alias = aliasElement.GetString();
-                }
-                else if (TryGetProperty(pointProp.Value, "displayName", out JsonElement displayNameElement)
-                         && displayNameElement.ValueKind == JsonValueKind.String)
-                {
-                    // Support the old property name while writing the new alias field back out.
-                    point.Alias = displayNameElement.GetString();
+                    bucket.Points ??= new Dictionary<string, PointConfig>(StringComparer.Ordinal);
+                    foreach (JsonProperty pointProp in pointsElement.EnumerateObject())
+                    {
+                        bucket.Points[pointProp.Name] = ParsePointConfig(pointProp.Value);
+                    }
                 }
             }
         }
     }
 
-    private static void ParseLegacyPoints(Configuration cfg, JsonElement pointsElement)
+    private static PointConfig ParsePointConfig(JsonElement pointElement)
     {
-        cfg.Influx.Points ??= new Dictionary<string, PointConfig>(StringComparer.Ordinal);
+        PointConfig point = new();
 
-        foreach (JsonElement pointElement in pointsElement.EnumerateArray())
+        if (TryGetProperty(pointElement, "tags", out JsonElement tagsElement)
+            && tagsElement.ValueKind == JsonValueKind.Array)
         {
-            if (pointElement.ValueKind != JsonValueKind.Object) continue;
-            if (!TryGetProperty(pointElement, "name", out JsonElement nameElement) || nameElement.ValueKind != JsonValueKind.String) continue;
-
-            string? name = nameElement.GetString();
-            if (string.IsNullOrWhiteSpace(name)) continue;
-
-            PointConfig point = new();
-
-            if (TryGetProperty(pointElement, "tags", out JsonElement tagsElement)
-                && tagsElement.ValueKind == JsonValueKind.Array)
-            {
-                point.Tags = tagsElement
-                    .EnumerateArray()
-                    .Where(tag => tag.ValueKind == JsonValueKind.String)
-                    .Select(tag => tag.GetString())
-                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
-                    .Cast<string>()
-                    .ToList();
-            }
-
-            if (TryGetProperty(pointElement, "equipRef", out JsonElement equipRefElement)
-                && equipRefElement.ValueKind == JsonValueKind.String)
-            {
-                point.Container = equipRefElement.GetString();
-            }
-            else if (TryGetProperty(pointElement, "container", out JsonElement containerElement)
-                     && containerElement.ValueKind == JsonValueKind.String)
-            {
-                point.Container = containerElement.GetString();
-            }
-
-            if (TryGetProperty(pointElement, "unit", out JsonElement unitElement)
-                && unitElement.ValueKind == JsonValueKind.String)
-            {
-                point.Unit = unitElement.GetString();
-            }
-
-            if (TryGetProperty(pointElement, "displayName", out JsonElement displayNameElement)
-                && displayNameElement.ValueKind == JsonValueKind.String)
-            {
-                point.Alias = displayNameElement.GetString();
-            }
-            else if (TryGetProperty(pointElement, "alias", out JsonElement aliasElement)
-                     && aliasElement.ValueKind == JsonValueKind.String)
-            {
-                point.Alias = aliasElement.GetString();
-            }
-
-            cfg.Influx.Points[name] = point;
+            point.Tags = tagsElement
+                .EnumerateArray()
+                .Where(tag => tag.ValueKind == JsonValueKind.String)
+                .Select(tag => tag.GetString())
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .Cast<string>()
+                .ToList();
         }
+
+        if (TryGetProperty(pointElement, "container", out JsonElement containerElement)
+            && containerElement.ValueKind == JsonValueKind.String)
+        {
+            point.Container = containerElement.GetString();
+        }
+
+        if (TryGetProperty(pointElement, "unit", out JsonElement unitElement)
+            && unitElement.ValueKind == JsonValueKind.String)
+        {
+            point.Unit = unitElement.GetString();
+        }
+
+        if (TryGetProperty(pointElement, "alias", out JsonElement aliasElement)
+            && aliasElement.ValueKind == JsonValueKind.String)
+        {
+            point.Alias = aliasElement.GetString();
+        }
+        else if (TryGetProperty(pointElement, "displayName", out JsonElement displayNameElement)
+                 && displayNameElement.ValueKind == JsonValueKind.String)
+        {
+            point.Alias = displayNameElement.GetString();
+        }
+
+        return point;
     }
 
     private static bool TryGetProperty(JsonElement element, string propertyName, out JsonElement value)
@@ -272,15 +211,36 @@ public class Configuration
     public int Version { get; set; } = 1;
     public InfluxConfiguration Influx { get; set; } = new();
 
-    public Dictionary<string, PointConfig> EnsureInfluxPoints()
+    public InfluxBucketConfig GetOrCreateInfluxBucket(string bucketName)
     {
-        Influx.Points ??= new Dictionary<string, PointConfig>(StringComparer.Ordinal);
-        return Influx.Points;
+        Influx.Buckets ??= new Dictionary<string, InfluxBucketConfig>(StringComparer.Ordinal);
+        if (Influx.Buckets.TryGetValue(bucketName, out InfluxBucketConfig? bucket))
+        {
+            return bucket;
+        }
+
+        bucket = new InfluxBucketConfig();
+        Influx.Buckets[bucketName] = bucket;
+        return bucket;
     }
 
-    public PointConfig GetOrCreateInfluxPoint(string pointName)
+    public Dictionary<string, PointConfig> EnsureInfluxPoints(string bucketName)
     {
-        Dictionary<string, PointConfig> points = EnsureInfluxPoints();
+        InfluxBucketConfig bucket = GetOrCreateInfluxBucket(bucketName);
+        bucket.Points ??= new Dictionary<string, PointConfig>(StringComparer.Ordinal);
+        return bucket.Points;
+    }
+
+    public Dictionary<string, PointConfig>? GetInfluxPoints(string bucketName)
+    {
+        if (Influx.Buckets is null) return null;
+        if (!Influx.Buckets.TryGetValue(bucketName, out InfluxBucketConfig? bucket)) return null;
+        return bucket.Points;
+    }
+
+    public PointConfig GetOrCreateInfluxPoint(string bucketName, string pointName)
+    {
+        Dictionary<string, PointConfig> points = EnsureInfluxPoints(bucketName);
         if (points.TryGetValue(pointName, out PointConfig? pointConfig))
         {
             return pointConfig;
@@ -291,16 +251,29 @@ public class Configuration
         return pointConfig;
     }
 
-    public void RemoveInfluxPointIfEmpty(string pointName)
+    public void RemoveInfluxPointIfEmpty(string bucketName, string pointName)
     {
-        if (Influx.Points is null) return;
-        if (!Influx.Points.TryGetValue(pointName, out PointConfig? point)) return;
+        if (Influx.Buckets is null) return;
+        if (!Influx.Buckets.TryGetValue(bucketName, out InfluxBucketConfig? bucket)) return;
+        if (bucket.Points is null) return;
+        if (!bucket.Points.TryGetValue(pointName, out PointConfig? point)) return;
         if (!point.IsEmpty()) return;
 
-        Influx.Points.Remove(pointName);
-        if (Influx.Points.Count == 0)
+        bucket.Points.Remove(pointName);
+        if (bucket.Points.Count == 0)
         {
-            Influx.Points = null;
+            bucket.Points = null;
+        }
+
+        if ((bucket.Points is null || bucket.Points.Count == 0)
+            && (bucket.Containers is null || bucket.Containers.Count == 0))
+        {
+            Influx.Buckets.Remove(bucketName);
+        }
+
+        if (Influx.Buckets.Count == 0)
+        {
+            Influx.Buckets = null;
         }
     }
 }
@@ -309,15 +282,15 @@ public class InfluxConfiguration
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, InfluxBucketConfig>? Buckets { get; set; }
-
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public Dictionary<string, PointConfig>? Points { get; set; }
 }
 
 public class InfluxBucketConfig
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public Dictionary<string, InfluxContainerConfig>? Containers { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, PointConfig>? Points { get; set; }
 }
 
 public class InfluxContainerConfig

@@ -48,6 +48,19 @@ public interface IEditableTrendUnitSource
     }
 }
 
+public interface IEditableTrendTagSource
+{
+    Task SetTags(Trend trend, IReadOnlyList<string>? tags);
+
+    async Task SetTags(IEnumerable<Trend> trends, IReadOnlyList<string>? tags)
+    {
+        foreach (Trend trend in trends)
+        {
+            await SetTags(trend, tags);
+        }
+    }
+}
+
 public enum GapState
 {
     HasGaps,

@@ -22,9 +22,9 @@ public static class TrendTextBlockFactory
     {
         InlineCollection inlines = new();
         inlines.Add($"{prefix ?? ""}{trend.DisplayName}");
-        if (trend.HasDisplayUnit)
+        if (trend.HasDisplayMetadata)
         {
-            inlines.Add(new Run(trend.UnitDisplaySuffix)
+            inlines.Add(new Run(trend.MetadataDisplaySuffix)
             {
                 Foreground = Brushes.DodgerBlue
             });

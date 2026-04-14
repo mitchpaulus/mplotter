@@ -112,7 +112,8 @@ public partial class TrendDialog : Window
 
              foreach (var trend in trends)
              {
-                 if (!trend.Name.ToLowerInvariant().Contains(TrendSearchBox.Text ?? "".ToLowerInvariant())) continue;
+                 string searchText = TrendSearchBox.Text?.ToLowerInvariant() ?? "";
+                 if (!trend.DisplayLabel.ToLowerInvariant().Contains(searchText)) continue;
                  blockList.Add(CreateTrendTextBlock(source, trend));
              }
          }
@@ -155,7 +156,7 @@ public partial class TrendDialog : Window
         return TrendTextBlockFactory.Create(trend, config);
     }
 
-    private async void TrendsListBox_OnPointerPressed(object? sender, PointerPressedEventArgs e)
+    private void TrendsListBox_OnPointerPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not ListBox listBox) return;
         if (!e.GetCurrentPoint(listBox).Properties.IsRightButtonPressed) return;
@@ -164,10 +165,40 @@ public partial class TrendDialog : Window
 
         PlotTrendConfig? config = GetPlotTrendConfigFromListBoxItem(e.Source);
         if (config is null) return;
-        if (config.DataSource is not IEditableTrendUnitSource) return;
+        ShowTrendContextMenu(listBox, config);
+    }
 
-        var (configs, skippedCount) = GetEditableTargetsForUnitEdit(config);
-        await EditTrendUnits(configs, skippedCount);
+    private void ShowTrendContextMenu(Control placementTarget, PlotTrendConfig clickedConfig)
+    {
+        ContextMenu contextMenu = new()
+        {
+            Placement = PlacementMode.Pointer
+        };
+
+        if (clickedConfig.DataSource is IEditableTrendUnitSource)
+        {
+            MenuItem unitItem = new() { Header = "Edit Unit..." };
+            unitItem.Click += async (_, _) =>
+            {
+                var (configs, skippedCount) = GetEditableTargetsForUnitEdit(clickedConfig);
+                await EditTrendUnits(configs, skippedCount);
+            };
+            contextMenu.Items.Add(unitItem);
+        }
+
+        if (clickedConfig.DataSource is IEditableTrendTagSource)
+        {
+            MenuItem tagItem = new() { Header = "Edit Tags..." };
+            tagItem.Click += async (_, _) =>
+            {
+                var (configs, skippedCount) = GetEditableTargetsForTagEdit(clickedConfig);
+                await EditTrendTags(configs, skippedCount);
+            };
+            contextMenu.Items.Add(tagItem);
+        }
+
+        if (contextMenu.Items.Count == 0) return;
+        contextMenu.Open(placementTarget);
     }
 
     private async Task EditTrendUnits(List<PlotTrendConfig> configs, int skippedCount)
@@ -216,6 +247,58 @@ public partial class TrendDialog : Window
         await PopulateListBox();
     }
 
+    private async Task EditTrendTags(List<PlotTrendConfig> configs, int skippedCount)
+    {
+        if (!configs.Any()) return;
+        if (configs[0].DataSource is not IEditableTrendTagSource) return;
+
+        List<string> currentTags = GetInitialTagsForEdit(configs);
+        string? note = skippedCount > 0
+            ? $"{skippedCount} selected trend{(skippedCount == 1 ? "" : "s")} cannot have tags edited and will be ignored."
+            : null;
+        TagDialog dialog = new(TagChoices.GetTags(), currentTags, note);
+        dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        dialog.Width = 400;
+        dialog.Height = 600;
+
+        List<string>? selectedTags = await dialog.ShowDialog<List<string>?>(this);
+        if (selectedTags is null) return;
+        try
+        {
+            foreach (IGrouping<(IEditableTrendTagSource Source, string Signature), PlotTrendConfig> saveGroup in configs
+                         .Where(config => config.DataSource is IEditableTrendTagSource)
+                         .GroupBy(config =>
+                         {
+                             List<string> mergedTags = MergeTags(config.Trend.Tags, selectedTags);
+                             string signature = string.Join("\u001f", mergedTags);
+                             return ((IEditableTrendTagSource)config.DataSource, signature);
+                         }))
+            {
+                List<string> mergedTags = MergeTags(saveGroup.First().Trend.Tags, selectedTags);
+                IReadOnlyList<string>? tagsToSave = mergedTags.Count == 0 ? null : mergedTags;
+                await saveGroup.Key.Source.SetTags(saveGroup.Select(config => config.Trend), tagsToSave);
+            }
+
+            foreach (PlotTrendConfig config in configs)
+            {
+                config.Trend.Tags = MergeTags(config.Trend.Tags, selectedTags);
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowMessage("Failed To Save Tags", $"Could not write the configuration file.\n\n{ex.Message}");
+            return;
+        }
+
+        if (Owner is MainWindow mainWindow)
+        {
+            await mainWindow.RefreshUiAfterDataSourceUpdate();
+        }
+
+        await RefreshSelectedConfigReferences();
+        await PopulateListBox();
+    }
+
     private (List<PlotTrendConfig> Configs, int SkippedCount) GetEditableTargetsForUnitEdit(PlotTrendConfig clickedConfig)
     {
         List<PlotTrendConfig> allSelectedConfigs = SelectedConfigs
@@ -236,6 +319,25 @@ public partial class TrendDialog : Window
         return (editableSelectedConfigs, skippedCount);
     }
 
+    private (List<PlotTrendConfig> Configs, int SkippedCount) GetEditableTargetsForTagEdit(PlotTrendConfig clickedConfig)
+    {
+        List<PlotTrendConfig> allSelectedConfigs = SelectedConfigs
+            .Distinct()
+            .ToList();
+
+        List<PlotTrendConfig> editableSelectedConfigs = allSelectedConfigs
+            .Where(config => config.DataSource is IEditableTrendTagSource)
+            .ToList();
+
+        if (!allSelectedConfigs.Contains(clickedConfig))
+        {
+            return (new List<PlotTrendConfig> { clickedConfig }, 0);
+        }
+
+        int skippedCount = allSelectedConfigs.Count - editableSelectedConfigs.Count;
+        return (editableSelectedConfigs, skippedCount);
+    }
+
     private static string? GetInitialUnitForEdit(IEnumerable<PlotTrendConfig> configs)
     {
         List<string> units = configs
@@ -244,6 +346,26 @@ public partial class TrendDialog : Window
             .ToList();
 
         return units.Count == 1 ? units[0] : "";
+    }
+
+    private static List<string> GetInitialTagsForEdit(IEnumerable<PlotTrendConfig> configs)
+    {
+        return configs
+            .SelectMany(config => config.Trend.Tags)
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<string> MergeTags(IEnumerable<string> existingTags, IEnumerable<string> addedTags)
+    {
+        return existingTags
+            .Concat(addedTags)
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(tag => tag, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task ShowMessage(string title, string message)
