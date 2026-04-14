@@ -266,6 +266,25 @@ public class Tests
 
         Assert.That(trend.DisplayLabel, Is.EqualTo("Chilled Water Flow [GPM, primary]"));
     }
+
+    [Test]
+    public void TagSearchMatchesExactTokensWithAndSemantics()
+    {
+        Assert.That(TagSearchHelper.MatchesAllTokens(new[] { "Primary", "CHW", "Plant" }, "primary chw"), Is.True);
+        Assert.That(TagSearchHelper.MatchesAllTokens(new[] { "Primary", "Plant" }, "primary chw"), Is.False);
+        Assert.That(TagSearchHelper.MatchesAllTokens(new[] { "Primary", "CHW" }, "pri"), Is.False);
+    }
+
+    [Test]
+    public void TagSearchSuggestionsPreferPrefixMatchesAndKeepPreviousTokens()
+    {
+        List<string> suggestions = TagSearchHelper.GetSuggestions(
+            "chw pri",
+            new[] { "Primary", "Secondary", "AirPrimary", "Plant", "CHW" });
+
+        Assert.That(suggestions, Is.EqualTo(new[] { "Primary", "AirPrimary" }));
+        Assert.That(TagSearchHelper.ApplySuggestion("chw pri", "Primary"), Is.EqualTo("chw Primary "));
+    }
 }
 
 public class TestClass
