@@ -15,6 +15,8 @@ public static class UnitChoices
         "Count",
         "Amps",
         "psi",
+        "kW",
+        "Hz",
     ];
 
     public static IReadOnlyList<string> GetUnits()
