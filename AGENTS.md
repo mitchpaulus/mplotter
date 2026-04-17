@@ -9,3 +9,7 @@ It can read files from several different types of sources:
 5. NOAA weather
 
 It is written in C#. It uses ScottPlot as the plotting engine.
+
+Key Abstractions:
+
+`IDataSource` - Provides trend data series and methods to get their data to plot.
