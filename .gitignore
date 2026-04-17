@@ -3,6 +3,8 @@
 App/deploy.sh
 App/publish-win/
 
+Tests/NWS API/
+
 tags.txt
 
 # ANTLR related files
