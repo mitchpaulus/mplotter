@@ -30,6 +30,30 @@ public interface IDataSource
 
     Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc);
 
+    async Task<TimeSeriesData> GetTimeSeriesData(string trend)
+    {
+        TimestampData timestampData = await GetTimestampData(trend);
+        return new TimeSeriesData(
+            new ExplicitTimeAxis(timestampData.DateTimes.ToList()),
+            timestampData.Values.ToList());
+    }
+
+    async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends)
+    {
+        List<TimestampData> timestampData = await GetTimestampData(trends);
+        return timestampData
+            .Select(data => new TimeSeriesData(new ExplicitTimeAxis(data.DateTimes.ToList()), data.Values.ToList()))
+            .ToList();
+    }
+
+    async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        List<TimestampData> timestampData = await GetTimestampData(trends, startDateInc, endDateExc);
+        return timestampData
+            .Select(data => new TimeSeriesData(new ExplicitTimeAxis(data.DateTimes.ToList()), data.Values.ToList()))
+            .ToList();
+    }
+
     string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc);
 
     public Task UpdateCache();
@@ -66,6 +90,86 @@ public enum GapState
     HasGaps,
     NoGaps,
     Unknown,
+}
+
+public abstract record TimeAxis;
+
+public sealed record ExplicitTimeAxis(IReadOnlyList<DateTime> DateTimes) : TimeAxis;
+
+public sealed record UniformTimeAxis(DateTime Start, TimeSpan Step, int Count) : TimeAxis;
+
+public sealed record TimeSeriesData(TimeAxis Axis, IReadOnlyList<double> Values);
+
+public sealed record GapPolicy(TimeSpan BreakThreshold)
+{
+    public static GapPolicy Default { get; } = new(TimeSpan.FromHours(1));
+}
+
+public abstract record PlotSeries;
+
+public sealed record SignalPlotSeries(DateTime Start, TimeSpan Step, IReadOnlyList<double> Values) : PlotSeries;
+
+public sealed record ScatterPlotSeries(IReadOnlyList<double> XsOaDate, IReadOnlyList<double> Ys) : PlotSeries;
+
+public static class TimeSeriesConversions
+{
+    public static TimestampData ToTimestampData(TimeSeriesData series)
+    {
+        return series.Axis switch
+        {
+            ExplicitTimeAxis axis => new TimestampData(axis.DateTimes.ToList(), series.Values.ToList()),
+            UniformTimeAxis axis => new TimestampData(
+                Enumerable.Range(0, axis.Count)
+                    .Select(i => axis.Start.AddTicks(axis.Step.Ticks * i))
+                    .ToList(),
+                series.Values.ToList()),
+            _ => throw new InvalidOperationException($"Unsupported axis type: {series.Axis.GetType().Name}")
+        };
+    }
+}
+
+public static class SeriesAdapter
+{
+    public static PlotSeries ToPlotSeries(TimeSeriesData series, GapPolicy gapPolicy)
+    {
+        return series.Axis switch
+        {
+            UniformTimeAxis axis =>
+                new SignalPlotSeries(axis.Start, axis.Step, series.Values),
+            ExplicitTimeAxis axis => CreateScatterPlotSeries(axis, series.Values, gapPolicy),
+            _ => throw new InvalidOperationException($"Unsupported axis type: {series.Axis.GetType().Name}")
+        };
+    }
+
+    private static ScatterPlotSeries CreateScatterPlotSeries(ExplicitTimeAxis axis, IReadOnlyList<double> values, GapPolicy gapPolicy)
+    {
+        List<double> xs = new();
+        List<double> ys = new();
+        int count = Math.Min(axis.DateTimes.Count, values.Count);
+        if (count == 0)
+        {
+            return new ScatterPlotSeries(xs, ys);
+        }
+
+        xs.Add(axis.DateTimes[0].ToOADate());
+        ys.Add(values[0]);
+
+        for (int i = 1; i < count; i++)
+        {
+            DateTime previous = axis.DateTimes[i - 1];
+            DateTime current = axis.DateTimes[i];
+            if (current - previous > gapPolicy.BreakThreshold)
+            {
+                xs.Add(new DateTime((current.Ticks + previous.Ticks) / 2).ToOADate());
+                ys.Add(double.NaN);
+            }
+
+            xs.Add(current.ToOADate());
+            ys.Add(values[i]);
+        }
+
+        return new ScatterPlotSeries(xs, ys);
+    }
 }
 
 public class TimestampData
