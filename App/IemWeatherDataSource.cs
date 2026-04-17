@@ -12,24 +12,19 @@ namespace csvplot;
 
 public class IemWeatherDataSource : IDataSource
 {
-    public const string TrendDryBulb = "IEM Dry Bulb Air Temperature (°F)";
-    public const string TrendDewPoint = "IEM Dew Point Temperature (°F)";
-    public const string TrendRelh = "IEM Relative Humidity (%)";
-
     private readonly IemStation _station;
 
-    private readonly List<Trend> _trends = new()
-    {
-        new Trend(TrendDryBulb, "°F", TrendDryBulb),
-        new Trend(TrendDewPoint, "°F", TrendDewPoint),
-        new Trend(TrendRelh, "%", TrendRelh),
-    };
+    private readonly List<Trend> _trends = new();
 
     public IemWeatherDataSource(IemStation station)
     {
         _station = station;
         Header = $"IEM {_station.Stid} {_station.Name}";
         ShortName = $"IEM {_station.Stid}";
+
+        _trends.Add(new Trend($"IEM {_station.Stid}: Dry Bulb Air Temperature (°F)", "°F", $"IEM {_station.Stid}: Dry Bulb Air Temperature (°F)"));
+        _trends.Add(new Trend($"IEM {_station.Stid}: Dew Point Temperature (°F)", "°F", $"IEM {_station.Stid}: Dew Point Temperature (°F)"));
+        _trends.Add(new Trend($"IEM {_station.Stid}: Relative Humidity (%)", "%", $"IEM {_station.Stid} Relative Humidity (%)"));
     }
 
     public string Header { get; }
@@ -44,13 +39,10 @@ public class IemWeatherDataSource : IDataSource
     public async Task<TimestampData> GetTimestampData(string trend)
     {
         Func<IemWeatherRecord, double?> selector;
-        if (trend == TrendDryBulb) selector = r => r.Tmpf;
-        else if (trend == TrendDewPoint) selector = r => r.Dwpf;
-        else if (trend == TrendRelh) selector = r => r.Relh;
+        if (trend.Contains("Dry Bulb")) selector = r => r.Tmpf;
+        else if (trend.Contains("Dew Point")) selector = r => r.Dwpf;
+        else if (trend.Contains("Relative Humidity")) selector = r => r.Relh;
         else return new TimestampData(new(), new());
-
-        int currentYear = DateTime.UtcNow.Year;
-        const int numPastYears = 2;
 
         List<DateTime> times = new();
         List<double> values = new();
@@ -58,20 +50,16 @@ public class IemWeatherDataSource : IDataSource
         DateTime last = DateTime.MinValue;
         bool needsSort = false;
 
-        for (int i = numPastYears; i >= 0; i--)
-        {
-            int year = currentYear - i;
-            (bool ok, List<IemWeatherRecord> records) = await TryGetRecords(_station.Stid, year);
-            if (!ok) continue;
+        (bool ok, List<IemWeatherRecord> records) = await TryGetRecords(_station.Stid);
+        if (!ok) return new TimestampData(new (), new());
 
-            foreach (var rec in records)
-            {
-                if (selector(rec) is not { } v) continue;
-                if (rec.Utc < last) needsSort = true;
-                last = rec.Utc;
-                times.Add(rec.Utc);
-                values.Add(v);
-            }
+        foreach (var rec in records)
+        {
+            if (selector(rec) is not { } v) continue;
+            if (rec.Utc < last) needsSort = true;
+            last = rec.Utc;
+            times.Add(TimeZoneInfo.ConvertTimeFromUtc(rec.Utc, TimeZoneInfo.Local));
+            values.Add(v);
         }
 
         TimestampData tsData = new(times, values);
@@ -82,7 +70,12 @@ public class IemWeatherDataSource : IDataSource
     public async Task<List<TimestampData>> GetTimestampData(List<string> trends)
     {
         var data = new List<TimestampData>();
-        foreach (var t in trends) data.Add(await GetTimestampData(t));
+        foreach (var t in trends)
+        {
+            var timestampData = await GetTimestampData(t);
+
+            data.Add(timestampData);
+        }
         return data;
     }
 
@@ -93,12 +86,11 @@ public class IemWeatherDataSource : IDataSource
 
     public Task UpdateCache() => Task.CompletedTask;
 
-    private static readonly ConcurrentDictionary<(string Stid, int Year), Task<(bool, List<IemWeatherRecord>)>> _memoryCache = new();
+    private static readonly ConcurrentDictionary<string, Task<(bool, List<IemWeatherRecord>)>> MemoryCache = new();
 
-    public static Task<(bool, List<IemWeatherRecord>)> TryGetRecords(string stid, int year)
-        => _memoryCache.GetOrAdd((stid, year), key => FetchAndParse(key.Stid, key.Year));
+    private static Task<(bool, List<IemWeatherRecord>)> TryGetRecords(string stid) => MemoryCache.GetOrAdd(stid, FetchAndParse);
 
-    private static async Task<(bool, List<IemWeatherRecord>)> FetchAndParse(string stid, int year)
+    private static async Task<(bool, List<IemWeatherRecord>)> FetchAndParse(string stid)
     {
         string? localAppData = Environment.GetEnvironmentVariable("LOCALAPPDATA");
         string? csv = null;
@@ -109,21 +101,13 @@ public class IemWeatherDataSource : IDataSource
             {
                 string dir = Path.Combine(localAppData, "mplotter", "iem");
                 Directory.CreateDirectory(dir);
-                string[] files = Directory.GetFiles(dir, $"{stid}-{year}-*.csv");
-
-                int todayMinus1Year = DateTime.Today.AddDays(-1).Year;
+                string[] files = Directory.GetFiles(dir, $"{stid}-*.csv");
 
                 foreach (var file in files)
                 {
-                    if (year < todayMinus1Year)
-                    {
-                        csv = await File.ReadAllTextAsync(file);
-                        break;
-                    }
-
                     string[] parts = Path.GetFileNameWithoutExtension(file).Split('-');
-                    if (parts.Length != 3 || parts[2].Length != 8) { File.Delete(file); continue; }
-                    if (!DateTime.TryParseExact(parts[2], "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var stamp))
+                    if (parts.Length != 2 || parts[1].Length != 8) { File.Delete(file); continue; }
+                    if (!DateTime.TryParseExact(parts[1], "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var stamp))
                     {
                         File.Delete(file);
                         continue;
@@ -139,7 +123,7 @@ public class IemWeatherDataSource : IDataSource
 
             if (csv is null)
             {
-                csv = await FetchCsvWeb(stid, year);
+                csv = await FetchCsvWeb(stid);
                 if (csv is null) return (false, new());
 
                 if (localAppData is not null)
@@ -148,7 +132,7 @@ public class IemWeatherDataSource : IDataSource
                     {
                         string dir = Path.Combine(localAppData, "mplotter", "iem");
                         Directory.CreateDirectory(dir);
-                        string cachePath = Path.Combine(dir, $"{stid}-{year}-{DateTime.Today:yyyyMMdd}.csv");
+                        string cachePath = Path.Combine(dir, $"{stid}-{DateTime.Today:yyyyMMdd}.csv");
                         await File.WriteAllTextAsync(cachePath, csv);
                     }
                     catch
@@ -166,8 +150,12 @@ public class IemWeatherDataSource : IDataSource
         }
     }
 
-    public static async Task<string?> FetchCsvWeb(string stid, int year)
+    public static async Task<string?> FetchCsvWeb(string stid)
     {
+        DateTime now = DateTime.Now;
+        int currentYear = now.Year;
+        DateTime tom = now.AddDays(1);
+
         try
         {
             using HttpClient client = new();
@@ -176,8 +164,8 @@ public class IemWeatherDataSource : IDataSource
                 $"?data=tmpf&data=dwpf&data=relh" +
                 $"&station={Uri.EscapeDataString(stid)}" +
                 $"&tz=UTC" +
-                $"&year1={year}&month1=1&day1=1" +
-                $"&year2={year + 1}&month2=1&day2=1";
+                $"&year1={currentYear - 2}&month1=1&day1=1" +
+                $"&year2={tom.Year}&month2={tom.Month}&day2={tom.Day}";
 
             HttpResponseMessage response = await client.GetAsync(url);
             if (!response.IsSuccessStatusCode) return null;
@@ -255,7 +243,6 @@ public class IemWeatherRecord
 
     private static double? ParseVal(string s)
     {
-        s = s.Trim();
         if (s.Length == 0 || s == "M") return null;
         return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : null;
     }
