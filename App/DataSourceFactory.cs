@@ -1,6 +1,7 @@
 
-using System.Data.SQLite;
+using System.Collections.Generic;
 using System.IO;
+using Microsoft.Data.Sqlite;
 
 namespace csvplot;
 
@@ -14,18 +15,26 @@ public class DataSourceFactory
 
             string connectionString = $"Data Source={fullPath};";
 
-            using SQLiteConnection conn = new SQLiteConnection(connectionString);
+            using SqliteConnection conn = new SqliteConnection(connectionString);
             conn.Open();
 
-            var tables = conn.GetSchema("TABLES");
-            if (tables.Rows.Count == 1 && (string)tables.Rows[0]["TABLE_NAME"] == "history")
+            List<string> tableNames = new();
+            using (SqliteCommand tableCmd = new SqliteCommand("SELECT name FROM sqlite_master WHERE type='table'", conn))
+            using (var tableReader = tableCmd.ExecuteReader())
+            {
+                while (tableReader.Read())
+                {
+                    tableNames.Add(tableReader.GetString(0));
+                }
+            }
+            if (tableNames.Count == 1 && tableNames[0] == "history")
             {
                 return new Bac0DataSource(fullPath);
             }
 
             string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
 
-            using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+            using SqliteCommand cmd = new SqliteCommand(sql, conn);
 
             using var reader = cmd.ExecuteReader();
 

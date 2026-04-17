@@ -1,6 +1,6 @@
-using System.Data.SQLite;
 using System.Text;
 using csvplot;
+using Microsoft.Data.Sqlite;
 
 namespace Tests;
 
@@ -56,13 +56,24 @@ public class Tests
 
         string connectionString = $"Data Source={filepath}";
 
-        using SQLiteConnection conn = new SQLiteConnection(connectionString);
+        using SqliteConnection conn = new SqliteConnection(connectionString);
 
         conn.Open();
 
-        var dataTable = conn.GetSchema("TABLES");
+        using SqliteCommand tableCmd = new SqliteCommand("SELECT name FROM sqlite_master WHERE type='table'", conn);
+        using var tableReader = tableCmd.ExecuteReader();
+        while (tableReader.Read())
+        {
+            Console.WriteLine(tableReader.GetString(0));
+        }
 
-        var table2 = conn.GetSchema("COLUMNS", new[] { null, null, "history" });
+        using SqliteCommand columnsCmd = new SqliteCommand("PRAGMA table_info(history)", conn);
+        using var columnsReader = columnsCmd.ExecuteReader();
+        int nameOrdinal = columnsReader.GetOrdinal("name");
+        while (columnsReader.Read())
+        {
+            Console.WriteLine(columnsReader.GetString(nameOrdinal));
+        }
     }
 
     [Test]

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
@@ -33,10 +33,10 @@ public class EnergyPlusSqliteDataSource : IDataSource
 
             try
             {
-                await using SQLiteConnection conn = new SQLiteConnection(_connectionString);
+                await using SqliteConnection conn = new SqliteConnection(_connectionString);
                 conn.Open();
                 string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
-                await using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+                await using SqliteCommand cmd = new SqliteCommand(sql, conn);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 List<Trend> loadedTrends = new();
 
@@ -88,7 +88,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
         var name = strings[1].Trim().Split('[')[0].Trim();
         var units = strings[1].Trim().Split('[')[1].Trim().TrimEnd(']');
 
-        await using SQLiteConnection conn = new SQLiteConnection(_connectionString);
+        await using SqliteConnection conn = new SqliteConnection(_connectionString);
         conn.Open();
 
         // First get the 'ReportDataDictionaryIndex' for the trend
@@ -96,7 +96,7 @@ public class EnergyPlusSqliteDataSource : IDataSource
 
         // SQLite returning 64 bit ints for whatever reason.
         object reportDataDictionaryIndex = -1;
-        await using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
+        await using (SqliteCommand cmd = new SqliteCommand(sql, conn))
         {
             await using (var reader = await cmd.ExecuteReaderAsync())
             {
@@ -133,13 +133,14 @@ public class EnergyPlusSqliteDataSource : IDataSource
         w.Restart();
         sql = b.ToString();
         var data = new List<double>(8760);
-        await using (var cmd = new SQLiteCommand(sql, conn))
+        await using (var cmd = new SqliteCommand(sql, conn))
         {
             await using (var reader = await cmd.ExecuteReaderAsync())
             {
+                int variableValueOrdinal = reader.GetOrdinal("VariableValue");
                 while (await reader.ReadAsync())
                 {
-                    var variableValue = reader.GetDouble("VariableValue");
+                    var variableValue = reader.GetDouble(variableValueOrdinal);
                     data.Add(variableValue);
                 }
 
@@ -206,10 +207,10 @@ public class EnergyPlusSqliteDataSource : IDataSource
         {
             try
             {
-                await using SQLiteConnection conn = new SQLiteConnection(_connectionString);
+                await using SqliteConnection conn = new SqliteConnection(_connectionString);
                 conn.Open();
                 string sql = "SELECT KeyValue, Name, ReportingFrequency, Units FROM ReportDataDictionary";
-                await using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+                await using SqliteCommand cmd = new SqliteCommand(sql, conn);
                 await using var reader = await cmd.ExecuteReaderAsync();
                 List<Trend> loadedTrends = new();
 
