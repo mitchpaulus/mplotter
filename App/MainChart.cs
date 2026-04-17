@@ -159,17 +159,11 @@ public static class SeriesAdapter
     {
         return series.Axis switch
         {
-            UniformTimeAxis axis when !RequiresVisualGaps(axis, gapPolicy, series.Values.Count) && !series.Values.Any(double.IsNaN) =>
+            UniformTimeAxis axis =>
                 new SignalPlotSeries(axis.Start, axis.Step, series.Values),
-            UniformTimeAxis axis => CreateScatterPlotSeries(axis, series.Values, gapPolicy),
             ExplicitTimeAxis axis => CreateScatterPlotSeries(axis, series.Values, gapPolicy),
             _ => throw new InvalidOperationException($"Unsupported axis type: {series.Axis.GetType().Name}")
         };
-    }
-
-    private static bool RequiresVisualGaps(UniformTimeAxis axis, GapPolicy gapPolicy, int valueCount)
-    {
-        return valueCount != axis.Count || axis.Step > gapPolicy.BreakThreshold;
     }
 
     private static ScatterPlotSeries CreateScatterPlotSeries(UniformTimeAxis axis, IReadOnlyList<double> values, GapPolicy gapPolicy)
