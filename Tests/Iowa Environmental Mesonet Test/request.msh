@@ -1,0 +1,16 @@
+{
+    'data': ['tmpf' 'dwpf'],
+    'station': 'DFW',
+    'tz': "America/Chicago",
+    'year1': '2024',
+    'month1': 1,
+    'day1': 1,
+    'year2': '2024',
+    'month2': 12,
+    'day2': 31,
+}  params!
+$"https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py?{@params urlEncode}" url!
+@url wl
+{
+    'url': @url
+} httpGet? :body? 'data.csv' writeFile
