@@ -290,7 +290,8 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource, IEditable
         {
             List<int> possibleMinuteIntervals = new List<int>() { 1, 5, 10, 15, 30, 60, 120, 240, 480, 1440 };
 
-            long minuteInterval = trendCount * (int)(endDateExcUtc.Value - startDateIncUtc.Value).TotalMinutes / countLimit;
+            // Since we should be able to switch to a signal plot, our max value count limit can be very large. 105120 is 5 minute data for a year.
+            long minuteInterval = trendCount * (int)(endDateExcUtc.Value - startDateIncUtc.Value).TotalMinutes / 105120;
             foreach (var interval in possibleMinuteIntervals)
             {
                 if (interval >= minuteInterval)
@@ -301,6 +302,49 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource, IEditable
             }
             return $"from(bucket: \"{_bucket}\") |> range(start: {startDateIncUtc.ToRfc3339Second()}, stop: {endDateExcUtc.ToRfc3339Second()}) |> filter(fn: (r) => {measFilter}) |> aggregateWindow(every: {minuteInterval}m, fn: mean, createEmpty: false) |> yield()";
         }
+    }
+
+    private static int SelectMinuteInterval(int trendCount, DateTime startUtc, DateTime endUtc, int countLimit)
+    {
+        List<int> possibleMinuteIntervals = new() { 1, 5, 10, 15, 30, 60, 120, 240, 480, 1440 };
+
+        long minuteInterval = trendCount * (int)(endUtc - startUtc).TotalMinutes / countLimit;
+        foreach (int interval in possibleMinuteIntervals)
+        {
+            if (interval >= minuteInterval)
+            {
+                return interval;
+            }
+        }
+
+        return possibleMinuteIntervals.Last();
+    }
+
+    private static bool HasExpectedIntervals(IReadOnlyList<DateTime> timestamps, TimeSpan expectedInterval)
+    {
+        for (int i = 1; i < timestamps.Count; i++)
+        {
+            if (timestamps[i] - timestamps[i - 1] != expectedInterval)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static TimeSeriesData ToTimeSeriesData(TimestampData tsData, int? aggregatedMinuteInterval)
+    {
+        if (aggregatedMinuteInterval is int minuteInterval &&
+            tsData.DateTimes.Count > 0 &&
+            HasExpectedIntervals(tsData.DateTimes, TimeSpan.FromMinutes(minuteInterval)))
+        {
+            return new TimeSeriesData(
+                new UniformTimeAxis(tsData.DateTimes[0], TimeSpan.FromMinutes(minuteInterval), tsData.Values.Count),
+                tsData.Values);
+        }
+
+        return new TimeSeriesData(new ExplicitTimeAxis(tsData.DateTimes), tsData.Values);
     }
 
     public async Task<List<TimestampData>> GetTimestampDataClaraxioSensors(List<string> trends, UtcDateTime startDateIncUtc, UtcDateTime endDateExcUtc, int countLimit)
@@ -433,6 +477,21 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource, IEditable
         return data;
     }
 
+    public async Task<TimeSeriesData> GetTimeSeriesData(string trend)
+    {
+        return (await GetTimeSeriesData(new List<string>() { trend }, DateTime.Now.Date.AddDays(-7), DateTime.Now.Date.AddDays(1))).First();
+    }
+
+    public async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends) =>
+        await GetTimeSeriesData(trends, DateTime.Now.Date.AddDays(-7), DateTime.Now.Date.AddDays(1));
+
+    public async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        var startDateIncLocal = new LocalDateTime(DateTime.SpecifyKind(startDateInc, DateTimeKind.Local));
+        var endDateExcLocal = new LocalDateTime(DateTime.SpecifyKind(endDateExc, DateTimeKind.Local));
+        return await GetTimeSeriesData(trends, startDateIncLocal, endDateExcLocal, 7500);
+    }
+
     private async Task<List<TimestampData>> GetDataFromQuery(QueryApi queryApi, string query, List<string> sensorTrends)
     {
         List<FluxTable>? tables;
@@ -557,6 +616,157 @@ public class InfluxDataSource : IDataSource, IEditableTrendUnitSource, IEditable
 
         List<TimestampData> claraxioData = await GetTimestampDataClaraxioSensors(claraxioSensorTrends, startDateIncUtc, endDateExcUtc, countLimit);
         data.AddRange(claraxioData);
+        return data;
+    }
+
+    public async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends, LocalDateTime startDateIncLocal, LocalDateTime endDateExcLocal, int countLimit)
+    {
+        if (!_isValid) return trends.Select(_ => new TimeSeriesData(new ExplicitTimeAxis(Array.Empty<DateTime>()), Array.Empty<double>())).ToList();
+
+        var startDateIncUtc = new UtcDateTime(TimeZoneInfo.ConvertTimeToUtc(startDateIncLocal.Value, TimeZoneInfo.Local));
+        var endDateExcUtc = new UtcDateTime(TimeZoneInfo.ConvertTimeToUtc(endDateExcLocal.Value, TimeZoneInfo.Local));
+
+        var options = InfluxDBClientOptions.Builder.CreateNew().Url(_influxHost).AuthenticateToken(_influxToken).TimeOut(TimeSpan.FromMinutes(1));
+        using var client = new InfluxDBClient(options.Build());
+
+        List<string> measurementTrends = new();
+        List<string> claraxioSensorTrends = new();
+
+        foreach (string t in trends)
+        {
+            if (t.StartsWith("sensor\t"))
+            {
+                claraxioSensorTrends.Add(t);
+            }
+            else
+            {
+                measurementTrends.Add(t);
+            }
+        }
+
+        List<TimeSeriesData> data = new();
+        if (measurementTrends.Any())
+        {
+            string measFilter = string.Join(" or ", measurementTrends.Select(s => $"r._measurement == \"{s}\""));
+
+            var measurementTrendQuery = await QueryFromFilter(client, startDateIncUtc, endDateExcUtc, measFilter, measurementTrends.Count, countLimit);
+            var queryApi = client.GetQueryApi();
+
+            List<FluxTable>? tables;
+            try
+            {
+                tables = await queryApi.QueryAsync(measurementTrendQuery, _influxOrg);
+            }
+            catch
+            {
+                return measurementTrends
+                    .Select(_ => new TimeSeriesData(new ExplicitTimeAxis(Array.Empty<DateTime>()), Array.Empty<double>()))
+                    .ToList();
+            }
+
+            int? aggregatedMinuteInterval = null;
+            var countQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startDateIncUtc.ToRfc3339Second()}, stop: {endDateExcUtc.ToRfc3339Second()}) |> filter(fn: (r) => {measFilter}) |> count() |> yield() ";
+            try
+            {
+                List<FluxTable>? countTables = await queryApi.QueryAsync(countQuery, _influxOrg);
+                long totalCount = 0;
+                foreach (var t in countTables)
+                {
+                    foreach (var r in t.Records)
+                    {
+                        if (r.GetValue() is long l) totalCount += l;
+                    }
+                }
+
+                if (totalCount >= countLimit)
+                {
+                    aggregatedMinuteInterval = SelectMinuteInterval(measurementTrends.Count, startDateIncUtc.Value, endDateExcUtc.Value, countLimit);
+                }
+            }
+            catch
+            {
+            }
+
+            Dictionary<string, List<FluxRecord>> trendData = tables.SelectMany(table => table.Records)
+                .GroupBy(record => record.GetMeasurement())
+                .ToDictionary(records => records.Key, records => records.ToList());
+
+            foreach (string trend in measurementTrends)
+            {
+                List<DateTime> timestamps = new();
+                List<double> values = new();
+                if (trendData.TryGetValue(trend, out var dataRecords))
+                {
+                    foreach (var record in dataRecords)
+                    {
+                        if (record.GetValue() is not double doubleValue || record.GetTimeInDateTime() is not { } d)
+                            continue;
+                        values.Add(doubleValue);
+                        timestamps.Add(TimeZoneInfo.ConvertTimeFromUtc(d, TimeZoneInfo.Local));
+                    }
+                }
+
+                data.Add(ToTimeSeriesData(new TimestampData(timestamps, values), aggregatedMinuteInterval));
+            }
+        }
+
+        if (claraxioSensorTrends.Any())
+        {
+            var queryApi = client.GetQueryApi();
+            int batchSize = 50;
+            int i = 0;
+            long totalCount = 0;
+
+            while (i < claraxioSensorTrends.Count)
+            {
+                var batchTrends = claraxioSensorTrends.Skip(i).Take(batchSize).ToList();
+                i += batchSize;
+
+                var filter = batchTrends.Select(fullName =>
+                {
+                    var splitName = fullName.Split("\t").Select(s => s.Trim()).ToList();
+                    var name = splitName[1];
+                    var uuid = splitName[2];
+                    var field = splitName[3];
+                    return $"(r._measurement == \"sensor-node\" and r.name == \"{name}\" and r.uuid == \"{uuid}\" and r._field == \"{field}\")";
+                });
+
+                var joinedFilter = string.Join(" or \n", filter);
+                var batchCountQuery = $"from(bucket: \"{_bucket}\") |> range(start: {startDateIncUtc.ToRfc3339Second()}, stop: {endDateExcUtc.ToRfc3339Second()}) |> filter(fn: (r) =>  {joinedFilter}) |> count() |> yield() ";
+                try
+                {
+                    List<FluxTable>? countTables = await queryApi.QueryAsync(batchCountQuery, _influxOrg);
+                    foreach (var t in countTables)
+                    {
+                        foreach (var r in t.Records)
+                        {
+                            if (r.GetValue() is long l) totalCount += l;
+                        }
+                    }
+                }
+                catch
+                {
+                    return claraxioSensorTrends
+                        .Select(_ => new TimeSeriesData(new ExplicitTimeAxis(Array.Empty<DateTime>()), Array.Empty<double>()))
+                        .ToList();
+                }
+            }
+
+            int? aggregatedMinuteInterval = null;
+            List<TimestampData> claraxioData;
+            if (totalCount < countLimit)
+            {
+                claraxioData = await GetTimestampDataClaraxioSensors(claraxioSensorTrends, startDateIncUtc, endDateExcUtc, countLimit);
+            }
+            else
+            {
+                aggregatedMinuteInterval = SelectMinuteInterval(claraxioSensorTrends.Count, startDateIncUtc.Value, endDateExcUtc.Value, countLimit);
+                claraxioData = await GetTimestampDataClaraxioSensors(claraxioSensorTrends, startDateIncUtc, endDateExcUtc, countLimit);
+            }
+
+            data.AddRange(claraxioData.Select(tsData => ToTimeSeriesData(tsData, aggregatedMinuteInterval)));
+        }
+
         return data;
     }
 

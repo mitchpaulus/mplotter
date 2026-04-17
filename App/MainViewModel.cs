@@ -197,6 +197,7 @@ public class MainViewModel : INotifyPropertyChanged
                              ? plotTrendConfig.Trend.DisplayName
                              : $"{source.ShortName}: {plotTrendConfig.Trend.DisplayName}";
 
+                         // This will add gaps for items greater than an hour.
                          PlotSeries plotSeries = SeriesAdapter.ToPlotSeries(tsData, GapPolicy.Default);
 
                          switch (plotSeries)
