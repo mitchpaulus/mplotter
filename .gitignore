@@ -4,6 +4,7 @@ App/deploy.sh
 App/publish-win/
 
 Tests/NWS API/
+Tests/Iowa Environmental Mesonet Test/data.csv
 
 tags.txt
 

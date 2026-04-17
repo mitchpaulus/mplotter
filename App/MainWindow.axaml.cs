@@ -435,6 +435,7 @@ public partial class MainWindow : Window
         BrowseButton.IsEnabled = false;
         InfluxButton.IsEnabled = false;
         NoaaButton.IsEnabled = false;
+        IemButton.IsEnabled = false;
 
         _loadedDataSources.Add(source);
 
@@ -449,6 +450,7 @@ public partial class MainWindow : Window
         BrowseButton.IsEnabled = true;
         InfluxButton.IsEnabled = true;
         NoaaButton.IsEnabled = true;
+        IemButton.IsEnabled = true;
     }
 
     private void WatcherOnDeleted(object sender, FileSystemEventArgs e)
@@ -1609,6 +1611,17 @@ public partial class MainWindow : Window
         if (d.SelectedStation is not null)
         {
             await AddDataSource(new NoaaWeatherDataSource(d.SelectedStation));
+        }
+    }
+
+    private async void IemButtonClick(object? sender, RoutedEventArgs e)
+    {
+        IemDialog d = new();
+        await d.ShowDialog(this);
+
+        if (d.SelectedStation is not null)
+        {
+            await AddDataSource(new IemWeatherDataSource(d.SelectedStation));
         }
     }
 
