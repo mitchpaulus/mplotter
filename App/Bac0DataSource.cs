@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -29,14 +29,23 @@ public class Bac0DataSource : IDataSource
 
     private List<string> LoadTrends()
     {
-        using SQLiteConnection conn = new SQLiteConnection(_sqliteFilePath.ToSqliteConnString());
+        using SqliteConnection conn = new SqliteConnection(_sqliteFilePath.ToSqliteConnString());
         conn.Open();
-        var historyCols = conn.GetSchema("COLUMNS", new[] { null, null, "history" });
 
+        using SqliteCommand cmd = new SqliteCommand("PRAGMA table_info(history)", conn);
+        using var reader = cmd.ExecuteReader();
+
+        int nameOrdinal = reader.GetOrdinal("name");
         List<string> trends = new();
-        for (int i = 1; i < historyCols.Rows.Count; i++)
+        bool skippedFirst = false;
+        while (reader.Read())
         {
-            trends.Add((string)historyCols.Rows[i]["COLUMN_NAME"]);
+            if (!skippedFirst)
+            {
+                skippedFirst = true;
+                continue;
+            }
+            trends.Add(reader.GetString(nameOrdinal));
         }
 
         return trends;
@@ -68,7 +77,7 @@ public class Bac0DataSource : IDataSource
         // Check that trend is in possible trends
         if (!_trends.Contains(trend)) return new TimestampData(new(), new());
 
-        await using SQLiteConnection conn = new SQLiteConnection(_sqliteFilePath.ToSqliteConnString());
+        await using SqliteConnection conn = new SqliteConnection(_sqliteFilePath.ToSqliteConnString());
         conn.Open();
 
         List<DateTime> dates = new();
@@ -76,7 +85,7 @@ public class Bac0DataSource : IDataSource
 
         try
         {
-            await using SQLiteCommand cmd = new SQLiteCommand($"SELECT \"index\", \"{trend}\" FROM history", conn);
+            await using SqliteCommand cmd = new SqliteCommand($"SELECT \"index\", \"{trend}\" FROM history", conn);
 
             await using var reader = await cmd.ExecuteReaderAsync();
 
