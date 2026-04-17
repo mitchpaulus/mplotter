@@ -33,19 +33,25 @@ public interface IDataSource
     async Task<TimeSeriesData> GetTimeSeriesData(string trend)
     {
         TimestampData timestampData = await GetTimestampData(trend);
-        return TimeSeriesDataFactory.FromTimestampData(timestampData);
+        return new TimeSeriesData(
+            new ExplicitTimeAxis(timestampData.DateTimes.ToList()),
+            timestampData.Values.ToList());
     }
 
     async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends)
     {
         List<TimestampData> timestampData = await GetTimestampData(trends);
-        return timestampData.Select(TimeSeriesDataFactory.FromTimestampData).ToList();
+        return timestampData
+            .Select(data => new TimeSeriesData(new ExplicitTimeAxis(data.DateTimes.ToList()), data.Values.ToList()))
+            .ToList();
     }
 
     async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
         List<TimestampData> timestampData = await GetTimestampData(trends, startDateInc, endDateExc);
-        return timestampData.Select(TimeSeriesDataFactory.FromTimestampData).ToList();
+        return timestampData
+            .Select(data => new TimeSeriesData(new ExplicitTimeAxis(data.DateTimes.ToList()), data.Values.ToList()))
+            .ToList();
     }
 
     string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc);
@@ -105,54 +111,6 @@ public sealed record SignalPlotSeries(DateTime Start, TimeSpan Step, IReadOnlyLi
 
 public sealed record ScatterPlotSeries(IReadOnlyList<double> XsOaDate, IReadOnlyList<double> Ys) : PlotSeries;
 
-public static class TimeSeriesDataFactory
-{
-    public static TimeSeriesData FromTimestampData(TimestampData timestampData)
-    {
-        return new TimeSeriesData(new ExplicitTimeAxis(timestampData.DateTimes.ToList()), timestampData.Values.ToList());
-    }
-
-    public static TimeSeriesData CreateUniform(DateTime start, TimeSpan step, IReadOnlyList<double> values)
-    {
-        return new TimeSeriesData(new UniformTimeAxis(start, step, values.Count), values.ToList());
-    }
-
-    public static TimeSeriesData CreateExplicit(IReadOnlyList<DateTime> dateTimes, IReadOnlyList<double> values)
-    {
-        return new TimeSeriesData(new ExplicitTimeAxis(dateTimes.ToList()), values.ToList());
-    }
-
-    public static TimeSeriesData CreateFromDateTimes(IReadOnlyList<DateTime> dateTimes, IReadOnlyList<double> values)
-    {
-        if (dateTimes.Count == values.Count && TryGetUniformAxis(dateTimes, out UniformTimeAxis? axis) && axis is not null)
-        {
-            return new TimeSeriesData(axis, values.ToList());
-        }
-
-        return CreateExplicit(dateTimes, values);
-    }
-
-    public static bool TryGetUniformAxis(IReadOnlyList<DateTime> dateTimes, out UniformTimeAxis? axis)
-    {
-        axis = null;
-        if (dateTimes.Count < 2) return false;
-
-        TimeSpan step = dateTimes[1] - dateTimes[0];
-        if (step <= TimeSpan.Zero) return false;
-
-        for (int i = 2; i < dateTimes.Count; i++)
-        {
-            if (dateTimes[i] - dateTimes[i - 1] != step)
-            {
-                return false;
-            }
-        }
-
-        axis = new UniformTimeAxis(dateTimes[0], step, dateTimes.Count);
-        return true;
-    }
-}
-
 public static class SeriesAdapter
 {
     public static PlotSeries ToPlotSeries(TimeSeriesData series, GapPolicy gapPolicy)
@@ -164,37 +122,6 @@ public static class SeriesAdapter
             ExplicitTimeAxis axis => CreateScatterPlotSeries(axis, series.Values, gapPolicy),
             _ => throw new InvalidOperationException($"Unsupported axis type: {series.Axis.GetType().Name}")
         };
-    }
-
-    private static ScatterPlotSeries CreateScatterPlotSeries(UniformTimeAxis axis, IReadOnlyList<double> values, GapPolicy gapPolicy)
-    {
-        List<double> xs = new(values.Count);
-        List<double> ys = new(values.Count);
-
-        if (values.Count == 0)
-        {
-            return new ScatterPlotSeries(xs, ys);
-        }
-
-        DateTime current = axis.Start;
-        xs.Add(current.ToOADate());
-        ys.Add(values[0]);
-
-        for (int i = 1; i < values.Count; i++)
-        {
-            DateTime next = axis.Start.AddTicks(axis.Step.Ticks * i);
-            if (next - current > gapPolicy.BreakThreshold)
-            {
-                xs.Add(new DateTime((next.Ticks + current.Ticks) / 2).ToOADate());
-                ys.Add(double.NaN);
-            }
-
-            xs.Add(next.ToOADate());
-            ys.Add(values[i]);
-            current = next;
-        }
-
-        return new ScatterPlotSeries(xs, ys);
     }
 
     private static ScatterPlotSeries CreateScatterPlotSeries(ExplicitTimeAxis axis, IReadOnlyList<double> values, GapPolicy gapPolicy)

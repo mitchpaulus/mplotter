@@ -348,7 +348,7 @@ public class SimpleDelimitedFile : IDataSource
     public async Task<TimeSeriesData> GetTimeSeriesData(string trend)
     {
         TimestampData tsData = await GetTimestampData(trend);
-        return TimeSeriesDataFactory.CreateFromDateTimes(tsData.DateTimes, tsData.Values);
+        return CreateTimeSeriesData(tsData.DateTimes, tsData.Values);
     }
 
     public async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends)
@@ -369,10 +369,42 @@ public class SimpleDelimitedFile : IDataSource
         {
             TimestampData tsData = await GetTimestampData(trend);
             tsData.TrimDates(startDateInc, endDateExc);
-            data.Add(TimeSeriesDataFactory.CreateFromDateTimes(tsData.DateTimes, tsData.Values));
+            data.Add(CreateTimeSeriesData(tsData.DateTimes, tsData.Values));
         }
 
         return data;
+    }
+
+    private static TimeSeriesData CreateTimeSeriesData(IReadOnlyList<DateTime> dateTimes, IReadOnlyList<double> values)
+    {
+        if (dateTimes.Count == values.Count &&
+            TryGetUniformAxis(dateTimes, out UniformTimeAxis? axis) &&
+            axis is not null)
+        {
+            return new TimeSeriesData(axis, values.ToList());
+        }
+
+        return new TimeSeriesData(new ExplicitTimeAxis(dateTimes.ToList()), values.ToList());
+    }
+
+    private static bool TryGetUniformAxis(IReadOnlyList<DateTime> dateTimes, out UniformTimeAxis? axis)
+    {
+        axis = null;
+        if (dateTimes.Count < 2) return false;
+
+        TimeSpan step = dateTimes[1] - dateTimes[0];
+        if (step <= TimeSpan.Zero) return false;
+
+        for (int i = 2; i < dateTimes.Count; i++)
+        {
+            if (dateTimes[i] - dateTimes[i - 1] != step)
+            {
+                return false;
+            }
+        }
+
+        axis = new UniformTimeAxis(dateTimes[0], step, dateTimes.Count);
+        return true;
     }
 
     public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)

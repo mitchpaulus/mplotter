@@ -304,7 +304,7 @@ public class EnergyPlusEsoDataSource : IDataSource
 
         int year = DateTime.Now.Year;
         DateTime start = new(year, 1, 1);
-        return TimeSeriesDataFactory.CreateUniform(start, TimeSpan.FromHours(1), data);
+        return new TimeSeriesData(new UniformTimeAxis(start, TimeSpan.FromHours(1), data.Count), data);
     }
 
     public async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends)
@@ -325,7 +325,16 @@ public class EnergyPlusEsoDataSource : IDataSource
         {
             TimestampData tsData = await GetTimestampData(trend);
             tsData.TrimDates(startDateInc, endDateExc);
-            data.Add(TimeSeriesDataFactory.CreateFromDateTimes(tsData.DateTimes, tsData.Values));
+            if (tsData.DateTimes.Count == 0)
+            {
+                data.Add(new TimeSeriesData(new ExplicitTimeAxis(Array.Empty<DateTime>()), Array.Empty<double>()));
+            }
+            else
+            {
+                data.Add(new TimeSeriesData(
+                    new UniformTimeAxis(tsData.DateTimes[0], TimeSpan.FromHours(1), tsData.Values.Count),
+                    tsData.Values));
+            }
         }
 
         return data;
