@@ -298,6 +298,39 @@ public class EnergyPlusEsoDataSource : IDataSource
         // return data;
     }
 
+    public async Task<TimeSeriesData> GetTimeSeriesData(string trend)
+    {
+        List<double> data = await GetData(trend);
+
+        int year = DateTime.Now.Year;
+        DateTime start = new(year, 1, 1);
+        return TimeSeriesDataFactory.CreateUniform(start, TimeSpan.FromHours(1), data);
+    }
+
+    public async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends)
+    {
+        List<TimeSeriesData> data = new();
+        foreach (string trend in trends)
+        {
+            data.Add(await GetTimeSeriesData(trend));
+        }
+
+        return data;
+    }
+
+    public async Task<List<TimeSeriesData>> GetTimeSeriesData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
+    {
+        List<TimeSeriesData> data = new();
+        foreach (string trend in trends)
+        {
+            TimestampData tsData = await GetTimestampData(trend);
+            tsData.TrimDates(startDateInc, endDateExc);
+            data.Add(TimeSeriesDataFactory.CreateFromDateTimes(tsData.DateTimes, tsData.Values));
+        }
+
+        return data;
+    }
+
     public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc)
     {
         throw new NotImplementedException();

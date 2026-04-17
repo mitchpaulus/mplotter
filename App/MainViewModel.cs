@@ -177,49 +177,43 @@ public class MainViewModel : INotifyPropertyChanged
                      plot.Plot.Axes.DateTimeTicksBottom();
                      watch.Restart();
 
-                     List<TimestampData> tsDatas;
+                     List<TimeSeriesData> tsDatas;
                      if (_window.DateMode == DateMode.Specified)
                      {
-                         tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.Trend.Name).ToList(), _window.StartDate, _window.EndDate);
+                         tsDatas = await source.GetTimeSeriesData(sourceGroup.Select(config => config.Trend.Name).ToList(), _window.StartDate, _window.EndDate);
                      }
                      else
                      {
-                         tsDatas = await source.GetTimestampData(sourceGroup.Select(config => config.Trend.Name).ToList());
+                         tsDatas = await source.GetTimeSeriesData(sourceGroup.Select(config => config.Trend.Name).ToList());
                      }
 
                      watch.Stop();
 
                      Console.Write($"{watch.ElapsedMilliseconds}\n");
 
-                     foreach ((TimestampData tsData, PlotTrendConfig plotTrendConfig) in tsDatas.Zip(trends))
+                     foreach ((TimeSeriesData tsData, PlotTrendConfig plotTrendConfig) in tsDatas.Zip(trends))
                      {
-                         tsData.AddGaps();
-
-                         // Bail if we messed up.
-                         if (!tsData.LengthsEqual) continue;
-
-                         // double[] yData = tsData.Values.ToArray();
-                         List<double> yData = tsData.Values;
-
                          string label = unitGroup.Count(tuple => tuple.Trend.Name == plotTrendConfig.Trend.Name) < 2
                              ? plotTrendConfig.Trend.DisplayName
                              : $"{source.ShortName}: {plotTrendConfig.Trend.DisplayName}";
-                         // if (didConvert) label = $"{label} in {unitToConvertTo}";
 
-                         // Note that Signal plots cannot have NaNs or gaps. This is for performance.
-                         if ((await source.DataSourceType() == DataSourceType.EnergyModel || tsData.Values.Count == 8760) && tsData.HasGaps != GapState.HasGaps)
+                         PlotSeries plotSeries = SeriesAdapter.ToPlotSeries(tsData, GapPolicy.Default);
+
+                         switch (plotSeries)
                          {
-                             var signalPlot = plot.Plot.Add.Signal(yData, (double)1 / 24);
-                             signalPlot.LegendText = label;
-                             signalPlot.Data.XOffset = tsData.DateTimes.Count > 0 ? tsData.DateTimes.First().ToOADate() : DateTime.Today.ToOADate();
-                         }
-                         else
-                         {
-                             List<double> xData = tsData.DateTimes.Select(time => time.ToOADate()).ToList();
-                             // TODO: add safety here
-                             // DateTime dateTimeStart = new DateTime(DateTime.Now.Year, 1, 1);
-                             var scatter = plot.Plot.Add.Scatter(xData, yData);
-                             scatter.LegendText = label;
+                             case SignalPlotSeries signalSeries:
+                             {
+                                 var signalPlot = plot.Plot.Add.Signal(signalSeries.Values, signalSeries.Step.TotalDays);
+                                 signalPlot.LegendText = label;
+                                 signalPlot.Data.XOffset = signalSeries.Start.ToOADate();
+                                 break;
+                             }
+                             case ScatterPlotSeries scatterSeries:
+                             {
+                                 var scatter = plot.Plot.Add.Scatter(scatterSeries.XsOaDate.ToArray(), scatterSeries.Ys.ToArray());
+                                 scatter.LegendText = label;
+                                 break;
+                             }
                          }
                      }
 
