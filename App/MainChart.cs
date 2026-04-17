@@ -111,6 +111,23 @@ public sealed record SignalPlotSeries(DateTime Start, TimeSpan Step, IReadOnlyLi
 
 public sealed record ScatterPlotSeries(IReadOnlyList<double> XsOaDate, IReadOnlyList<double> Ys) : PlotSeries;
 
+public static class TimeSeriesConversions
+{
+    public static TimestampData ToTimestampData(TimeSeriesData series)
+    {
+        return series.Axis switch
+        {
+            ExplicitTimeAxis axis => new TimestampData(axis.DateTimes.ToList(), series.Values.ToList()),
+            UniformTimeAxis axis => new TimestampData(
+                Enumerable.Range(0, axis.Count)
+                    .Select(i => axis.Start.AddTicks(axis.Step.Ticks * i))
+                    .ToList(),
+                series.Values.ToList()),
+            _ => throw new InvalidOperationException($"Unsupported axis type: {series.Axis.GetType().Name}")
+        };
+    }
+}
+
 public static class SeriesAdapter
 {
     public static PlotSeries ToPlotSeries(TimeSeriesData series, GapPolicy gapPolicy)
