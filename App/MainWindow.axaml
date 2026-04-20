@@ -8,7 +8,7 @@
         x:Class="csvplot.MainWindow"
         x:DataType="csvplot:MainViewModel"
         KeyDown="InputElement_OnKeyDown"
-        Title="csvplot"
+        Title="MPlotter"
         Icon="/icon.png"
         >
     <Grid>
@@ -39,9 +39,9 @@
                                 Click="BrowseButtonOnClick"
                                 Name="BrowseButton"/>
 
-                        <Button Click="InfluxButtonClick" Name="InfluxButton">Influx</Button>
-                        <Button Click="NoaaButtonClick" Name="NoaaButton">NOAA</Button>
-                        <Button Click="IemButtonClick" Name="IemButton">IEM</Button>
+                        <Button Click="InfluxButtonClick" Name="InfluxButton" ToolTip.Tip="Load data from our influx server. You need to have the environment variables $INFLUX_HOST, $INFLUX_TOKEN, and $INFLUX_ORG defined for this to work.">Influx</Button>
+                        <Button Click="NoaaButtonClick" Name="NoaaButton" ToolTip.Tip="Load data from the NOAA ISD data source.">NOAA</Button>
+                        <Button Click="IemButtonClick" Name="IemButton" ToolTip.Tip="Load data from the Iowa Environmental Mesonet (IEM) weather data source.">IEM</Button>
 
                     </StackPanel>
 
