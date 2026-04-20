@@ -431,11 +431,11 @@ public partial class MainWindow : Window
             if (s.Header == source.Header) return;
         }
 
-        foreach (var c in MruPanel.Children) if (c is Button b) b.IsEnabled = false;
         BrowseButton.IsEnabled = false;
         InfluxButton.IsEnabled = false;
         NoaaButton.IsEnabled = false;
         IemButton.IsEnabled = false;
+        MruButton.IsEnabled = false;
 
         _loadedDataSources.Add(source);
 
@@ -446,11 +446,11 @@ public partial class MainWindow : Window
         await UpdateBackingAvailableTimeSeriesTrendList();
         RefreshSearchUi();
 
-        foreach (var c in MruPanel.Children) if (c is Button b) b.IsEnabled = true;
         BrowseButton.IsEnabled = true;
         InfluxButton.IsEnabled = true;
         NoaaButton.IsEnabled = true;
         IemButton.IsEnabled = true;
+        MruButton.IsEnabled = true;
     }
 
     private void WatcherOnDeleted(object sender, FileSystemEventArgs e)
@@ -997,45 +997,7 @@ public partial class MainWindow : Window
     public void UpdateMrus()
     {
         List<string> mrus = MostRecentlyUsedFiles();
-
-        List<Button> buttons = new List<Button>();
-
-        foreach (var mru in mrus)
-        {
-            // Add a button to load that file
-            Button button = new Button();
-            try
-            {
-                IDataSource source = DataSourceFactory.SourceFromLocalPath(mru, Listener);
-                button.Click += AddDataSourceMruClick;
-                button.Content = Path.GetFileName(mru).EscapeUiText();
-                button.Tag = source;
-
-                ContextMenu contextMenu = new ContextMenu();
-                MenuItem removeItem = new MenuItem()
-                {
-                    Header = "Remove"
-                };
-                removeItem.Click += (_, _) =>
-                {
-                    RemoveMru(mru);
-                    UpdateMrus();
-                };
-                contextMenu.Items.Add(removeItem);
-                button.ContextMenu = contextMenu;
-
-                var tooltip = new TextBlock { Text = mru };
-                ToolTip.SetTip(button, tooltip);
-                buttons.Add(button);
-            }
-            catch
-            {
-                RemoveMru(mru);
-            }
-        }
-
-        MruPanel.Children.Clear();
-        MruPanel.Children.AddRange(buttons);
+        MruButton.IsEnabled = mrus.Any();
     }
 
     public static void RemoveMru(string localPath)
@@ -1622,6 +1584,30 @@ public partial class MainWindow : Window
         if (d.SelectedStation is not null)
         {
             await AddDataSource(new IemWeatherDataSource(d.SelectedStation));
+        }
+    }
+
+    private async void MruButtonClick(object? sender, RoutedEventArgs e)
+    {
+        MruDialog dialog = new(MostRecentlyUsedFiles())
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+
+        string? selectedPath = await dialog.ShowDialog<string?>(this);
+        UpdateMrus();
+        if (string.IsNullOrWhiteSpace(selectedPath)) return;
+
+        try
+        {
+            IDataSource source = DataSourceFactory.SourceFromLocalPath(selectedPath, Listener);
+            await AddDataSource(source);
+        }
+        catch
+        {
+            RemoveMru(selectedPath);
+            UpdateMrus();
+            await ShowMessage("MRU Error", $"Could not open MRU file:\n{selectedPath}");
         }
     }
 

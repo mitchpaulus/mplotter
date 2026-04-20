@@ -5,8 +5,13 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="csvplot.IemDialog"
         Title="Iowa Environmental Mesonet (IEM) Station Selection">
+        <Window.Styles>
+                <Style Selector="ListBox#IemStationsListBox /template/ ScrollViewer /template/ ScrollBar:vertical">
+                        <Setter Property="Width" Value="24" />
+                </Style>
+        </Window.Styles>
 
-        <Grid RowDefinitions="Auto 1*">
+        <Grid RowDefinitions="Auto Auto 1*">
                 <Grid Grid.Row="0" RowDefinitions="auto auto" ColumnDefinitions="auto auto">
                         <TextBlock Grid.Row="0" Grid.Column="0">STID</TextBlock>
                         <TextBlock Grid.Row="1" Grid.Column="0">Station Name</TextBlock>
@@ -15,6 +20,33 @@
                         <TextBox Grid.Row="1" Grid.Column="1" Width="150" TextChanged="NameSearchChanged"></TextBox>
                 </Grid>
 
-                <ListBox Grid.Row="1" Name="IemStationsListBox" DoubleTapped="IemStationsListBox_OnDoubleTapped"></ListBox>
+                <Grid Grid.Row="1" Margin="0,8,0,4">
+                        <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="400" />
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="100" />
+                                <ColumnDefinition Width="125" />
+                                <ColumnDefinition Width="125" />
+                                <ColumnDefinition Width="125" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" FontWeight="Bold">STID</TextBlock>
+                        <TextBlock Grid.Column="1" FontWeight="Bold">Name</TextBlock>
+                        <TextBlock Grid.Column="2" FontWeight="Bold">Lat</TextBlock>
+                        <TextBlock Grid.Column="3" FontWeight="Bold">Lon</TextBlock>
+                        <TextBlock Grid.Column="4" FontWeight="Bold">Elev (m)</TextBlock>
+                        <TextBlock Grid.Column="5" FontWeight="Bold">Begin</TextBlock>
+                        <TextBlock Grid.Column="6" FontWeight="Bold">End</TextBlock>
+                        <TextBlock Grid.Column="7" FontWeight="Bold">Network</TextBlock>
+                </Grid>
+
+                <ListBox Grid.Row="2"
+                         Name="IemStationsListBox"
+                         DoubleTapped="IemStationsListBox_OnDoubleTapped"
+                         ScrollViewer.AllowAutoHide="False"
+                         ScrollViewer.VerticalScrollBarVisibility="Visible"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto"></ListBox>
         </Grid>
 </Window>

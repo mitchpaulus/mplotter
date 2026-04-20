@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Input;
 
@@ -42,9 +44,9 @@ public partial class IemDialog : Window
 
             var stid = new TextBlock { Text = station.Stid };
             var name = new TextBlock { Text = station.Name };
-            var lat = new TextBlock { Text = station.Lat.ToString() };
-            var lon = new TextBlock { Text = station.Lon.ToString() };
-            var elev = new TextBlock { Text = station.Elev.ToString() };
+            var lat = new TextBlock { Text = station.Lat.ToString("f4") };
+            var lon = new TextBlock { Text = station.Lon.ToString("f4") };
+            var elev = new TextBlock { Text = Math.Round(station.Elev).ToString(CultureInfo.InvariantCulture) };
             var begin = new TextBlock { Text = station.Begin?.ToString("yyyy-MM-dd") ?? "" };
             var end = new TextBlock { Text = station.End?.ToString("yyyy-MM-dd") ?? "" };
             var network = new TextBlock { Text = station.Network };
