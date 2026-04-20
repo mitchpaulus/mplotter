@@ -163,6 +163,7 @@ public class IemWeatherDataSource : IDataSource
                 $"https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py" +
                 $"?data=tmpf&data=dwpf&data=relh" +
                 $"&station={Uri.EscapeDataString(stid)}" +
+                $"&report_type=3&report_type=4" + // Only include the routine and special readings, not the high frequency HFMETAR data.
                 $"&tz=UTC" +
                 $"&year1={currentYear - 2}&month1=1&day1=1" +
                 $"&year2={tom.Year}&month2={tom.Month}&day2={tom.Day}";
