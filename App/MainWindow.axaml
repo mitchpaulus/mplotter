@@ -29,20 +29,20 @@
                         <RowDefinition Height="*"></RowDefinition> <!-- Trends, etc. -->
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                    <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemWidth="100" ItemHeight="32">
 
-                        <Button Grid.Row="0" Content="Browse"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
+                        <Button Width="100" Grid.Row="0" Content="Browse"
+                                HorizontalContentAlignment="Center"
+                                VerticalContentAlignment="Center"
                                 Click="BrowseButtonOnClick"
                                 Name="BrowseButton"/>
 
-                        <Button Click="InfluxButtonClick" Name="InfluxButton" ToolTip.Tip="Load data from our influx server. You need to have the environment variables $INFLUX_HOST, $INFLUX_TOKEN, and $INFLUX_ORG defined for this to work.">Influx</Button>
-                        <Button Click="NoaaButtonClick" Name="NoaaButton" ToolTip.Tip="Load data from the NOAA ISD data source.">NOAA</Button>
-                        <Button Click="IemButtonClick" Name="IemButton" ToolTip.Tip="Load data from the Iowa Environmental Mesonet (IEM) weather data source.">IEM</Button>
-                        <Button Click="MruButtonClick" Name="MruButton" ToolTip.Tip="Open the most recently used data sources list.">MRU</Button>
+                        <Button Width="100" Click="InfluxButtonClick" Name="InfluxButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from our influx server. You need to have the environment variables $INFLUX_HOST, $INFLUX_TOKEN, and $INFLUX_ORG defined for this to work.">Influx</Button>
+                        <Button Width="100" Click="NoaaButtonClick" Name="NoaaButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from the NOAA ISD data source.">NOAA</Button>
+                        <Button Width="100" Click="IemButtonClick" Name="IemButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from the Iowa Environmental Mesonet (IEM) weather data source.">IEM</Button>
+                        <Button Width="100" Click="MruButtonClick" Name="MruButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Open the most recently used data sources list.">Most Recent</Button>
 
-                    </StackPanel>
+                    </WrapPanel>
 
                     <ScrollViewer Grid.Row="1" MaxHeight="200">
                         <StackPanel Name="DataSourcesList"> </StackPanel>
