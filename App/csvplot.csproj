@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <AvaloniaResource Include="icon.png" />
+    <AvaloniaResource Include="..\assets\Influxdb_logo.png" Link="assets/Influxdb_logo.png" />
+    <AvaloniaResource Include="..\assets\influxdb.png" Link="assets/influxdb.png" />
     <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
     <PackageReference Include="Avalonia" Version="11.3.14" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.14" />

@@ -31,15 +31,23 @@
 
                     <WrapPanel Grid.Row="0" Orientation="Horizontal" ItemWidth="100" ItemHeight="32">
 
-                        <Button Width="100" Grid.Row="0" Content="Browse"
+                        <Button Width="100" Grid.Row="0" Content="📁 Browse"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
                                 Click="BrowseButtonOnClick"
                                 Name="BrowseButton"/>
 
-                        <Button Width="100" Click="InfluxButtonClick" Name="InfluxButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from our influx server. You need to have the environment variables $INFLUX_HOST, $INFLUX_TOKEN, and $INFLUX_ORG defined for this to work.">Influx</Button>
-                        <Button Width="100" Click="NoaaButtonClick" Name="NoaaButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from the NOAA ISD data source.">NOAA</Button>
-                        <Button Width="100" Click="IemButtonClick" Name="IemButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from the Iowa Environmental Mesonet (IEM) weather data source.">IEM</Button>
+                        <Button Width="100" Click="InfluxButtonClick" Name="InfluxButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from our influx server. You need to have the environment variables $INFLUX_HOST, $INFLUX_TOKEN, and $INFLUX_ORG defined for this to work.">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Image Source="avares://csvplot/assets/influxdb.png"
+                                       Width="16"
+                                       Height="16"
+                                       Stretch="Uniform" />
+                                <TextBlock VerticalAlignment="Center">Influx</TextBlock>
+                            </StackPanel>
+                        </Button>
+                        <Button Width="100" Click="NoaaButtonClick" Name="NoaaButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from the NOAA ISD data source.">🌤 NOAA</Button>
+                        <Button Width="100" Click="IemButtonClick" Name="IemButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Load data from the Iowa Environmental Mesonet (IEM) weather data source.">🌤 IEM</Button>
                         <Button Width="100" Click="MruButtonClick" Name="MruButton" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip.Tip="Open the most recently used data sources list.">Most Recent</Button>
 
                     </WrapPanel>
