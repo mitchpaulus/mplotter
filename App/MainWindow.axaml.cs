@@ -68,6 +68,8 @@ public partial class MainWindow : Window
 
     public DateTime StartDate = DateTime.Today.AddDays(-28);
     public DateTime EndDate = DateTime.Today;
+    private DateRangeSource _dateRangeSource = DateRangeSource.None;
+    private int? _previousDaysRange;
 
     public int StartMonthInt => StartDate.Year * 12 + (StartDate.Month - 1);
     public int EndMonthInt => EndDate.Year * 12 + (EndDate.Month - 1);
@@ -87,6 +89,7 @@ public partial class MainWindow : Window
     private int _lastSingleDayDay = 1;
 
     private Button _singleDayNotStartedButton = new Button() { Content = "Single Day" };
+    private bool _suppressDateSelectionEvents;
 
     private List<Button> _singleDayYearButtons = new(5);
     private List<Button> _singleDayMonthButtons = new(12)
@@ -132,6 +135,7 @@ public partial class MainWindow : Window
         TsRadio.IsChecked = true;
 
         SetDateMode(DateMode.Unspecified);
+        InitializeDateSelectionControls();
 
         _xyTrendSelectionGrid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
         _xyTrendSelectionGrid.ColumnDefinitions.Add(new ColumnDefinition(1, GridUnitType.Star));
@@ -1066,7 +1070,7 @@ public partial class MainWindow : Window
 
     private bool OnMonth()
     {
-        return DateMode == DateMode.Specified && StartDate.Day == 1 && EndDate.Day == 1;
+        return DateMode == DateMode.Specified && _dateRangeSource == DateRangeSource.Month;
     }
 
     private async Task TryShiftMonth(int monthShift)
@@ -1077,6 +1081,7 @@ public partial class MainWindow : Window
             StartDate = DateTimeMonthFromInt(StartMonthInt + monthShift);
             EndDate = DateTimeMonthFromInt(EndMonthInt + monthShift);
             DateMode = DateMode.Specified;
+            SelectMonthDateRangeInDateControls();
 
             UpdateDateModeString();
 
@@ -1106,6 +1111,7 @@ public partial class MainWindow : Window
             StartDate = StartDate.AddDays(currentDayRange * monthShift);
             EndDate = EndDate.AddDays(currentDayRange * monthShift);
             DateMode = DateMode.Specified;
+            SyncDateSelectionControlsAfterShift();
 
             UpdateDateModeString();
 
@@ -1619,6 +1625,8 @@ public partial class MainWindow : Window
     private async void ClearDateMode(object? sender, RoutedEventArgs e)
     {
         SetDateMode(DateMode.Unspecified);
+        _dateRangeSource = DateRangeSource.None;
+        _previousDaysRange = null;
         await _vm.UpdatePlots();
     }
 
@@ -1636,19 +1644,122 @@ public partial class MainWindow : Window
     public string DateModeString()
     {
         return DateMode == DateMode.Specified
-            ? $"Date mode: {DateMode}, Start: {StartDate:yyyy-MM-dd}, End: {EndDate:yyyy-MM-dd}"
+            ? $"Date mode: {DateMode}, From: {StartDate:yyyy-MM-dd} inclusive, To: {EndDate:yyyy-MM-dd} exclusive"
             : $"Date mode: {DateMode}";
     }
 
-    private async void MakeWeekOne(object? sender, RoutedEventArgs e)
+    private void InitializeDateSelectionControls()
     {
-        int weekNum = int.Parse(((sender as Button)!.Tag as string)!);
-        DateTime now = DateTime.Now;
-        int currentYear = now.Year;
+        _suppressDateSelectionEvents = true;
+        try
+        {
+            FromPrevious28DaysRadio.IsChecked = true;
+            ToTodayRadio.IsChecked = true;
+            UpdateDatePickers();
+            _dateRangeSource = DateRangeSource.PreviousDays;
+            _previousDaysRange = 28;
+        }
+        finally
+        {
+            _suppressDateSelectionEvents = false;
+        }
+    }
 
+    public void SelectCustomDateRangeInDateControls()
+    {
+        SelectCustomDateRangeInDateControls(DateRangeSource.Custom);
+    }
+
+    public void SelectMonthDateRangeInDateControls()
+    {
+        SelectCustomDateRangeInDateControls(DateRangeSource.Month);
+    }
+
+    private void SelectCustomDateRangeInDateControls(DateRangeSource source)
+    {
+        _suppressDateSelectionEvents = true;
+        try
+        {
+            FromOtherRadio.IsChecked = true;
+            ToOtherRadio.IsChecked = EndDate.Date != DateTime.Today;
+            ToTodayRadio.IsChecked = EndDate.Date == DateTime.Today;
+            UpdateDatePickers();
+            _dateRangeSource = source;
+            _previousDaysRange = null;
+        }
+        finally
+        {
+            _suppressDateSelectionEvents = false;
+        }
+    }
+
+    private void SelectPreviousDaysDateRangeInDateControls(int days)
+    {
+        _suppressDateSelectionEvents = true;
+        try
+        {
+            FromPreviousDayRadio.IsChecked = days == 1;
+            FromPrevious3DaysRadio.IsChecked = days == 3;
+            FromPrevious7DaysRadio.IsChecked = days == 7;
+            FromPrevious28DaysRadio.IsChecked = days == 28;
+            FromPrevious90DaysRadio.IsChecked = days == 90;
+            FromPrevious180DaysRadio.IsChecked = days == 180;
+            FromPrevious365DaysRadio.IsChecked = days == 365;
+            ToOtherRadio.IsChecked = EndDate.Date != DateTime.Today;
+            ToTodayRadio.IsChecked = EndDate.Date == DateTime.Today;
+            UpdateDatePickers();
+            _dateRangeSource = DateRangeSource.PreviousDays;
+            _previousDaysRange = days;
+        }
+        finally
+        {
+            _suppressDateSelectionEvents = false;
+        }
+    }
+
+    private void SyncDateSelectionControlsAfterShift()
+    {
+        if (_dateRangeSource == DateRangeSource.PreviousDays && _previousDaysRange is { } days)
+        {
+            SelectPreviousDaysDateRangeInDateControls(days);
+        }
+        else
+        {
+            SelectCustomDateRangeInDateControls(_dateRangeSource);
+        }
+    }
+
+    private void UpdateDatePickers()
+    {
+        bool previousSuppressDateSelectionEvents = _suppressDateSelectionEvents;
+        _suppressDateSelectionEvents = true;
+        try
+        {
+            FromDatePicker.SelectedDate = StartDate.Date;
+            ToDatePicker.SelectedDate = EndDate.Date;
+        }
+        finally
+        {
+            _suppressDateSelectionEvents = previousSuppressDateSelectionEvents;
+        }
+    }
+
+    private int? SelectedPreviousDays()
+    {
+        if (FromPreviousDayRadio.IsChecked == true) return 1;
+        if (FromPrevious3DaysRadio.IsChecked == true) return 3;
+        if (FromPrevious7DaysRadio.IsChecked == true) return 7;
+        if (FromPrevious28DaysRadio.IsChecked == true) return 28;
+        if (FromPrevious90DaysRadio.IsChecked == true) return 90;
+        if (FromPrevious180DaysRadio.IsChecked == true) return 180;
+        if (FromPrevious365DaysRadio.IsChecked == true) return 365;
+        return null;
+    }
+
+    private async Task ApplyDateSelection(string axisLabel)
+    {
         SetDateMode(DateMode.Specified);
-        StartDate = new DateTime(currentYear, 1, 1).AddDays((weekNum - 1)*7 );
-        EndDate = new DateTime(currentYear, 1, 8).AddDays((weekNum - 1)*7 );
+        UpdateDatePickers();
         UpdateDateModeString();
 
         if (await DateRangeChangeRequiresPlotRebuild())
@@ -1662,11 +1773,109 @@ public partial class MainWindow : Window
             {
                 p.Plot.Axes.Bottom.Min = StartDate.ToOADate();
                 p.Plot.Axes.Bottom.Max = EndDate.ToOADate();
-                p.Plot.Axes.Bottom.Label.Text = $"{StartDate:MMM d} - {EndDate:MMM d}";
+                p.Plot.Axes.Bottom.Label.Text = axisLabel;
             }
 
             p.Refresh();
         }
+    }
+
+    private async void FromPreviousDays_OnIsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressDateSelectionEvents || sender is not RadioButton { IsChecked: true, Tag: string daysString }) return;
+        if (!int.TryParse(daysString, out int days)) return;
+
+        EndDate = EndDate.Date;
+        StartDate = EndDate.AddDays(-days);
+        _dateRangeSource = DateRangeSource.PreviousDays;
+        _previousDaysRange = days;
+        await ApplyDateSelection(days == 1 ? "Previous Day" : $"Previous {days} Days");
+    }
+
+    private async void FromOther_OnIsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressDateSelectionEvents || FromOtherRadio.IsChecked != true) return;
+        StartDate = FromDatePicker.SelectedDate?.Date ?? StartDate.Date;
+        _dateRangeSource = DateRangeSource.Custom;
+        _previousDaysRange = null;
+        await ApplyDateSelection($"{StartDate:MMM d} - {EndDate:MMM d}");
+    }
+
+    private async void FromDatePicker_OnSelectedDateChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressDateSelectionEvents || FromDatePicker.SelectedDate is not { } selectedDate) return;
+        if (FromOtherRadio.IsChecked != true && selectedDate.Date == StartDate.Date) return;
+
+        _suppressDateSelectionEvents = true;
+        FromOtherRadio.IsChecked = true;
+        _suppressDateSelectionEvents = false;
+
+        StartDate = selectedDate.Date;
+        _dateRangeSource = DateRangeSource.Custom;
+        _previousDaysRange = null;
+        await ApplyDateSelection($"{StartDate:MMM d} - {EndDate:MMM d}");
+    }
+
+    private async void ToToday_OnIsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressDateSelectionEvents || ToTodayRadio.IsChecked != true) return;
+
+        EndDate = DateTime.Today;
+        if (SelectedPreviousDays() is { } days)
+        {
+            StartDate = EndDate.AddDays(-days);
+            _dateRangeSource = DateRangeSource.PreviousDays;
+            _previousDaysRange = days;
+        }
+        else
+        {
+            _dateRangeSource = DateRangeSource.Custom;
+            _previousDaysRange = null;
+        }
+        await ApplyDateSelection("Today");
+    }
+
+    private async void ToOther_OnIsCheckedChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_suppressDateSelectionEvents || ToOtherRadio.IsChecked != true) return;
+
+        EndDate = ToDatePicker.SelectedDate?.Date ?? EndDate.Date;
+        if (SelectedPreviousDays() is { } days)
+        {
+            StartDate = EndDate.AddDays(-days);
+            _dateRangeSource = DateRangeSource.PreviousDays;
+            _previousDaysRange = days;
+        }
+        else
+        {
+            _dateRangeSource = DateRangeSource.Custom;
+            _previousDaysRange = null;
+        }
+        await ApplyDateSelection($"{StartDate:MMM d} - {EndDate:MMM d}");
+    }
+
+    private async void ToDatePicker_OnSelectedDateChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressDateSelectionEvents || ToDatePicker.SelectedDate is not { } selectedDate) return;
+        if (ToOtherRadio.IsChecked != true && selectedDate.Date == EndDate.Date) return;
+
+        _suppressDateSelectionEvents = true;
+        ToOtherRadio.IsChecked = true;
+        _suppressDateSelectionEvents = false;
+
+        EndDate = selectedDate.Date;
+        if (SelectedPreviousDays() is { } days)
+        {
+            StartDate = EndDate.AddDays(-days);
+            _dateRangeSource = DateRangeSource.PreviousDays;
+            _previousDaysRange = days;
+        }
+        else
+        {
+            _dateRangeSource = DateRangeSource.Custom;
+            _previousDaysRange = null;
+        }
+        await ApplyDateSelection($"{StartDate:MMM d} - {EndDate:MMM d}");
     }
 
     private async void MakeSingleDay()
@@ -1674,6 +1883,7 @@ public partial class MainWindow : Window
         SetDateMode(DateMode.Specified);
         StartDate = new DateTime(_lastSingleDayYear, _lastSingleDayMonth, _lastSingleDayDay);
         EndDate = StartDate.AddDays(1);
+        SelectCustomDateRangeInDateControls(DateRangeSource.SingleDay);
         UpdateDateModeString();
 
         if (await DateRangeChangeRequiresPlotRebuild())
@@ -1810,6 +2020,15 @@ public enum DateMode
 {
     Unspecified,
     Specified,
+}
+
+public enum DateRangeSource
+{
+    None,
+    Custom,
+    Month,
+    PreviousDays,
+    SingleDay,
 }
 
 public enum ExportIncludeOption

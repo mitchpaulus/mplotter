@@ -356,6 +356,7 @@ public class MainViewModel : INotifyPropertyChanged
         _window.SetDateMode(DateMode.Specified);
         _window.StartDate = new DateTime(startYear, month, 1);
         _window.EndDate = new DateTime(endYear, endMonth, 1);
+        _window.SelectMonthDateRangeInDateControls();
         _window.UpdateDateModeString();
 
         if (await _window.DateRangeChangeRequiresPlotRebuild())
