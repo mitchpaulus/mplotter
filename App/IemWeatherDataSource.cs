@@ -80,7 +80,16 @@ public class IemWeatherDataSource : IDataSource
     }
 
     public async Task<List<TimestampData>> GetTimestampData(List<string> trends, DateTime startDateInc, DateTime endDateExc)
-        => await GetTimestampData(trends);
+    {
+        var data = new List<TimestampData>();
+        foreach (var t in trends)
+        {
+            var tsData = await GetTimestampData(t);
+            tsData.TrimDates(startDateInc, endDateExc);
+            data.Add(tsData);
+        }
+        return data;
+    }
 
     public string GetScript(List<string> trends, DateTime startDateInc, DateTime endDateExc) => throw new NotImplementedException();
 
