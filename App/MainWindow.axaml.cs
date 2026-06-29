@@ -741,7 +741,9 @@ public partial class MainWindow : Window
             unitItem.Click += async (_, _) =>
             {
                 var (configs, skippedCount) = GetEditableTargetsForUnitEdit(clickedConfig);
-                await EditTrendUnits(configs, skippedCount);
+                List<PlotTrendConfig>? refined = await RefineTargetConfigs(configs, "Edit unit for these trends:");
+                if (refined is null) return;
+                await EditTrendUnits(refined, skippedCount);
             };
             contextMenu.Items.Add(unitItem);
         }
@@ -752,13 +754,30 @@ public partial class MainWindow : Window
             tagItem.Click += async (_, _) =>
             {
                 var (configs, skippedCount) = GetEditableTargetsForTagEdit(clickedConfig);
-                await EditTrendTags(configs, skippedCount);
+                List<PlotTrendConfig>? refined = await RefineTargetConfigs(configs, "Edit tags for these trends:");
+                if (refined is null) return;
+                await EditTrendTags(refined, skippedCount);
             };
             contextMenu.Items.Add(tagItem);
         }
 
         if (contextMenu.Items.Count == 0) return;
         contextMenu.Open(placementTarget);
+    }
+
+    private async Task<List<PlotTrendConfig>?> RefineTargetConfigs(List<PlotTrendConfig> configs, string note)
+    {
+        // Nothing to narrow down when a single trend is targeted (e.g. right-clicking an unselected row).
+        if (configs.Count <= 1) return configs;
+
+        TargetTrendsDialog dialog = new(configs, note)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Width = 400,
+            Height = 600
+        };
+
+        return await dialog.ShowDialog<List<PlotTrendConfig>?>(this);
     }
 
     private async Task EditTrendUnits(List<PlotTrendConfig> configs, int skippedCount)
