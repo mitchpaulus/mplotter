@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using PsychroLib;
 
 namespace csvplot;
 
@@ -25,7 +26,10 @@ public class IemWeatherDataSource : IDataSource
         _trends.Add(new Trend($"IEM {_station.Stid}: Dry Bulb Air Temperature (°F)", "°F", $"IEM {_station.Stid}: Dry Bulb Air Temperature (°F)"));
         _trends.Add(new Trend($"IEM {_station.Stid}: Dew Point Temperature (°F)", "°F", $"IEM {_station.Stid}: Dew Point Temperature (°F)"));
         _trends.Add(new Trend($"IEM {_station.Stid}: Relative Humidity (%)", "%", $"IEM {_station.Stid} Relative Humidity (%)"));
+        _trends.Add(new Trend($"IEM {_station.Stid}: Wet Bulb Temperature (°F)", "°F", $"IEM {_station.Stid}: Wet Bulb Temperature (°F)"));
     }
+
+    private static readonly Psychrometrics PsyIp = new(UnitSystem.IP);
 
     public string Header { get; }
     public string ShortName { get; }
@@ -42,6 +46,7 @@ public class IemWeatherDataSource : IDataSource
         if (trend.Contains("Dry Bulb")) selector = r => r.Tmpf;
         else if (trend.Contains("Dew Point")) selector = r => r.Dwpf;
         else if (trend.Contains("Relative Humidity")) selector = r => r.Relh;
+        else if (trend.Contains("Wet Bulb")) selector = WetBulbF;
         else return new TimestampData(new(), new());
 
         List<DateTime> times = new();
@@ -65,6 +70,23 @@ public class IemWeatherDataSource : IDataSource
         TimestampData tsData = new(times, values);
         if (needsSort) tsData.Sort();
         return tsData;
+    }
+
+    private double? WetBulbF(IemWeatherRecord r)
+    {
+        if (r.Tmpf is not { } t || r.Relh is not { } rh || r.Mslp is not { } m) return null;
+        if (rh <= 0 || rh > 100) return null; // PsychroLib requires a relative humidity fraction in (0, 1].
+        double pressurePsia = StationPressurePsia(m, _station.Elev);
+        return PsyIp.GetTWetBulbFromRelHum(t, rh / 100.0, pressurePsia);
+    }
+
+    // Reduce mean sea level pressure (hPa) to station pressure using the standard atmosphere, then
+    // convert to psia. mslp from IEM is in millibars/hPa; station elevation is in meters.
+    private static double StationPressurePsia(double mslpHpa, double elevM)
+    {
+        const double exponent = 9.80665 * 0.0289644 / (8.31447 * 0.0065);
+        double stationHpa = mslpHpa * Math.Pow(1 - 0.0065 * elevM / 288.15, exponent);
+        return stationHpa * 0.0145037738; // 1 hPa = 0.0145037738 psia
     }
 
     public async Task<List<TimestampData>> GetTimestampData(List<string> trends)
@@ -170,7 +192,7 @@ public class IemWeatherDataSource : IDataSource
             using HttpClient client = new();
             string url =
                 $"https://mesonet.agron.iastate.edu/cgi-bin/request/asos.py" +
-                $"?data=tmpf&data=dwpf&data=relh" +
+                $"?data=tmpf&data=dwpf&data=relh&data=mslp" +
                 $"&station={Uri.EscapeDataString(stid)}" +
                 $"&report_type=3&report_type=4" + // Only include the routine and special readings, not the high frequency HFMETAR data.
                 $"&tz=UTC" +
@@ -195,17 +217,18 @@ public class IemWeatherDataSource : IDataSource
         string? header = reader.ReadLine();
         if (header is null) return records;
 
-        // Expected header: station,valid,tmpf,dwpf,relh
+        // Expected header: station,valid,tmpf,dwpf,relh,mslp
         string[] headers = header.Split(',');
         int validIdx = Array.IndexOf(headers, "valid");
         int tmpfIdx = Array.IndexOf(headers, "tmpf");
         int dwpfIdx = Array.IndexOf(headers, "dwpf");
         int relhIdx = Array.IndexOf(headers, "relh");
+        int mslpIdx = Array.IndexOf(headers, "mslp");
         if (validIdx < 0) return records;
 
         while (reader.ReadLine() is { } line)
         {
-            if (IemWeatherRecord.TryParse(line, validIdx, tmpfIdx, dwpfIdx, relhIdx, out var rec))
+            if (IemWeatherRecord.TryParse(line, validIdx, tmpfIdx, dwpfIdx, relhIdx, mslpIdx, out var rec))
                 records.Add(rec);
         }
 
@@ -219,21 +242,23 @@ public class IemWeatherRecord
     public double? Tmpf { get; }
     public double? Dwpf { get; }
     public double? Relh { get; }
+    public double? Mslp { get; }
 
-    public IemWeatherRecord(DateTime utc, double? tmpf, double? dwpf, double? relh)
+    public IemWeatherRecord(DateTime utc, double? tmpf, double? dwpf, double? relh, double? mslp)
     {
         Utc = DateTime.SpecifyKind(utc, DateTimeKind.Utc);
         Tmpf = tmpf;
         Dwpf = dwpf;
         Relh = relh;
+        Mslp = mslp;
     }
 
-    public static bool TryParse(string line, int validIdx, int tmpfIdx, int dwpfIdx, int relhIdx,
+    public static bool TryParse(string line, int validIdx, int tmpfIdx, int dwpfIdx, int relhIdx, int mslpIdx,
         [NotNullWhen(true)] out IemWeatherRecord? record)
     {
         record = null;
         string[] fields = line.Split(',');
-        int maxIdx = Math.Max(validIdx, Math.Max(tmpfIdx, Math.Max(dwpfIdx, relhIdx)));
+        int maxIdx = Math.Max(validIdx, Math.Max(tmpfIdx, Math.Max(dwpfIdx, Math.Max(relhIdx, mslpIdx))));
         if (fields.Length <= maxIdx) return false;
 
         if (!DateTime.TryParseExact(fields[validIdx].Trim(), "yyyy-MM-dd HH:mm",
@@ -244,10 +269,11 @@ public class IemWeatherRecord
         double? tmpf = tmpfIdx >= 0 ? ParseVal(fields[tmpfIdx]) : null;
         double? dwpf = dwpfIdx >= 0 ? ParseVal(fields[dwpfIdx]) : null;
         double? relh = relhIdx >= 0 ? ParseVal(fields[relhIdx]) : null;
+        double? mslp = mslpIdx >= 0 ? ParseVal(fields[mslpIdx]) : null;
 
-        if (tmpf is null && dwpf is null && relh is null) return false;
+        if (tmpf is null && dwpf is null && relh is null && mslp is null) return false;
 
-        record = new IemWeatherRecord(ts, tmpf, dwpf, relh);
+        record = new IemWeatherRecord(ts, tmpf, dwpf, relh, mslp);
         return true;
     }
 
