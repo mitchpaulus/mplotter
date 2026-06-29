@@ -750,15 +750,25 @@ public partial class MainWindow : Window
 
         if (clickedConfig.DataSource is IEditableTrendTagSource)
         {
-            MenuItem tagItem = new() { Header = "Edit Tags..." };
-            tagItem.Click += async (_, _) =>
+            MenuItem addTagItem = new() { Header = "Add Tags..." };
+            addTagItem.Click += async (_, _) =>
             {
                 var (configs, skippedCount) = GetEditableTargetsForTagEdit(clickedConfig);
-                List<PlotTrendConfig>? refined = await RefineTargetConfigs(configs, "Edit tags for these trends:");
+                List<PlotTrendConfig>? refined = await RefineTargetConfigs(configs, "Add tags to these trends:");
                 if (refined is null) return;
-                await EditTrendTags(refined, skippedCount);
+                await AddTrendTags(refined, skippedCount);
             };
-            contextMenu.Items.Add(tagItem);
+            contextMenu.Items.Add(addTagItem);
+
+            MenuItem removeTagItem = new() { Header = "Remove Tags..." };
+            removeTagItem.Click += async (_, _) =>
+            {
+                var (configs, skippedCount) = GetEditableTargetsForTagEdit(clickedConfig);
+                List<PlotTrendConfig>? refined = await RefineTargetConfigs(configs, "Remove tags from these trends:");
+                if (refined is null) return;
+                await RemoveTrendTags(refined, skippedCount);
+            };
+            contextMenu.Items.Add(removeTagItem);
         }
 
         if (contextMenu.Items.Count == 0) return;
@@ -819,42 +829,90 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task EditTrendTags(List<PlotTrendConfig> configs, int skippedCount)
+    private async Task AddTrendTags(List<PlotTrendConfig> configs, int skippedCount)
     {
         if (!configs.Any()) return;
         if (configs[0].DataSource is not IEditableTrendTagSource) return;
 
-        List<string> currentTags = GetInitialTagsForEdit(configs);
         string? note = skippedCount > 0
             ? $"{skippedCount} selected trend{(skippedCount == 1 ? "" : "s")} cannot have tags edited and will be ignored."
             : null;
-        TagDialog dialog = new(TagChoices.GetTags(), currentTags, note);
-        dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        dialog.Width = 400;
-        dialog.Height = 600;
+        TagSelectDialog dialog = new(
+            TagChoices.GetTags(),
+            allowCustom: true,
+            "Search a tag and press Enter to add it. Repeat to add several, then click OK.",
+            note)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Width = 400,
+            Height = 600
+        };
 
-        List<string>? selectedTags = await dialog.ShowDialog<List<string>?>(this);
-        if (selectedTags is null) return;
+        List<string>? tagsToAdd = await dialog.ShowDialog<List<string>?>(this);
+        if (tagsToAdd is null || tagsToAdd.Count == 0) return;
+
+        Dictionary<PlotTrendConfig, List<string>> newTags = configs
+            .ToDictionary(config => config, config => MergeTags(config.Trend.Tags, tagsToAdd));
+        await CommitTagChanges(configs, newTags);
+    }
+
+    private async Task RemoveTrendTags(List<PlotTrendConfig> configs, int skippedCount)
+    {
+        if (!configs.Any()) return;
+        if (configs[0].DataSource is not IEditableTrendTagSource) return;
+
+        List<string> existingTags = GetInitialTagsForEdit(configs);
+        if (existingTags.Count == 0)
+        {
+            await ShowMessage("No Tags To Remove", "The selected trends have no tags.");
+            return;
+        }
+
+        string? note = skippedCount > 0
+            ? $"{skippedCount} selected trend{(skippedCount == 1 ? "" : "s")} cannot have tags edited and will be ignored."
+            : null;
+        TagSelectDialog dialog = new(
+            existingTags,
+            allowCustom: false,
+            "Search a tag and press Enter to mark it for removal. Repeat for several, then click OK.",
+            note)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Width = 400,
+            Height = 600
+        };
+
+        List<string>? tagsToRemove = await dialog.ShowDialog<List<string>?>(this);
+        if (tagsToRemove is null || tagsToRemove.Count == 0) return;
+
+        HashSet<string> removeSet = new(tagsToRemove, StringComparer.Ordinal);
+        Dictionary<PlotTrendConfig, List<string>> newTags = configs
+            .ToDictionary(
+                config => config,
+                config => config.Trend.Tags.Where(tag => !removeSet.Contains(tag)).ToList());
+        await CommitTagChanges(configs, newTags);
+    }
+
+    private async Task CommitTagChanges(
+        List<PlotTrendConfig> configs,
+        Dictionary<PlotTrendConfig, List<string>> newTagsByConfig)
+    {
         try
         {
             foreach (IGrouping<(IEditableTrendTagSource Source, string Signature), PlotTrendConfig> saveGroup in configs
                          .Where(config => config.DataSource is IEditableTrendTagSource)
                          .GroupBy(config =>
-                         {
-                             List<string> mergedTags = MergeTags(config.Trend.Tags, selectedTags);
-                             string signature = string.Join("\u001f", mergedTags);
-                             return ((IEditableTrendTagSource)config.DataSource, signature);
-                         }))
+                             ((IEditableTrendTagSource)config.DataSource,
+                              string.Join("\u001f", newTagsByConfig[config]))))
             {
-                List<string> mergedTags = saveGroup.First().Trend.Tags;
-                mergedTags = MergeTags(saveGroup.First().Trend.Tags, selectedTags);
-                IReadOnlyList<string>? tagsToSave = mergedTags.Count == 0 ? null : mergedTags;
+                List<string> tags = newTagsByConfig[saveGroup.First()];
+                IReadOnlyList<string>? tagsToSave = tags.Count == 0 ? null : tags;
                 await saveGroup.Key.Source.SetTags(saveGroup.Select(config => config.Trend), tagsToSave);
             }
 
             foreach (PlotTrendConfig config in configs)
             {
-                config.Trend.Tags = MergeTags(config.Trend.Tags, selectedTags);
+                config.Trend.Tags = newTagsByConfig[config];
             }
 
             await RefreshUiAfterDataSourceUpdate();

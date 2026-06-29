@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="csvplot.TagSelectDialog"
+        Title="Tags">
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   x:Name="PromptTextBlock"
+                   Margin="0,0,0,8"
+                   TextWrapping="Wrap" />
+
+        <TextBlock Grid.Row="1"
+                   x:Name="NoteTextBlock"
+                   Margin="0,0,0,8"
+                   IsVisible="False"
+                   TextWrapping="Wrap" />
+
+        <TextBox Grid.Row="2"
+                 x:Name="SearchTextBox"
+                 Margin="0,0,0,8"
+                 Watermark="Search tags..."
+                 TextChanged="SearchTextBox_OnTextChanged" />
+
+        <ListBox Grid.Row="3"
+                 x:Name="ResultsListBox"
+                 DoubleTapped="ResultsListBox_OnDoubleTapped" />
+
+        <TextBlock Grid.Row="4"
+                   x:Name="ChosenCountTextBlock"
+                   Margin="0,8,0,4" />
+
+        <ScrollViewer Grid.Row="5" MaxHeight="120">
+            <WrapPanel x:Name="ChosenPanel" />
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+            <Button x:Name="OkButton" Content="OK" Click="OkButton_OnClick" />
+            <Button x:Name="CancelButton" Content="Cancel" Click="CancelButton_OnClick" IsCancel="True" />
+        </StackPanel>
+    </Grid>
+</Window>
