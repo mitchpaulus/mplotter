@@ -9,7 +9,7 @@
 ; without a version (0.0.0-dev) produces a "dev" installer.
 ;
 ; The app is published framework-dependent, so the installer checks for the
-; .NET 8 Desktop Runtime and offers to open the download page if it is missing.
+; .NET 10 Desktop Runtime and offers to open the download page if it is missing.
 ;
 ; Installs per-user (%LOCALAPPDATA%\Programs, HKCU) so no administrator rights
 ; are needed. The .NET runtime itself is installed separately by the user.
@@ -28,8 +28,8 @@ SetCompressor /SOLID lzma
 !define APP_EXE "csvplot.exe"
 !define PUBLISHER "Command Commissioning"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_NAME}"
-!define DOTNET_MAJOR "8"
-!define DOTNET_URL "https://dotnet.microsoft.com/download/dotnet/8.0"
+!define DOTNET_MAJOR "10"
+!define DOTNET_URL "https://dotnet.microsoft.com/download/dotnet/10.0"
 
 !getdllversion "${PUBLISH_DIR}\${APP_EXE}" EXEVER_
 !if "${EXEVER_1}.${EXEVER_2}.${EXEVER_3}" == "0.0.0"
@@ -93,7 +93,7 @@ Function CheckDotNetDesktop
     EnumRegValue $2 HKLM "SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App" $1
     StrCmp $2 "" done
     StrLen $4 "${DOTNET_MAJOR}."
-    StrCpy $3 $2 $4 ; major version prefix, e.g. "8."
+    StrCpy $3 $2 $4 ; major version prefix, e.g. "10."
     StrCmp $3 "${DOTNET_MAJOR}." found
     IntOp $1 $1 + 1
     Goto loop

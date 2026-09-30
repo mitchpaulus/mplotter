@@ -10,7 +10,7 @@
 #                   "MPlotter (development)" and the installer is MPlotter-dev-setup.exe.
 #   --skip-publish  Package the existing publish/ folder as-is (version comes from that exe).
 #
-# Requires the .NET 8 SDK and NSIS (makensis) on PATH, or NSIS in its default Windows install location.
+# Requires the .NET 10 SDK and NSIS (makensis) on PATH, or NSIS in its default Windows install location.
 
 def usage ( -- ) "Usage: msh build-installer.msh [--dev] [--skip-publish]" wle end
 
