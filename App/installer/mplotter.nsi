@@ -85,17 +85,22 @@ Function CheckDotNetDesktop
   StrCpy $0 "0"
   StrCpy $1 0
   ${DisableX64FSRedirection}
+  ; The .NET installers write InstalledVersions to the 32-bit registry view (WOW6432Node),
+  ; even for x64 runtimes, so read it there rather than in the 64-bit view set in .onInit.
+  SetRegView 32
   loop:
     ; Shared runtimes live in HKLM\SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App
     EnumRegValue $2 HKLM "SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App" $1
     StrCmp $2 "" done
-    StrCpy $3 $2 2 ; first two chars, e.g. "8."
+    StrLen $4 "${DOTNET_MAJOR}."
+    StrCpy $3 $2 $4 ; major version prefix, e.g. "8."
     StrCmp $3 "${DOTNET_MAJOR}." found
     IntOp $1 $1 + 1
     Goto loop
   found:
     StrCpy $0 "1"
   done:
+  SetRegView 64
   ${EnableX64FSRedirection}
 FunctionEnd
 
