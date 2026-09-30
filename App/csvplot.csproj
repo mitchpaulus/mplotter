@@ -17,16 +17,16 @@
     <AvaloniaResource Include="icon.png" />
     <AvaloniaResource Include="..\assets\influxdb.png" Link="assets/influxdb.png" />
     <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
-    <PackageReference Include="Avalonia" Version="11.3.14" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.14" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.14" />
+    <PackageReference Include="Avalonia" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.22" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.22" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.14" />
-    <PackageReference Include="ClosedXML" Version="0.105.0" />
-    <PackageReference Include="InfluxDB.Client" Version="5.0.0" />
+    <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="Avalonia.Diagnostics" Version="11.3.22" />
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="InfluxDB.Client" Version="5.1.0" />
     <PackageReference Include="PsychroLib" Version="2.5.0" />
     <PackageReference Include="ScottPlot.Avalonia" Version="5.1.58" />
-    <PackageReference Include="SourceGear.sqlite3" Version="3.50.4.5" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.6" />
+    <PackageReference Include="SourceGear.sqlite3" Version="3.53.4" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>
 </Project>
