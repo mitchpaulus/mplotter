@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -109,9 +110,19 @@ public partial class MainWindow : Window
     };
     private List<Button> _singleDayDayButtons = new(31);
 
+    private static string AppTitle()
+    {
+        // Strip the "+<commit sha>" the SDK appends to the informational version.
+        string? version = typeof(MainWindow).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion.Split('+')[0];
+        return version is null or "0.0.0-dev" ? "MPlotter (development)" : $"MPlotter {version}";
+    }
+
     public MainWindow()
     {
         InitializeComponent();
+        Title = AppTitle();
 
         _searchTimer = new Timer(200);
         _searchTimer.AutoReset = false;

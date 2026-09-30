@@ -8,6 +8,8 @@
     <ApplicationIcon>installer/mplotter.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <LangVersion>default</LangVersion>
+    <!-- Release builds override this with -p:Version from the git tag (see build-installer.msh). -->
+    <Version>0.0.0-dev</Version>
   </PropertyGroup>
 
 

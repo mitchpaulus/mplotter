@@ -1,0 +1,78 @@
+#!/usr/bin/env mshell
+# Publishes the app and builds the NSIS installer. Works on Windows, Linux, macOS, and WSL.
+# Usage: msh App/build-installer.msh [--dev] [--skip-publish]
+#
+# The version comes from the git tag (vX.Y.Z) on HEAD, and HEAD must be clean.
+# It is stamped into csvplot.exe by dotnet publish, and the installer reads it back
+# from the exe, so the app, title bar, and installer can never disagree.
+#
+#   --dev           Build from any commit, uncommitted changes allowed. The app shows
+#                   "MPlotter (development)" and the installer is MPlotter-dev-setup.exe.
+#   --skip-publish  Package the existing publish/ folder as-is (version comes from that exe).
+#
+# Requires the .NET 8 SDK and NSIS (makensis) on PATH, or NSIS in its default Windows install location.
+
+def usage ( -- ) "Usage: msh build-installer.msh [--dev] [--skip-publish]" wle end
+
+false dev!
+false skipPublish!
+args each.
+    arg!
+    @arg match
+        '--dev'          : true dev!,
+        '--skip-publish' : true skipPublish!,
+        '-h' '--help'    : usage 0 exit,
+        _                : $"Unknown argument '{@arg}'" wle usage 1 exit,
+    end
+end
+
+['git' 'rev-parse' '--show-toplevel'] * ! chomp toPath `App` / cd
+
+@skipPublish if
+    "Skipping publish, packaging publish/ as-is." wl
+else* @dev *if
+    ['dotnet' 'publish' '-r' 'win-x64' '-o' 'publish' '-c' 'Release' '--no-self-contained']!
+else
+    ['git' 'status' '--porcelain'] * ! chomp dirty!
+    @dirty "" = not if
+        "Working tree has uncommitted changes, commit them or use --dev:" wle
+        @dirty wle
+        1 exit
+    end
+
+    ['git' 'tag' '--points-at' 'HEAD'] * ! lines filter. '^v[0-9]+\.[0-9]+\.[0-9]+$' reMatch end tags!
+    @tags len 0 = if
+        "HEAD has no version tag. Tag it (git tag v1.2.3) or use --dev." wle
+        1 exit
+    end
+    @tags len 1 > if
+        @tags " " join tagList!
+        $"HEAD has more than one version tag: {@tagList}" wle
+        1 exit
+    end
+    @tags :0: tag!
+    @tag 1 skip version!
+    $"Building version {@version} from tag {@tag}" wl
+
+    ['dotnet' 'publish' '-r' 'win-x64' '-o' 'publish' '-c' 'Release' '--no-self-contained' $"-p:Version={@version}"]!
+end
+
+"makensis" isCmd if
+    "makensis"
+else
+    [
+        `C:\Program Files (x86)\NSIS\makensis.exe`
+        `C:\Program Files\NSIS\makensis.exe`
+        `/mnt/c/Program Files (x86)/NSIS/makensis.exe`
+        `/mnt/c/Program Files/NSIS/makensis.exe`
+    ] (fileExists) linearSearch match
+        just p : @p str,
+        none   : "makensis not found. Install NSIS (Windows: winget install NSIS.NSIS, Debian/Ubuntu: apt install nsis, macOS: brew install makensis)" wle 1 exit,
+    end
+end
+makensis!
+
+"installer/out" mkdirp
+[@makensis '-DOUT_DIR=out' 'installer/mplotter.nsi']!
+
+"Installer written to App/installer/out" wl
