@@ -17,6 +17,14 @@ public static class UnitChoices
         "psi",
         "kW",
         "Hz",
+        "CFM",
+        "On/Off",
+        "in. H₂O",
+        "%RH",
+        "kW/ton",
+        "BTU/lb",
+        "ppm",
+        "Δ°F",
     ];
 
     public static IReadOnlyList<string> GetUnits()
